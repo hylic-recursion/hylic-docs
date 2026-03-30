@@ -10,10 +10,10 @@ separately, then plugged in with a single method call.
 > - `FinalizeFn<H, R>` = `Box<dyn Fn(&H) -> R + Send + Sync>`
 >
 > **Fold transforms** (methods on `hylic::fold::Fold`):
-> `map_init`, `map_accumulate`, `map_finalize`, `zipmap`
+> `map_init`, `map_accumulate`, `map_finalize`, `zipmap`, `contramap`, `product`
 >
-> **Graph transforms** (from `hylic::prelude`):
-> `memoize_treeish_by`, `memoize_treeish`
+> **Graph transforms**: `Edgy::filter` (from `hylic::graph`),
+> `memoize_treeish_by` (from `hylic::prelude`)
 
 ```rust
 {{#include ../../../src/cookbook/transformations.rs}}

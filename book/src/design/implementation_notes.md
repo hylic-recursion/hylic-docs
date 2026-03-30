@@ -131,24 +131,22 @@ Adding a new strategy means adding a variant, not changing `Fold`.
 
 ## Parallel execution
 
-Three strategies:
+Two strategies:
 
-- **Sequential** (`cata::sync::run`): Callback-based recursion.
+- **Sequential** (`cata::sync`): Callback-based recursion.
   Zero allocation beyond what the fold itself produces.
-- **ParTraverse** (`cata::par_traverse`): Rayon fan-out at each
-  recursion level. Uses `apply()` to collect children into a `Vec`
-  for `par_iter`. This is the only path that allocates per node.
-- **ParFoldLazy** (`cata::par_fold_lazy`): Builds a tree of `UIO<R>`
-  (lazy memoized computations). Graph traversal happens inside the
-  UIO closures, triggered by `join_par` — making both graph work
-  and fold work parallel. Slightly more overhead than ParTraverse
-  (one `Arc<OnceLock>` per node) but produces a reifiable
-  computation plan.
+- **Par** (`cata::par`): Builds a tree of `UIO<R>` (lazy memoized
+  computations). Each UIO, when evaluated, discovers children,
+  builds their UIOs, evaluates siblings in parallel via `join_par`,
+  accumulates, and finalizes. Graph discovery is fused inside the
+  UIO closures — both graph work and fold work are parallel.
 
-Benchmarks show ParTraverse and ParFoldLazy perform similarly for
-most workloads (within 10-15%), with ParTraverse having less overhead
-for CPU-bound work and ParFoldLazy being equivalent for I/O-bound
-graph discovery.
+`Par` is also a composed type (`cata::Par<N, H, R>`) with member
+transforms: `map_fold` transforms the fold before UIO construction,
+`map_plan_transform` wraps the UIO plan before evaluation.
+`Par::build()` returns the `UIO<R>` plan without evaluating —
+an intervention point for inspection or post-processing via
+`UIO::map`. `Strategy::Par` delegates to `Par::new(fold).run()`.
 
 ## The `prelude` module
 

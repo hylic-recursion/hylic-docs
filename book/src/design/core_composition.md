@@ -16,7 +16,7 @@ digraph {
 
     Fold    [label="Fold<N, H, R>\ninit / accumulate / finalize"];
     Treeish [label="Treeish<N>\ngiven a node, visit children"];
-    Strategy [label="Strategy\nSequential / ParTraverse / ParFoldLazy"];
+    Strategy [label="Strategy\nSequential / Par"];
     Result  [label="Result R"];
 
     Fold -> Strategy [label="algebra"];
