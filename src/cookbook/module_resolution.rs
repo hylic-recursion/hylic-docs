@@ -10,6 +10,7 @@ mod tests {
     use hylic::graph::edgy;
     use hylic::ana::SeedGraph;
     use hylic::hylo::GraphWithFold;
+    use hylic::prelude::seeds_for_fallible;
     use hylic::cata::Exec;
     use insta::assert_snapshot;
 
@@ -57,14 +58,17 @@ mod tests {
             // "ghost" is not in the registry — will produce an error
         ]);
 
-        // SeedGraph solves the "entry point differs from recursion" pattern:
-        // 1. seeds_from_valid: resolved module → dependency names (the recursive part)
-        // 2. grow_node: dependency name → Either<Error, Module> (the lookup)
-        // 3. seeds_from_top: top-level spec → initial names (the entry point)
-        // From these three, hylic constructs a Treeish<Either<Error, Module>>.
-        // Errors are Left nodes — they automatically have no children (no seeds).
-        let seed_graph = SeedGraph::new(
+        // SeedGraph is a general anamorphism — three functions:
+        // 1. seeds_from_node: a node's dependency names
+        // 2. grow: dependency name → Either<Error, Module>
+        // 3. seeds_from_top: entry point → initial names
+        // seeds_for_fallible lifts Edgy<Module, String> to Edgy<Either<..>, String>:
+        // valid modules produce seeds, errors produce none.
+        let seeds_from_node = seeds_for_fallible(
             edgy(move |module: &Module| module.deps.clone()),
+        );
+        let seed_graph = SeedGraph::new(
+            seeds_from_node,
             {
                 let reg = registry;
                 move |dep_name: &String| -> Either<ResolveError, Module> {
