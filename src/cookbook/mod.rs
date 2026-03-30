@@ -6,4 +6,3 @@ pub mod config_inheritance;
 pub mod parallel_execution;
 pub mod transformations;
 pub mod module_resolution;
-pub mod graph_transformations;

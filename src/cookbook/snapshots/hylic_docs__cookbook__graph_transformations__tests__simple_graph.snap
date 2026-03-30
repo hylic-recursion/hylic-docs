@@ -1,5 +1,0 @@
----
-source: hylic-docs/src/cookbook/graph_transformations.rs
-expression: "format!(\"total={result}, critical={longest}\")"
----
-total=800, critical=300

@@ -1,5 +1,0 @@
----
-source: hylic-docs/src/cookbook/graph_transformations.rs
-expression: "format!(\"total={result}, graph_calls={calls_no_cache} (stdlib visited twice)\")"
----
-total=490, graph_calls=5 (stdlib visited twice)

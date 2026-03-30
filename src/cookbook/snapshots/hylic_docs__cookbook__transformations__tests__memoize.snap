@@ -1,0 +1,5 @@
+---
+source: hylic-docs/src/cookbook/transformations.rs
+expression: "format!(\"raw: total={total} visits={calls_raw}, memo: total={total_memo} visits={calls_memo}\")"
+---
+raw: total=490 visits=5, memo: total=490 visits=4

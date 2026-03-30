@@ -1,5 +1,0 @@
----
-source: hylic-docs/src/cookbook/graph_transformations.rs
-expression: "format!(\"total={result}, slow=[{}]\", slow.join(\", \"))"
----
-total=800, slow=[typecheck: 300ms, compile: 600ms, app: 800ms]

@@ -1,5 +1,0 @@
----
-source: hylic-docs/src/cookbook/graph_transformations.rs
-expression: "format!(\"total={result}\")"
----
-total=800

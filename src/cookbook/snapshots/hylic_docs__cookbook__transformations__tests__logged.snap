@@ -1,5 +1,0 @@
----
-source: hylic-docs/src/cookbook/transformations.rs
-expression: "format!(\"sum = {result}, visited: {}\", visited.join(\" → \"))"
----
-sum = 10, visited: root → a → a1 → b
