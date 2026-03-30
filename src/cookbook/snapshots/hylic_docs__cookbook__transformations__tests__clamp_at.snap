@@ -1,0 +1,5 @@
+---
+source: hylic-docs/src/cookbook/transformations.rs
+expression: "format!(\"total={total} (clamped at 500)\")"
+---
+total=500 (clamped at 500)

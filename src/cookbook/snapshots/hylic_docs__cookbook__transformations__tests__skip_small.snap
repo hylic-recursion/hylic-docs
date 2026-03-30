@@ -1,0 +1,5 @@
+---
+source: hylic-docs/src/cookbook/transformations.rs
+expression: "format!(\"total={total} (small children skipped)\")"
+---
+total=550 (small children skipped)

@@ -2,4 +2,4 @@
 source: hylic-docs/src/cookbook/transformations.rs
 expression: "format!(\"total={total} [{category}], visited: {}\", names.join(\" → \"))"
 ---
-total=800 [critical], visited: app → compile → parse → typecheck → link
+total=500 [critical], visited: app → compile → parse → typecheck → link

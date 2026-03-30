@@ -1,5 +1,0 @@
----
-source: hylic-docs/src/cookbook/transformations.rs
-expression: "format!(\"capped total = {total}\")"
----
-capped total = 500

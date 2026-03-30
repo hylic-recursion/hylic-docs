@@ -1,0 +1,5 @@
+---
+source: hylic-docs/src/cookbook/transformations.rs
+expression: "format!(\"total={total} (deps with cost < 150 pruned)\")"
+---
+total=700 (deps with cost < 150 pruned)

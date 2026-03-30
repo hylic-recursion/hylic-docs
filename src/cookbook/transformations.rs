@@ -1,17 +1,20 @@
-//! Fold and graph transformations: wrapping, layering, composing.
+//! Transformations: features as standalone functions that match the contract.
 //!
-//! All examples share one domain, one graph, one base fold.
-//! Each transformation wraps an existing piece — the base is never modified.
+//! One domain, one base fold, one base graph. Each feature is a named
+//! function — it IS the concern, separated and reusable. Plugging it
+//! in is a single method call on the existing construct.
 
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
-    use hylic::fold::simple_fold;
+    use hylic::fold::{simple_fold, InitFn, AccumulateFn, FinalizeFn};
     use hylic::graph::{treeish, Treeish};
     use hylic::prelude::memoize_treeish_by;
     use hylic::cata::Sequential;
     use insta::assert_snapshot;
+
+    // ---- Shared domain ----
 
     // ANCHOR: domain
     #[derive(Clone, Debug)]
@@ -58,156 +61,184 @@ mod tests {
         (graph, root)
     }
 
-    // ---- 1. The base: a fold that sums costs ----
-
-    // ANCHOR: base
-    #[test]
-    fn base_fold() {
-        let reg = test_registry();
-        let (graph, root) = test_graph(&reg);
-
-        // The base fold: sum all task costs bottom-up.
-        let sum_cost = simple_fold(
+    fn base_fold() -> hylic::fold::Fold<Task, u64, u64> {
+        simple_fold(
             |t: &Task| t.cost_ms,
             |heap: &mut u64, child: &u64| *heap += child,
-        );
-
-        let total = Sequential.run(&sum_cost, &graph, &root);
-        assert_eq!(total, 800);
-    // ANCHOR_END: base
-        assert_snapshot!("base", format!("total = {total}"));
+        )
     }
 
-    // ---- 2. map_init: wrap init to add visit logging ----
+    // ==== FOLD PHASE WRAPPERS ====
+    //
+    // Each feature is a function returning a closure that matches
+    // the transformation contract. The function IS the feature.
 
-    // ANCHOR: map_init
+    // ---- map_init: visit_logger ----
+
+    // ANCHOR: visit_logger
+    /// Feature: log each node as it's visited.
+    /// Contract: FnOnce(InitFn<Task, u64>) -> InitFn<Task, u64>
+    fn visit_logger(
+        sink: Arc<Mutex<Vec<String>>>,
+    ) -> impl FnOnce(InitFn<Task, u64>) -> InitFn<Task, u64> {
+        let log = sink;
+        move |orig: InitFn<Task, u64>| -> InitFn<Task, u64> {
+            Box::new(move |task: &Task| {
+                log.lock().unwrap().push(task.name.clone());
+                orig(task)
+            })
+        }
+    }
+
     #[test]
-    fn wrap_with_logging() {
+    fn test_visit_logger() {
         let reg = test_registry();
         let (graph, root) = test_graph(&reg);
 
-        let sum_cost = simple_fold(
-            |t: &Task| t.cost_ms,
-            |heap: &mut u64, child: &u64| *heap += child,
-        );
-
-        // Wrap init: log each node as it's visited.
-        // sum_cost is unchanged — logged_sum is a new fold.
         let visited = Arc::new(Mutex::new(Vec::new()));
-        let log = visited.clone();
-        let logged_sum = sum_cost.map_init(move |orig_init| {
-            Box::new(move |task: &Task| {
-                log.lock().unwrap().push(task.name.clone());
-                orig_init(task)
-            })
-        });
+        let fold = base_fold().map_init(visit_logger(visited.clone()));
 
-        let total = Sequential.run(&logged_sum, &graph, &root);
+        let total = Sequential.run(&fold, &graph, &root);
         let names: Vec<String> = visited.lock().unwrap().clone();
-    // ANCHOR_END: map_init
+    // ANCHOR_END: visit_logger
         assert_eq!(total, 800);
-        assert_snapshot!("map_init", format!(
-            "total = {total}, visited: {}", names.join(" → ")
+        assert_snapshot!("visit_logger", format!(
+            "total={total}, visited: {}", names.join(" → ")
         ));
     }
 
-    // ---- 3. map_finalize: post-process each node's result ----
+    // ---- map_accumulate: skip_small_children ----
 
-    // ANCHOR: map_finalize
+    // ANCHOR: skip_small
+    /// Feature: during accumulation, ignore children below a threshold.
+    /// Contract: FnOnce(AccumulateFn<u64, u64>) -> AccumulateFn<u64, u64>
+    fn skip_small_children(
+        threshold: u64,
+    ) -> impl FnOnce(AccumulateFn<u64, u64>) -> AccumulateFn<u64, u64> {
+        move |orig: AccumulateFn<u64, u64>| -> AccumulateFn<u64, u64> {
+            Box::new(move |heap: &mut u64, child: &u64| {
+                if *child >= threshold {
+                    orig(heap, child);
+                }
+            })
+        }
+    }
+
     #[test]
-    fn clamp_results() {
+    fn test_skip_small_children() {
         let reg = test_registry();
         let (graph, root) = test_graph(&reg);
 
-        let sum_cost = simple_fold(
-            |t: &Task| t.cost_ms,
-            |heap: &mut u64, child: &u64| *heap += child,
-        );
+        // Only accumulate children whose subtree cost >= 200.
+        let fold = base_fold().map_accumulate(skip_small_children(200));
 
-        // Wrap finalize: cap each subtree's total at 500ms.
-        // Children still accumulate normally — the cap applies
-        // after finalize, so it affects the result seen by parents.
-        let capped = sum_cost.map_finalize(move |orig_finalize| {
-            Box::new(move |heap: &u64| {
-                let result = orig_finalize(heap);
-                result.min(500)
-            })
-        });
+        let total = Sequential.run(&fold, &graph, &root);
+        // app(50): children are compile(600) and link(150).
+        // link(150) < 200, skipped. compile(600) >= 200, kept.
+        // compile(200): children are parse(100) and typecheck(300).
+        // parse(100) < 200, skipped. typecheck(300) >= 200, kept.
+        // Result: app=50 + compile(200+typecheck=300) = 50+500 = 550
+    // ANCHOR_END: skip_small
+        assert_eq!(total, 550);
+        assert_snapshot!("skip_small", format!("total={total} (small children skipped)"));
+    }
 
-        let total = Sequential.run(&capped, &graph, &root);
+    // ---- map_finalize: clamp_at ----
+
+    // ANCHOR: clamp_at
+    /// Feature: cap each subtree's result at a maximum.
+    /// Contract: FnOnce(FinalizeFn<u64, u64>) -> FinalizeFn<u64, u64>
+    fn clamp_at(
+        max: u64,
+    ) -> impl FnOnce(FinalizeFn<u64, u64>) -> FinalizeFn<u64, u64> {
+        move |orig: FinalizeFn<u64, u64>| -> FinalizeFn<u64, u64> {
+            Box::new(move |heap: &u64| orig(heap).min(max))
+        }
+    }
+
+    #[test]
+    fn test_clamp_at() {
+        let reg = test_registry();
+        let (graph, root) = test_graph(&reg);
+
+        let fold = base_fold().map_finalize(clamp_at(500));
+
+        let total = Sequential.run(&fold, &graph, &root);
         // compile subtree: min(200+100+300, 500) = 500
         // link: min(150, 500) = 150
         // app: min(50+500+150, 500) = 500
+    // ANCHOR_END: clamp_at
         assert_eq!(total, 500);
-    // ANCHOR_END: map_finalize
-        assert_snapshot!("map_finalize", format!("capped total = {total}"));
+        assert_snapshot!("clamp_at", format!("total={total} (clamped at 500)"));
     }
 
-    // ---- 4. zipmap: augment result with per-node annotation ----
+    // ==== FOLD RESULT AUGMENTATION ====
 
-    // ANCHOR: zipmap
+    // ---- zipmap: classify ----
+
+    // ANCHOR: classify
+    /// Feature: categorize each subtree's total cost.
+    /// Contract: Fn(&u64) -> &str  (zipmap contract)
+    fn classify(total: &u64) -> &'static str {
+        match *total {
+            t if t >= 500 => "critical",
+            t if t >= 200 => "heavy",
+            _ => "light",
+        }
+    }
+
     #[test]
-    fn classify_subtrees() {
+    fn test_classify() {
         let reg = test_registry();
         let (graph, root) = test_graph(&reg);
 
-        let sum_cost = simple_fold(
-            |t: &Task| t.cost_ms,
-            |heap: &mut u64, child: &u64| *heap += child,
-        );
+        let fold = base_fold().zipmap(classify);
 
-        // zipmap: derive a classification from each subtree's sum.
-        // The accumulation is still sum — zipmap post-processes per node.
-        let classified = sum_cost.zipmap(|total: &u64| {
-            match *total {
-                t if t >= 500 => "critical",
-                t if t >= 200 => "heavy",
-                _ => "light",
-            }
-        });
-
-        let (total, category) = Sequential.run(&classified, &graph, &root);
+        let (total, category) = Sequential.run(&fold, &graph, &root);
+    // ANCHOR_END: classify
         assert_eq!(total, 800);
         assert_eq!(category, "critical");
-    // ANCHOR_END: zipmap
-        assert_snapshot!("zipmap", format!(
-            "total = {total}, root category = {category}"
-        ));
+        assert_snapshot!("classify", format!("total={total}, category={category}"));
     }
 
-    // ---- 5. map: change the result type entirely ----
+    // ==== GRAPH TRANSFORMATIONS ====
 
-    // ANCHOR: map_result
+    // ---- filter edges: only_costly_deps ----
+
+    // ANCHOR: only_costly
+    /// Feature: filter a graph's children to only those above a cost threshold.
+    /// Takes a Treeish, returns a Treeish — same node type, fewer edges.
+    fn only_costly_deps(graph: &Treeish<Task>, min_cost: u64) -> Treeish<Task> {
+        let inner = graph.clone();
+        treeish(move |task: &Task| {
+            inner.at(task)
+                .filter(|child: &Task| child.cost_ms >= min_cost)
+                .collect_vec()
+        })
+    }
+
     #[test]
-    fn change_result_type() {
+    fn test_only_costly_deps() {
         let reg = test_registry();
         let (graph, root) = test_graph(&reg);
 
-        let sum_cost = simple_fold(
-            |t: &Task| t.cost_ms,
-            |heap: &mut u64, child: &u64| *heap += child,
-        );
+        // Only traverse deps with cost >= 150.
+        // Drops parse(100) from compile's deps.
+        let filtered = only_costly_deps(&graph, 150);
 
-        // map: transform u64 → String.
-        // The backmapper lets children's String results flow back
-        // through the original u64 accumulator.
-        let as_report = sum_cost.map(
-            |total: &u64| format!("{}ms", total),
-            |s: &String| s.trim_end_matches("ms").parse::<u64>().unwrap(),
-        );
-
-        let report = Sequential.run(&as_report, &graph, &root);
-        assert_eq!(report, "800ms");
-    // ANCHOR_END: map_result
-        assert_snapshot!("map_result", format!("report = {report}"));
+        let total = Sequential.run(&base_fold(), &filtered, &root);
+        // app(50) + compile(200) + typecheck(300) + link(150) = 700
+        // parse(100) excluded from traversal entirely
+    // ANCHOR_END: only_costly
+        assert_eq!(total, 700);
+        assert_snapshot!("only_costly", format!("total={total} (deps with cost < 150 pruned)"));
     }
 
-    // ---- 6. Graph: memoize for diamond dependencies ----
+    // ---- memoize: cache diamond dependencies ----
 
     // ANCHOR: memoize
     #[test]
-    fn memoize_diamond() {
-        // Diamond: compile and link both depend on stdlib.
+    fn test_memoize_diamond() {
         let reg = Registry::new(&[
             ("app",     10, &["compile", "link"]),
             ("compile", 50, &["stdlib"]),
@@ -217,7 +248,6 @@ mod tests {
 
         let visit_count = Arc::new(Mutex::new(0u32));
         let vc = visit_count.clone();
-
         let map = reg.0.clone();
         let graph = treeish(move |task: &Task| {
             *vc.lock().unwrap() += 1;
@@ -225,65 +255,47 @@ mod tests {
                 .filter_map(|d| map.get(d).cloned())
                 .collect()
         });
-
         let root = reg.get("app").unwrap().clone();
 
-        let sum_cost = simple_fold(
-            |t: &Task| t.cost_ms,
-            |heap: &mut u64, child: &u64| *heap += child,
-        );
+        // Raw: stdlib visited twice.
+        let total = Sequential.run(&base_fold(), &graph, &root);
+        let raw_visits = *visit_count.lock().unwrap();
 
-        // Without memoization: stdlib visited twice.
-        let total = Sequential.run(&sum_cost, &graph, &root);
-        let calls_raw = *visit_count.lock().unwrap();
-
-        // Wrap the graph — same node type, same fold, just cached.
+        // memoize_treeish_by: same fold, cached graph.
         *visit_count.lock().unwrap() = 0;
-        let memo_graph = memoize_treeish_by(&graph, |t: &Task| t.name.clone());
-        let total_memo = Sequential.run(&sum_cost, &memo_graph, &root);
-        let calls_memo = *visit_count.lock().unwrap();
+        let cached = memoize_treeish_by(&graph, |t: &Task| t.name.clone());
+        let total_memo = Sequential.run(&base_fold(), &cached, &root);
+        let memo_visits = *visit_count.lock().unwrap();
     // ANCHOR_END: memoize
-
-        assert_eq!(total, 490); // stdlib counted twice: 200+200
-        assert_eq!(calls_raw, 5); // app, compile, stdlib, link, stdlib
+        assert_eq!(total, 490);
+        assert_eq!(raw_visits, 5);
         assert_eq!(total_memo, 490);
-        assert_eq!(calls_memo, 4); // stdlib cached on second visit
-
+        assert_eq!(memo_visits, 4);
         assert_snapshot!("memoize", format!(
-            "raw: total={total} visits={calls_raw}, memo: total={total_memo} visits={calls_memo}"
+            "raw: total={total} visits={raw_visits}, memo: total={total_memo} visits={memo_visits}"
         ));
     }
 
-    // ---- 7. Composition: stack multiple fold transforms ----
+    // ==== COMPOSITION ====
 
     // ANCHOR: composed
     #[test]
-    fn stacked_transforms() {
+    fn test_composed_pipeline() {
         let reg = test_registry();
         let (graph, root) = test_graph(&reg);
 
-        let sum_cost = simple_fold(
-            |t: &Task| t.cost_ms,
-            |heap: &mut u64, child: &u64| *heap += child,
-        );
-
-        // Stack: log visits, then classify the result.
-        // Each transform wraps the previous — no rewriting.
+        // Three independent features, each a standalone function:
         let visited = Arc::new(Mutex::new(Vec::new()));
-        let log = visited.clone();
-        let pipeline = sum_cost
-            .map_init(move |orig| {
-                Box::new(move |t: &Task| {
-                    log.lock().unwrap().push(t.name.clone());
-                    orig(t)
-                })
-            })
-            .zipmap(|total: &u64| if *total >= 500 { "critical" } else { "ok" });
+
+        let pipeline = base_fold()
+            .map_init(visit_logger(visited.clone()))
+            .map_finalize(clamp_at(500))
+            .zipmap(classify);
 
         let (total, category) = Sequential.run(&pipeline, &graph, &root);
         let names: Vec<String> = visited.lock().unwrap().clone();
     // ANCHOR_END: composed
-        assert_eq!(total, 800);
+        assert_eq!(total, 500);
         assert_eq!(category, "critical");
         assert_snapshot!("composed", format!(
             "total={total} [{category}], visited: {}", names.join(" → ")

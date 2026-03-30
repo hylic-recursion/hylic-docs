@@ -1,93 +1,100 @@
 # Transformations
 
-All examples share one domain, one graph, one base fold.
-Each transformation wraps an existing piece — the base is never modified.
+Features as standalone functions that match the transformation contract.
+One domain, one base fold, one base graph. Each feature is defined
+separately, then plugged in with a single method call.
 
-## Domain
+## Domain and base
 
 ```rust
 {{#include ../../../src/cookbook/transformations.rs:domain}}
 ```
 
-## The base fold
+## Fold phase wrappers
 
-Sum all task costs bottom-up. This is the starting point for every
-transformation below:
+### map_init: visit_logger
+
+A function returning an init wrapper. It IS the logging feature —
+defined once, plugged into any fold:
 
 ```rust
-{{#include ../../../src/cookbook/transformations.rs:base}}
+{{#include ../../../src/cookbook/transformations.rs:visit_logger}}
 ```
 
 Output:
 
 ```
-{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__transformations__tests__base.snap:5:}}
+{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__transformations__tests__visit_logger.snap:5:}}
 ```
 
-## map_init: wrap init to add logging
+### map_accumulate: skip_small_children
 
-The base fold is untouched — `logged_sum` is a new fold that logs
-each node as it's visited, then delegates to the original init:
+An accumulate wrapper that filters during folding — children below
+a threshold are not accumulated:
 
 ```rust
-{{#include ../../../src/cookbook/transformations.rs:map_init}}
+{{#include ../../../src/cookbook/transformations.rs:skip_small}}
 ```
 
 Output:
 
 ```
-{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__transformations__tests__map_init.snap:5:}}
+{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__transformations__tests__skip_small.snap:5:}}
 ```
 
-## map_finalize: post-process each result
+### map_finalize: clamp_at
 
-Cap each subtree's total at 500ms. Children accumulate normally —
-the cap applies after finalize, so parents see the clamped value:
+A finalize wrapper that caps each subtree's result. Parents see
+the clamped value:
 
 ```rust
-{{#include ../../../src/cookbook/transformations.rs:map_finalize}}
+{{#include ../../../src/cookbook/transformations.rs:clamp_at}}
 ```
 
 Output:
 
 ```
-{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__transformations__tests__map_finalize.snap:5:}}
+{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__transformations__tests__clamp_at.snap:5:}}
 ```
 
-## zipmap: per-node annotation
+## Fold result augmentation
 
-Derive a classification from each subtree's sum. The accumulation
-is still sum — zipmap post-processes per node, producing (R, Extra):
+### zipmap: classify
+
+A plain function matching the zipmap contract (`Fn(&R) -> RZip`).
+Each subtree's result is paired with a category:
 
 ```rust
-{{#include ../../../src/cookbook/transformations.rs:zipmap}}
+{{#include ../../../src/cookbook/transformations.rs:classify}}
 ```
 
 Output:
 
 ```
-{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__transformations__tests__zipmap.snap:5:}}
+{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__transformations__tests__classify.snap:5:}}
 ```
 
-## map: change the result type
+## Graph transformations
 
-Transform u64 → String. The backmapper lets children's String results
-flow back through the original u64 accumulator:
+### Edge filtering: only_costly_deps
+
+A graph transformation that prunes edges. Takes a Treeish, returns
+a Treeish — same node type, fewer children:
 
 ```rust
-{{#include ../../../src/cookbook/transformations.rs:map_result}}
+{{#include ../../../src/cookbook/transformations.rs:only_costly}}
 ```
 
 Output:
 
 ```
-{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__transformations__tests__map_result.snap:5:}}
+{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__transformations__tests__only_costly.snap:5:}}
 ```
 
-## Graph: memoize diamond dependencies
+### Memoization: cache diamond dependencies
 
-Same fold, wrap the graph. `memoize_treeish_by` caches children by
-a key function — on repeat visits, the graph function is skipped:
+Same fold, wrapped graph. On repeat visits, cached children are
+returned without calling the graph function:
 
 ```rust
 {{#include ../../../src/cookbook/transformations.rs:memoize}}
@@ -99,10 +106,10 @@ Output:
 {{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__transformations__tests__memoize.snap:5:}}
 ```
 
-## Composition: stack transforms
+## Composition
 
-Transforms compose by chaining. Each wraps the previous —
-no rewriting, no touching the base:
+Three independent features chained on one base fold. Each wraps
+the previous — no rewriting, concerns stay separated:
 
 ```rust
 {{#include ../../../src/cookbook/transformations.rs:composed}}
