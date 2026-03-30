@@ -8,8 +8,8 @@ mod tests {
     use either::Either;
     use hylic::fold::simple_fold;
     use hylic::graph::edgy;
-    use hylic::ana::SeedGraph;
-    use hylic::hylo::GraphWithFold;
+    use hylic::graph::SeedGraph;
+    use hylic::pipeline::GraphWithFold;
     use hylic::prelude::seeds_for_fallible;
     use hylic::cata::Exec;
     use insta::assert_snapshot;
