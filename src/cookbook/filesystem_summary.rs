@@ -7,6 +7,9 @@ mod tests {
     use hylic::cata::Strategy;
     use insta::assert_snapshot;
 
+    // ANCHOR: filesystem_summary
+
+    /// A filesystem entry: either a file (leaf) or a directory (branch).
     #[derive(Clone)]
     enum FsEntry {
         File { name: String, size: u64 },
@@ -14,16 +17,24 @@ mod tests {
     }
 
     impl FsEntry {
-        fn file(name: &str, size: u64) -> Self { FsEntry::File { name: name.into(), size } }
-        fn dir(name: &str, ch: Vec<FsEntry>) -> Self { FsEntry::Dir { name: name.into(), children: ch } }
+        fn file(name: &str, size: u64) -> Self {
+            FsEntry::File { name: name.into(), size }
+        }
+        fn dir(name: &str, ch: Vec<FsEntry>) -> Self {
+            FsEntry::Dir { name: name.into(), children: ch }
+        }
     }
 
+    /// Accumulates size, file count, and directory count in one pass.
     #[derive(Clone, Debug, PartialEq)]
-    struct Summary { total_size: u64, file_count: usize, dir_count: usize }
+    struct Summary {
+        total_size: u64,
+        file_count: usize,
+        dir_count: usize,
+    }
 
     #[test]
     fn summarize_filesystem() {
-        // ANCHOR: filesystem_summary
         let tree = FsEntry::dir("project", vec![
             FsEntry::file("README.md", 1200),
             FsEntry::dir("src", vec![
@@ -36,16 +47,20 @@ mod tests {
             FsEntry::file("Cargo.toml", 400),
         ]);
 
+        // Tree structure: directories have children, files don't.
         let graph = treeish_visit(|entry: &FsEntry, cb: &mut dyn FnMut(&FsEntry)| {
             if let FsEntry::Dir { children, .. } = entry {
                 for child in children { cb(child); }
             }
         });
 
+        // Fold: each node initializes its own metric, children accumulate.
         let summarize = simple_fold(
             |entry: &FsEntry| match entry {
-                FsEntry::File { size, .. } => Summary { total_size: *size, file_count: 1, dir_count: 0 },
-                FsEntry::Dir { .. } => Summary { total_size: 0, file_count: 0, dir_count: 1 },
+                FsEntry::File { size, .. } =>
+                    Summary { total_size: *size, file_count: 1, dir_count: 0 },
+                FsEntry::Dir { .. } =>
+                    Summary { total_size: 0, file_count: 0, dir_count: 1 },
             },
             |heap: &mut Summary, child: &Summary| {
                 heap.total_size += child.total_size;
@@ -55,14 +70,14 @@ mod tests {
         );
 
         let result = Strategy::Sequential.run(&summarize, &graph, &tree);
-        // ANCHOR_END: filesystem_summary
+        assert_eq!(result, Summary {
+            total_size: 10400, file_count: 5, dir_count: 3,
+        });
 
-        assert_eq!(result, Summary { total_size: 10400, file_count: 5, dir_count: 3 });
+        // ANCHOR_END: filesystem_summary
         assert_snapshot!("fs_summary", format!(
-            "project/: {total_size} bytes, {file_count} files, {dir_count} dirs",
-            total_size = result.total_size,
-            file_count = result.file_count,
-            dir_count = result.dir_count,
+            "project/: {} bytes, {} files, {} dirs",
+            result.total_size, result.file_count, result.dir_count,
         ));
     }
 }

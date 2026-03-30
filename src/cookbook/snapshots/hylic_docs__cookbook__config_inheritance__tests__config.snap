@@ -1,0 +1,5 @@
+---
+source: hylic-docs/src/cookbook/config_inheritance.rs
+expression: "display.join(\", \")"
+---
+color=blue, debug=false, font_size=12, rate_limit=1000, theme=light

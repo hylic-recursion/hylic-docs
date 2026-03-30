@@ -1,0 +1,5 @@
+---
+source: hylic-docs/src/cookbook/cycle_detection.rs
+expression: "format!(\"cycles: {:?}, visited: {}\", result.cycles, result.visited)"
+---
+cycles: ["A"], visited: 6

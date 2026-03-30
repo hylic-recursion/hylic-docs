@@ -1,0 +1,5 @@
+---
+source: hylic-docs/src/cookbook/module_resolution.rs
+expression: "format!(\"resolved: [{}], errors: [{}]\", result.modules.join(\", \"),\nresult.errors.join(\", \"),)"
+---
+resolved: [app, logging, utils, config, utils], errors: [not found: ghost]

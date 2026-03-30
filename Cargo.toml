@@ -5,4 +5,5 @@ edition = "2024"
 
 [dependencies]
 hylic = { path = "../hylic" }
+either = "1.15.0"
 insta = { version = "1.42", features = ["glob"] }

@@ -1,0 +1,5 @@
+---
+source: hylic-docs/src/cookbook/transformations.rs
+expression: "format!(\"total = {total}, category = {category}\")"
+---
+total = 48, category = critical
