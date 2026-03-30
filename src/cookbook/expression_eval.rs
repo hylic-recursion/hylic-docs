@@ -47,6 +47,6 @@ mod tests {
         // ANCHOR_END: expression_eval
 
         assert_eq!(result, -14.0);
-        assert_snapshot!("expression_eval_result", format!("(3 + 4) * -(2) = {result}"));
+        assert_snapshot!("expr_eval", format!("(3 + 4) * -(2) = {result}"));
     }
 }

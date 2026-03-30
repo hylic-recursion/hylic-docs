@@ -12,5 +12,5 @@ Intentionally naive — demonstrates the mechanics, not performance.
 Output:
 
 ```
-{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__fibonacci__tests__fibonacci_result.snap:5:}}
+{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__fibonacci__tests__fib10.snap:5:}}
 ```

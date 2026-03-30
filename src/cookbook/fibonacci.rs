@@ -27,6 +27,6 @@ mod tests {
         // ANCHOR_END: fibonacci
 
         assert_eq!(result, 55);
-        assert_snapshot!("fibonacci_result", format!("fib(10) = {result}"));
+        assert_snapshot!("fib10", format!("fib(10) = {result}"));
     }
 }

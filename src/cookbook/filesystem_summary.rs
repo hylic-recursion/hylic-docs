@@ -58,7 +58,7 @@ mod tests {
         // ANCHOR_END: filesystem_summary
 
         assert_eq!(result, Summary { total_size: 10400, file_count: 5, dir_count: 3 });
-        assert_snapshot!("filesystem_summary_result", format!(
+        assert_snapshot!("fs_summary", format!(
             "project/: {total_size} bytes, {file_count} files, {dir_count} dirs",
             total_size = result.total_size,
             file_count = result.file_count,

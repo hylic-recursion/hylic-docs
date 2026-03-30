@@ -1,5 +1,5 @@
 ---
-source: src/cookbook/filesystem_summary.rs
+source: hylic-docs/src/cookbook/filesystem_summary.rs
 expression: "format!(\"project/: {total_size} bytes, {file_count} files, {dir_count} dirs\",\ntotal_size = result.total_size, file_count = result.file_count, dir_count =\nresult.dir_count,)"
 ---
 project/: 10400 bytes, 5 files, 3 dirs

@@ -1,5 +1,5 @@
 ---
-source: src/cookbook/fibonacci.rs
+source: hylic-docs/src/cookbook/fibonacci.rs
 expression: "format!(\"fib(10) = {result}\")"
 ---
 fib(10) = 55
