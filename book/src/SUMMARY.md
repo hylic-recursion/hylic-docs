@@ -13,6 +13,8 @@
 - [Transformations](./cookbook/transformations.md)
 - [Module resolution](./cookbook/module_resolution.md)
 
-# Design
+# How it works
 
+- [Core composition](./design/core_composition.md)
+- [The two-function problem](./design/two_function_problem.md)
 - [Implementation notes](./design/implementation_notes.md)
