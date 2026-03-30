@@ -33,7 +33,7 @@ As the algorithm grows, concerns tangle:
 
 ## How hylic decomposes it
 
-```dot
+```dot process
 digraph {
     rankdir=LR;
     node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=11];

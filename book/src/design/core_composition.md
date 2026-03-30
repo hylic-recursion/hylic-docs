@@ -6,7 +6,7 @@ how they compose.
 
 ## The pieces
 
-```dot
+```dot process
 digraph {
     rankdir=LR;
     node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=11];
@@ -41,7 +41,7 @@ fan out sibling subtrees via rayon.
 Because Fold is data (three closures behind Arc), you transform it
 rather than rewrite it:
 
-```dot
+```dot process
 digraph {
     rankdir=LR;
     node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=11];
@@ -69,7 +69,7 @@ touching either.
 
 ## The layers
 
-```dot
+```dot process
 digraph {
     rankdir=LR;
     node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=11];
@@ -77,7 +77,7 @@ digraph {
 
     uio     [label="uio\nlazy memoized computation"];
     utils   [label="utils\nstring helpers"];
-    graph   [label="graph\nEdgy, Treeish, Graph, Visit"];
+    graph_  [label="graph\nEdgy, Treeish, Graph, Visit"];
     fold    [label="fold\nFold, init/accumulate/finalize"];
     cata    [label="cata\nStrategy, execution"];
     ana     [label="ana\nSeedGraph, error builders"];
@@ -87,13 +87,13 @@ digraph {
     uio -> cata;
     uio -> prelude;
     utils -> fold;
-    graph -> cata;
+    graph_ -> cata;
     fold -> cata;
-    graph -> ana;
+    graph_ -> ana;
     ana -> hylo;
     cata -> hylo;
     fold -> hylo;
-    graph -> prelude;
+    graph_ -> prelude;
     fold -> prelude;
     cata -> prelude;
 }
