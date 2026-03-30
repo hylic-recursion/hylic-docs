@@ -33,22 +33,35 @@ As the algorithm grows, concerns tangle:
 
 ## How hylic decomposes it
 
-```mermaid
-graph TD
-    subgraph "The two-function pattern"
-        E["Entry point<br/>spec → first node"]
-        R["Recursive function<br/>node → children → fold"]
-    end
+```dot
+digraph {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=11];
+    edge [fontname="sans-serif", fontsize=10, style=dashed];
 
-    subgraph "hylic decomposition"
-        SG["SeedGraph<br/>seeds_from_top: spec → seeds<br/>grow_node: seed → node|error<br/>seeds_from_valid: node → child seeds"]
-        F["Fold<br/>init / accumulate / finalize"]
-        S["Strategy<br/>execution mode"]
-    end
+    subgraph cluster_old {
+        label="The two-function pattern";
+        style=dashed;
+        color="#999999";
+        fontname="sans-serif";
+        E [label="Entry point\nspec → first node"];
+        R [label="Recursive function\nnode → children → fold"];
+    }
 
-    E -.-> SG
-    R -.-> SG
-    R -.-> F
+    subgraph cluster_new {
+        label="hylic decomposition";
+        style=solid;
+        color="#333333";
+        fontname="sans-serif";
+        SG [label="SeedGraph\nseeds_from_top\ngrow_node\nseeds_from_valid"];
+        F  [label="Fold\ninit / accumulate / finalize"];
+        S  [label="Strategy"];
+    }
+
+    E -> SG;
+    R -> SG;
+    R -> F;
+}
 ```
 
 **SeedGraph** captures the "entry point differs from recursion" pattern:
@@ -72,7 +85,7 @@ with `Fold` and provides `run_top(strategy, &spec)`.
 
 | Concern | Two-function pattern | hylic |
 |---------|---------------------|-------|
-| Error handling | Modify both functions | Errors are just `Either::Left` nodes in the graph — they have no children, the fold handles them |
+| Error handling | Modify both functions | Errors are `Either::Left` nodes — no children, fold handles them |
 | Logging | Add logging to the recursive function | `fold.map_init(add_logging)` — one transformation |
 | Caching | Add a cache to the recursive function | `memoize_treeish(graph)` — wrap the graph, fold unchanged |
 | Parallelism | Rewrite with async/threads | `Strategy::ParTraverse` — same fold, same graph |

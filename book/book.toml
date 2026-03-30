@@ -6,8 +6,7 @@ language = "en"
 [build]
 build-dir = "../target/book"
 
-[preprocessor.mermaid]
-command = "mdbook-mermaid"
+[preprocessor.graphviz]
+command = "mdbook-graphviz"
 
 [output.html]
-additional-js = ["mermaid.min.js", "mermaid-init.js"]

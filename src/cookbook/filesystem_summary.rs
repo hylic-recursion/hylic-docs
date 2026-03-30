@@ -11,6 +11,7 @@ mod tests {
 
     /// A filesystem entry: either a file (leaf) or a directory (branch).
     #[derive(Clone)]
+    #[allow(dead_code)]
     enum FsEntry {
         File { name: String, size: u64 },
         Dir { name: String, children: Vec<FsEntry> },

@@ -11,6 +11,7 @@
 - [Configuration inheritance](./cookbook/config_inheritance.md)
 - [Parallel execution](./cookbook/parallel_execution.md)
 - [Transformations](./cookbook/transformations.md)
+- [Graph transformations](./cookbook/graph_transformations.md)
 - [Module resolution](./cookbook/module_resolution.md)
 
 # How it works

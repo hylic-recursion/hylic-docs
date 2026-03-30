@@ -6,16 +6,21 @@ how they compose.
 
 ## The pieces
 
-```mermaid
-graph TD
-    F["Fold&lt;N, H, R&gt;<br/>init / accumulate / finalize"]
-    G["Treeish&lt;N&gt;<br/>given a node, visit children"]
-    S["Strategy<br/>Sequential / ParTraverse / ParFoldLazy"]
-    R["Result R"]
+```dot
+digraph {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=11];
+    edge [fontname="sans-serif", fontsize=10];
 
-    F --> |algebra| S
-    G --> |structure| S
-    S --> |execute| R
+    Fold    [label="Fold<N, H, R>\ninit / accumulate / finalize"];
+    Treeish [label="Treeish<N>\ngiven a node, visit children"];
+    Strategy [label="Strategy\nSequential / ParTraverse / ParFoldLazy"];
+    Result  [label="Result R"];
+
+    Fold -> Strategy [label="algebra"];
+    Treeish -> Strategy [label="structure"];
+    Strategy -> Result [label="execute"];
+}
 ```
 
 **Fold** defines what to compute at each node: initialize a heap,
@@ -36,14 +41,19 @@ fan out sibling subtrees via rayon.
 Because Fold is data (three closures behind Arc), you transform it
 rather than rewrite it:
 
-```mermaid
-graph LR
-    F1["Fold&lt;N, H, R&gt;"]
-    F2["Fold&lt;N, H, R&gt;<br/>(with logging)"]
-    F3["Fold&lt;N, H, (R, Extra)&gt;"]
+```dot
+digraph {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=11];
+    edge [fontname="sans-serif", fontsize=10];
 
-    F1 --> |map_init| F2
-    F1 --> |zipmap| F3
+    F1 [label="Fold<N, H, R>"];
+    F2 [label="Fold<N, H, R>\nwith logging"];
+    F3 [label="Fold<N, H, (R, Extra)>"];
+
+    F1 -> F2 [label="map_init"];
+    F1 -> F3 [label="zipmap"];
+}
 ```
 
 - **map_init / map_accumulate / map_finalize** — wrap individual phases.
@@ -59,30 +69,34 @@ touching either.
 
 ## The layers
 
-```mermaid
-graph BT
-    U["uio — lazy memoized computation"]
-    UT["utils — string helpers"]
-    G["graph — Edgy, Treeish, Graph, Visit"]
-    F["fold — Fold, init/accumulate/finalize"]
-    C["cata — Strategy, sync/parallel execution"]
-    A["ana — SeedGraph, error-handling builders"]
-    H["hylo — FoldAdapter, SeedFoldAdapter,<br/>GraphWithFold, SeedGraphFold"]
-    P["prelude — VecFold, Explainer,<br/>TreeFormatCfg, memoize, common folds"]
+```dot
+digraph {
+    rankdir=LR;
+    node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=11];
+    edge [fontname="sans-serif", fontsize=10];
 
-    U --> G
-    U --> C
-    UT --> F
-    G --> C
-    F --> C
-    G --> A
-    A --> H
-    C --> H
-    F --> H
-    G --> P
-    F --> P
-    C --> P
-    U --> P
+    uio     [label="uio\nlazy memoized computation"];
+    utils   [label="utils\nstring helpers"];
+    graph   [label="graph\nEdgy, Treeish, Graph, Visit"];
+    fold    [label="fold\nFold, init/accumulate/finalize"];
+    cata    [label="cata\nStrategy, execution"];
+    ana     [label="ana\nSeedGraph, error builders"];
+    hylo    [label="hylo\nFoldAdapter, SeedFoldAdapter\nGraphWithFold, SeedGraphFold"];
+    prelude [label="prelude\nVecFold, Explainer\nTreeFormatCfg, memoize"];
+
+    uio -> cata;
+    uio -> prelude;
+    utils -> fold;
+    graph -> cata;
+    fold -> cata;
+    graph -> ana;
+    ana -> hylo;
+    cata -> hylo;
+    fold -> hylo;
+    graph -> prelude;
+    fold -> prelude;
+    cata -> prelude;
+}
 ```
 
 Each layer only depends downward. `graph` and `fold` are independent
