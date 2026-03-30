@@ -9,7 +9,7 @@ mod tests {
     use hylic::fold::simple_fold;
     use hylic::graph::edgy;
     use hylic::ana::SeedGraph;
-    use hylic::hylo::SeedFoldAdapter;
+    use hylic::hylo::GraphWithFold;
     use hylic::cata::Exec;
     use insta::assert_snapshot;
 
@@ -97,17 +97,18 @@ mod tests {
             },
         );
 
-        // SeedFoldAdapter wires graph + fold + a top-level heap initializer.
-        // The third argument is heap_of_top: how to initialize the heap for
-        // the entry point (which isn't a graph node — it's the spec).
-        let adapter = SeedFoldAdapter::new(
-            seed_graph,
-            collect,
+        // GraphWithFold wires graph + fold + a top-level heap initializer.
+        // heap_of_top initializes the heap for the entry point (which isn't
+        // a graph node — it's the spec that produces initial seeds).
+        let graph = seed_graph.make_graph();
+        let pipeline = GraphWithFold::new(
+            &graph,
+            &collect,
             |_top| Resolved { modules: vec![], errors: vec![] },
         );
 
         let top_deps = vec!["app".to_string()];
-        let result = adapter.run_top(&Exec::fused(), &top_deps);
+        let result = pipeline.run(&Exec::fused(), &top_deps);
 
         // Bottom-up order: utils resolved first, then logging, config, app
         // ghost produces an error
