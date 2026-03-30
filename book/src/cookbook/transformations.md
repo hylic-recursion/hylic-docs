@@ -1,19 +1,13 @@
 # Transformations
 
 Features as standalone functions matching the transformation contract.
-One domain, one base fold, one base graph. Each feature is defined
-separately, then plugged in with a single method call.
+One domain, one base fold, one base graph. Each feature is a named
+function — defined separately, plugged in with a single method call.
 
-> **Fold type aliases** (from `hylic::fold`):
-> - `InitFn<N, H>` = `Box<dyn Fn(&N) -> H + Send + Sync>`
-> - `AccumulateFn<H, R>` = `Box<dyn Fn(&mut H, &R) + Send + Sync>`
-> - `FinalizeFn<H, R>` = `Box<dyn Fn(&H) -> R + Send + Sync>`
->
-> **Fold transforms** (methods on `hylic::fold::Fold`):
-> `map_init`, `map_accumulate`, `map_finalize`, `zipmap`, `contramap`, `product`
->
-> **Graph transforms**: `Edgy::filter` (from `hylic::graph`),
-> `memoize_treeish_by` (from `hylic::prelude`)
+The fold type aliases used in the contract signatures:
+- `InitFn<N, H>` = `Box<dyn Fn(&N) -> H + Send + Sync>`
+- `AccumulateFn<H, R>` = `Box<dyn Fn(&mut H, &R) + Send + Sync>`
+- `FinalizeFn<H, R>` = `Box<dyn Fn(&H) -> R + Send + Sync>`
 
 ```rust
 {{#include ../../../src/cookbook/transformations.rs}}

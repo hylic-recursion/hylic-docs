@@ -1,13 +1,9 @@
 # Parallel execution
 
-Same fold with both strategies — identical results. Strategy
-choice is independent of fold and graph definition.
-
-> **Imports:** `hylic::fold::simple_fold`, `hylic::graph::treeish`, `hylic::cata::{Strategy, ALL}`
->
-> **Strategies** (in `hylic::cata`): `Sequential`, `Par`
->
-> **Composed executor** (in `hylic::cata`): `Par<N, H, R>` — with `map_fold`, `map_plan_transform`, `build`
+Same fold, different executors — identical results. `Exec::fused()`
+uses callback-based recursion (zero allocation). `Exec::rayon()`
+parallelizes sibling subtrees via rayon. `Exec::sequential()`
+collects children to Vec, processes one by one.
 
 ```rust
 {{#include ../../../src/cookbook/parallel_execution.rs}}

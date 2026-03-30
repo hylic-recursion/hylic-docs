@@ -2,8 +2,6 @@
 
 Recursive Fibonacci via tree fold — the simplest possible example.
 
-> **Imports:** `hylic::fold::simple_fold`, `hylic::graph::treeish`, `hylic::cata::Strategy`
-
 ```rust
 {{#include ../../../src/cookbook/fibonacci.rs}}
 ```

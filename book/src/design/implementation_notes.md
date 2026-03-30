@@ -1,8 +1,7 @@
 # Implementation notes
 
-This section documents the technical choices in hylic's implementation
-and the reasoning behind them. It assumes familiarity with Rust's
-ownership model, trait objects, and smart pointers.
+Technical choices in hylic's implementation and the reasoning
+behind them.
 
 ## Closure storage: `Arc<dyn Fn(...) + Send + Sync>`
 
@@ -14,38 +13,27 @@ pub(crate) impl_init: Arc<dyn Fn(&N) -> H + Send + Sync>,
 ```
 
 **Why type erasure (`dyn Fn`):** Without it, every `Fold` produced by
-`map`/`zipmap` would have a different concrete type (the closure types
-change with each transformation). Type erasure lets the same
-`Fold<N, H, R>` type hold any combination of closures. This is what
-enables composability — you can chain `map().zipmap().map_init()` and
-store the result.
+`map`/`zipmap` would have a different concrete type. Type erasure lets
+the same `Fold<N, H, R>` type hold any combination of closures,
+enabling composability — chain `map().zipmap().map_init()` and store
+the result.
 
-**Why `Arc`, not `Box`:** `Fold` needs `Clone` for the transformation
-methods (`map`, `zipmap`) and for the graph adapter layer
-(`FoldAdapter`, `SeedFoldAdapter`) which clones the fold when building
-composed pipelines. `Box<dyn Fn>` is not `Clone`; `Arc<dyn Fn>` is
-(via atomic reference count increment). The cost is negligible — a
-few atomic increments during pipeline construction, none during
-execution.
-
-**Why not `Rc`:** `Arc` enables parallel execution. `Rc` is not
-`Send`/`Sync`, so a `Fold` using `Rc` could not be shared across
-rayon's thread pool. Since `Arc`'s overhead vs `Rc` is negligible for
-this use case (closures are shared, not contended), `Arc` is used
-uniformly.
+**Why `Arc`, not `Box`:** `Fold` needs `Clone` for transformation
+methods and the adapter layer. `Box<dyn Fn>` is not `Clone`;
+`Arc<dyn Fn>` is (atomic reference count increment). The cost is
+negligible.
 
 **Why `+ Send + Sync`:** Required by `Arc<T>` — `Arc` only implements
-`Send` when `T: Send + Sync`. This bound propagates to all closure
-parameters in constructors (`fold()`, `simple_fold()`, `vec_fold()`).
-In practice, closures that capture only owned values (`String`, `i32`,
-`Arc<...>`) are automatically `Send + Sync`. The bound is cosmetically
-noisy but has zero impact on callers.
+`Send` when `T: Send + Sync`. This propagates to all closure parameters
+in constructors. In practice, closures that capture owned values or
+`Arc<...>` are automatically `Send + Sync`. The bounds are checked at
+construction time; the executor (`Exec`) does not require them.
 
-**Earlier design: `Arc<Box<dyn Fn>>`:** The original implementation
-wrapped closures in `Arc<Box<dyn Fn>>` — two layers of indirection.
-The `Box` was eliminated: `Arc<dyn Fn>` stores the trait object
-directly, saving one pointer hop per call. `Arc::from(Box::new(f) as
-Box<dyn Fn(...)>)` handles the unsizing coercion at construction time.
+**Manual `Clone` impls:** `Fold`, `Edgy`, `Graph`, `SeedGraph`, and
+`GraphWithFold` all implement `Clone` manually instead of deriving.
+The derived `Clone` would require type parameters to be `Clone`, but
+the structs only store `Arc`/`Edgy`/`Fold` which are always cloneable.
+Manual impls eliminate spurious bounds.
 
 ## Graph traversal: callback-based `Edgy`
 
@@ -55,45 +43,50 @@ Box<dyn Fn(...)>)` handles the unsizing coercion at construction time.
 impl_visit: Arc<dyn Fn(&NodeT, &mut dyn FnMut(&EdgeT)) + Send + Sync>
 ```
 
-**Why callbacks, not `Vec` return:** The original signature was
-`Fn(&N) -> Vec<E>` — every traversal allocated a `Vec`, cloned
-children into it, returned it, then discarded it. For a tree with
-`n` nodes, this is `n` allocations per fold execution.
-
-The callback signature `Fn(&N, &mut dyn FnMut(&E))` visits children
-by reference. No allocation, no cloning. The producer calls the
-callback for each child; the consumer (e.g., `execute`) folds each
-child's result immediately.
-
-**Composability preserved:** `map`, `contramap`, `treemap` all compose
-callbacks. Each transformation wraps the callback in a new one —
-stack-allocated closures, zero heap allocation. For example, `map`
-produces new values on the stack and lends them to the next callback:
-
-```rust
-fn map(&self, transform) -> Edgy<NodeT, NewEdgeT> {
-    edgy_visit(|n, cb| {
-        self.visit(n, &mut |e| {
-            let mapped = transform(e);  // on stack
-            cb(&mapped);                // borrow from stack
-        });
-    })
-}
-```
+**Why callbacks, not `Vec` return:** The original design used
+`Fn(&N) -> Vec<E>` — every traversal allocated a `Vec`. The callback
+signature `Fn(&N, &mut dyn FnMut(&E))` visits children by reference.
+No allocation, no cloning.
 
 **`apply()` as escape hatch:** When a `Vec` is actually needed (e.g.,
-for `par_iter` in parallel traversal), `apply()` collects via the
-callback. Parallel execution is the only hot path that uses `apply()`.
+for parallel iteration in `Exec::rayon()`), `apply()` collects via
+the callback.
 
 **`Visit<T, F>` combinator:** `Edgy::at(node)` returns a `Visit` —
 a zero-allocation push-based iterator with `map`, `filter`, `fold`,
-`collect_vec`. This provides the composable iteration API without
-intermediate `Vec` allocations.
+`collect_vec`.
+
+## Execution: `Exec<N, R>`
+
+`Exec` is parameterized by a single child-visiting lambda:
+
+```rust
+// ChildVisitorFn<N, R>: how children are visited and results delivered
+pub type ChildVisitorFn<N, R> = dyn Fn(
+    &Treeish<N>,                          // graph
+    &N,                                    // current node
+    &(dyn Fn(&N) -> R + Send + Sync),      // recursive function
+    &mut dyn FnMut(&R),                    // result handler
+) + Send + Sync;
+```
+
+Three constructors produce different lambdas:
+
+- **`Exec::fused()`**: Callback-based recursion via `graph.visit`.
+  Recursion and accumulation interleave. Zero allocation.
+- **`Exec::sequential()`**: Collects children via `graph.apply`,
+  processes one by one. Vec allocation per node.
+- **`Exec::rayon()`**: Collects children, `par_iter` for parallel
+  recursion. Send + Sync bounds checked at construction, not on Exec.
+
+The recursive function is stack-allocated inside `run()` — captures
+only `Arc`-based values (fold, graph, child visitor), so it's `Send +
+Sync` without requiring bounds on N, H, or R.
 
 ## Resolution children: `Arc<[Resolution]>`
 
-The `Resolution` type (in mb_resolver, the primary consumer) stores
-children as `Arc<[Resolution]>` instead of `Vec<Resolution>`:
+The `Resolution` type (in mb_resolver) stores children as
+`Arc<[Resolution]>` instead of `Vec<Resolution>`:
 
 ```rust
 pub struct Resolution {
@@ -102,72 +95,23 @@ pub struct Resolution {
 }
 ```
 
-**Why:** `Resolution::get_treeish()` returns a `Treeish` that visits
-children by reference. With `Vec<Resolution>`, cloning the `Resolution`
-(needed for `Clone` bound in some contexts) deep-copies the entire
-subtree — O(n) per clone, O(n²) total for a tree traversal.
-`Arc<[Resolution]>` makes clone O(1) — a pointer bump.
-
-**Trade-off:** Building the `Resolution` during the fold requires a
-separate `ResolutionHeap` (using `Vec`) during accumulation, converting
-to `Arc<[Resolution]>` in the finalize step. This is a one-time cost
-per node, paid during construction, not during traversal.
-
-## Execution: separated from algebra
-
-`Fold` has no `execute` method. Execution is a separate concern:
-
-```rust
-Strategy::Sequential.run(&fold, &graph, &root)
-```
-
-**Why:** The same fold should be runnable with different strategies
-(sequential, parallel traversal, lazy parallel fold) without modifying
-the algebra. If `execute` were a method on `Fold`, switching strategies
-would mean wrapping or replacing the fold.
-
-The `Strategy` enum dispatches to the appropriate execution function.
-Adding a new strategy means adding a variant, not changing `Fold`.
-
-## Parallel execution
-
-Two strategies:
-
-- **Sequential** (`cata::sync`): Callback-based recursion.
-  Zero allocation beyond what the fold itself produces.
-- **Par** (`cata::par`): Builds a tree of `UIO<R>` (lazy memoized
-  computations). Each UIO, when evaluated, discovers children,
-  builds their UIOs, evaluates siblings in parallel via `join_par`,
-  accumulates, and finalizes. Graph discovery is fused inside the
-  UIO closures — both graph work and fold work are parallel.
-
-`Par` is also a composed type (`cata::Par<N, H, R>`) with member
-transforms: `map_fold` transforms the fold before UIO construction,
-`map_plan_transform` wraps the UIO plan before evaluation.
-`Par::build()` returns the `UIO<R>` plan without evaluating —
-an intervention point for inspection or post-processing via
-`UIO::map`. `Strategy::Par` delegates to `Par::new(fold).run()`.
+`Vec` clone would deep-copy the subtree — O(n) per clone.
+`Arc<[Resolution]>` makes clone O(1). Building uses `Vec` during
+accumulation, converting to `Arc<[Resolution]>` in finalize.
 
 ## The `prelude` module
 
 Types in `prelude/` are built on core but not required to use hylic:
 
 - `VecFold` / `VecHeap`: Convenience fold that collects all children
-  before finalizing. Not always needed — `simple_fold` handles many
-  cases without collecting.
-- `Explainer`: Wraps a fold to record computation traces. A debugging
-  tool, not a core abstraction.
-- `TreeFormatCfg`: Tree-to-string formatting. Domain-specific display.
+  before finalizing.
+- `Explainer`: Wraps a fold to record computation traces.
+- `TreeFormatCfg`: Tree-to-string formatting.
 - `Visit`: Push-based iterator. Used internally by `Edgy::at()`.
 - `Traced`: Path tracking for tree nodes.
 - `memoize_treeish` / `memoize_treeish_by`: Graph-level caching for
-  DAGs. Wraps a `Treeish<N>` with a `HashMap<K, Vec<N>>` so repeated
-  visits to the same node return cached children. Returns `Treeish<N>`
-  — same node type, fold unchanged. `memoize_treeish_by` takes a
-  caller-provided key function; `memoize_treeish` uses the node itself
-  as key (requires `Hash + Eq`). Not related to `UIO` — `UIO` is for
-  parallel execution deferral, not caching.
-
-These are re-exported through `prelude/mod.rs` — e.g.
-`hylic::prelude::memoize_treeish` — but live in `prelude/` to keep
-the core modules focused.
+  DAGs. Wraps a `Treeish<N>` with `HashMap<K, Vec<N>>` so repeated
+  visits return cached children. Same node type — fold unchanged.
+- `seeds_for_fallible`: Lifts `Edgy<Valid, Seed>` to
+  `Edgy<Either<Err, Valid>, Seed>` for the fallible seed pattern.
+  Uses `contramap_or` — a core graph primitive.

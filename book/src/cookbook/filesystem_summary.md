@@ -1,8 +1,8 @@
 # Filesystem summary
 
-Aggregate file sizes, counts, and directory depth across a tree.
-
-> **Imports:** `hylic::fold::simple_fold`, `hylic::graph::treeish_visit`, `hylic::cata::Strategy`
+Aggregate file sizes, counts, and directory depth in one pass.
+The heap is a structured `Summary` — multiple metrics accumulated
+simultaneously.
 
 ```rust
 {{#include ../../../src/cookbook/filesystem_summary.rs}}
@@ -11,5 +11,5 @@ Aggregate file sizes, counts, and directory depth across a tree.
 Output:
 
 ```
-{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__filesystem_summary__tests__fs_summary.snap:5:}}
+{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__filesystem_summary__tests__summarize_filesystem.snap:5:}}
 ```

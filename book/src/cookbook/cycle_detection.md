@@ -1,9 +1,8 @@
 # Cycle detection
 
-Detect cycles in a dependency graph during traversal. Each node
-carries its ancestor set — cycles become leaves (no further recursion).
-
-> **Imports:** `hylic::fold::simple_fold`, `hylic::graph::treeish`, `hylic::cata::Strategy`
+Detect cycles in a dependency graph. Cycle state lives in the
+node type (ancestor set), not the fold — the Treeish decides
+structure, the Fold just collects.
 
 ```rust
 {{#include ../../../src/cookbook/cycle_detection.rs}}
@@ -12,5 +11,5 @@ carries its ancestor set — cycles become leaves (no further recursion).
 Output:
 
 ```
-{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__cycle_detection__tests__cycles.snap:5:}}
+{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__cycle_detection__tests__detect_cycles.snap:5:}}
 ```

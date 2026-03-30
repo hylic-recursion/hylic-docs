@@ -16,12 +16,12 @@ digraph {
 
     Fold    [label="Fold<N, H, R>\ninit / accumulate / finalize"];
     Treeish [label="Treeish<N>\ngiven a node, visit children"];
-    Strategy [label="Strategy\nSequential / Par"];
-    Result  [label="Result R"];
+    Exec    [label="Exec<N, R>\nfused / sequential / rayon"];
+    Result  [label="R"];
 
-    Fold -> Strategy [label="algebra"];
-    Treeish -> Strategy [label="structure"];
-    Strategy -> Result [label="execute"];
+    Fold -> Exec [label="algebra"];
+    Treeish -> Exec [label="structure"];
+    Exec -> Result [label="run"];
 }
 ```
 
@@ -33,10 +33,10 @@ result. It knows nothing about tree structure.
 child. It knows nothing about what is computed. Callback-based
 traversal means zero allocation per node.
 
-**Strategy** drives the execution: walk the tree (via Treeish),
-apply the fold at each node (via Fold), return the root's result.
-Sequential does this in a single recursion. Parallel strategies
-fan out sibling subtrees via rayon.
+**Exec** drives the execution. `Exec::fused()` recurses via callbacks
+(zero allocation). `Exec::rayon()` parallelizes sibling subtrees.
+The executor is parameterized by a child-visiting lambda — the
+lambda encapsulates the traversal mode and any parallelism bounds.
 
 ## Transformations
 
@@ -52,22 +52,24 @@ digraph {
     F1 [label="Fold<N, H, R>"];
     F2 [label="Fold<N, H, R>\nwith logging"];
     F3 [label="Fold<N, H, (R, Extra)>"];
+    F4 [label="Fold<NewN, H, R>"];
+    F5 [label="Fold<N, (H1,H2), (R1,R2)>"];
 
     F1 -> F2 [label="map_init"];
     F1 -> F3 [label="zipmap"];
+    F1 -> F4 [label="contramap"];
+    F1 -> F5 [label="product"];
 }
 ```
 
 - **map_init / map_accumulate / map_finalize** — wrap individual phases.
-  Logging, validation, side effects.
-- **map** — change the result type R → R'. Requires a backmapper
-  for children's results to flow through accumulate.
+- **map** — change the result type R → R' (with backmapper).
 - **zipmap** — augment R with derived data: R → (R, Extra).
-  The Extra is per-node (derived from that node's R), not accumulated.
+- **contramap** — change the node type: Fold<N,...> → Fold<NewN,...>.
+- **product** — two folds in one pass: (R1, R2) from one traversal.
 
-The same Treeish can be used with different Folds. The same Fold
-can run over different trees. Transformations compose without
-touching either.
+Similarly, Treeish/Edgy has: **map**, **contramap**, **contramap_or**,
+**filter**, **treemap**. Graph has **map_treeish**, **map_top_edgy**.
 
 ## The layers
 
@@ -79,18 +81,15 @@ digraph {
     node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=11];
     edge [fontname="sans-serif", fontsize=10];
 
-    uio     [label="uio\nlazy memoized computation"];
-    utils   [label="utils\nstring helpers"];
+    uio     [label="uio\nlazy computation"];
     graph_  [label="graph\nEdgy, Treeish, Graph, Visit"];
     fold    [label="fold\nFold, init/accumulate/finalize"];
-    cata    [label="cata\nStrategy, execution"];
-    ana     [label="ana\nSeedGraph, error builders"];
-    hylo    [label="hylo\nFoldAdapter, SeedFoldAdapter\nGraphWithFold, SeedGraphFold"];
-    prelude [label="prelude\nVecFold, Explainer\nTreeFormatCfg, memoize"];
+    cata    [label="cata\nExec (fused/sequential/rayon)"];
+    ana     [label="ana\nSeedGraph"];
+    hylo    [label="hylo\nGraphWithFold"];
+    prelude [label="prelude\nVecFold, Explainer, memoize\nseeds_for_fallible"];
 
     uio -> cata;
-    uio -> prelude;
-    utils -> fold;
     graph_ -> cata;
     fold -> cata;
     graph_ -> ana;
@@ -100,29 +99,27 @@ digraph {
     graph_ -> prelude;
     fold -> prelude;
     cata -> prelude;
+    graph_ -> hylo;
 }
 ```
 
 `graph` and `fold` are independent of each other. `cata` combines
-them. `ana` builds graphs from seeds. `hylo` wires everything into
-execution adapters. `prelude` provides convenience types built on
-all of the above.
+them via `Exec`. `ana` builds graphs from seeds. `hylo` wires
+everything into `GraphWithFold` — the runnable hylomorphism pipeline.
+`prelude` provides convenience types built on all of the above.
 
 ## Seed-based graphs (ana)
 
-The `ana` module is not core in the same way `fold` and `graph` are.
-It's a construction pattern built entirely on the core mechanisms,
-showing how to bridge the gap between a starting "seed" and a full
-recursive tree.
+`SeedGraph<Node, Seed, Top>` is a general anamorphism — it defines
+how to unfold a tree from seeds:
+- **seeds_from_node**: given a node, what are its dependency seeds?
+- **grow**: given a seed, produce a node
+- **seeds_from_top**: entry point → initial seeds
 
-`SeedGraph` defines three things:
-- How to get dependency seeds from a resolved node
-- How to grow a seed into a resolved node (or an error)
-- How to get the initial seeds from a top-level entry point
-
-From these, it constructs a `Treeish` and a `Graph` — standard core
-types. The `hylo` module then wires this graph with a `Fold` for
-execution.
+`SeedGraph` knows nothing about error handling or Either types.
+For fallible resolution (where growing can fail), the prelude
+provides `seeds_for_fallible` which lifts a valid-only seed function
+to handle Either<Error, Valid> nodes — errors become leaves.
 
 This is the pattern described in the next section,
 [The two-function problem](./two_function_problem.md).
