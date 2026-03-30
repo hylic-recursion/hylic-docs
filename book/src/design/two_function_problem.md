@@ -33,6 +33,8 @@ As the algorithm grows, concerns tangle:
 
 ## How hylic decomposes it
 
+The two functions map onto three independent pieces:
+
 ```dot process
 digraph {
     rankdir=LR;

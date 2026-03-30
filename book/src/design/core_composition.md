@@ -6,6 +6,8 @@ how they compose.
 
 ## The pieces
 
+Three independent definitions compose into a result:
+
 ```dot process
 digraph {
     rankdir=LR;
@@ -69,6 +71,8 @@ touching either.
 
 ## The layers
 
+Each layer only depends downward:
+
 ```dot process
 digraph {
     rankdir=LR;
@@ -99,10 +103,10 @@ digraph {
 }
 ```
 
-Each layer only depends downward. `graph` and `fold` are independent
-of each other. `cata` combines them. `ana` builds graphs from seeds.
-`hylo` wires everything into execution adapters. `prelude` provides
-convenience types built on all of the above.
+`graph` and `fold` are independent of each other. `cata` combines
+them. `ana` builds graphs from seeds. `hylo` wires everything into
+execution adapters. `prelude` provides convenience types built on
+all of the above.
 
 ## Seed-based graphs (ana)
 
