@@ -10,7 +10,7 @@ mod tests {
     use hylic::graph::edgy;
     use hylic::ana::SeedGraph;
     use hylic::hylo::SeedFoldAdapter;
-    use hylic::cata::Sequential;
+    use hylic::cata::Exec;
     use insta::assert_snapshot;
 
 
@@ -107,7 +107,7 @@ mod tests {
         );
 
         let top_deps = vec!["app".to_string()];
-        let result = adapter.run_top(Sequential, &top_deps);
+        let result = adapter.run_top(&Exec::fused(), &top_deps);
 
         // Bottom-up order: utils resolved first, then logging, config, app
         // ghost produces an error

@@ -4,7 +4,7 @@
 mod tests {
     use hylic::prelude::vec_fold::{vec_fold, VecHeap};
     use hylic::graph::treeish_visit;
-    use hylic::cata::Strategy;
+    use hylic::cata::Exec;
     use insta::assert_snapshot;
 
 
@@ -50,7 +50,7 @@ mod tests {
             }
         });
 
-        let result = Strategy::Sequential.run(&eval, &graph, &expr);
+        let result = Exec::fused().run(&eval, &graph, &expr);
         assert_eq!(result, -14.0);
 
         assert_snapshot!("expr_eval", format!("(3 + 4) * -(2) = {result}"));

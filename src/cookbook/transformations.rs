@@ -11,7 +11,7 @@ mod tests {
     use hylic::fold::{simple_fold, Fold, InitFn, AccumulateFn, FinalizeFn};
     use hylic::graph::{treeish, Treeish};
     use hylic::prelude::memoize_treeish_by;
-    use hylic::cata::Sequential;
+    use hylic::cata::Exec;
     use insta::assert_snapshot;
 
     // ── Domain ──────────────────────────────────────────────
@@ -137,7 +137,7 @@ mod tests {
         let visited = Arc::new(Mutex::new(Vec::new()));
         let fold = base_fold().map_init(visit_logger(visited.clone()));
 
-        let total = Sequential.run(&fold, &graph, &root);
+        let total = Exec::fused().run(&fold, &graph, &root);
         let names: Vec<String> = visited.lock().unwrap().clone();
         assert_eq!(total, 800);
         assert_snapshot!("visit_logger", format!(
@@ -149,7 +149,7 @@ mod tests {
     fn test_skip_small_children() {
         let (graph, root) = setup();
         let fold = base_fold().map_accumulate(skip_small_children(200));
-        let total = Sequential.run(&fold, &graph, &root);
+        let total = Exec::fused().run(&fold, &graph, &root);
         // app(50) + compile(200+typecheck 300) = 550; parse(100) and link(150) skipped
         assert_eq!(total, 550);
         assert_snapshot!("skip_small", format!("total={total} (small children skipped)"));
@@ -159,7 +159,7 @@ mod tests {
     fn test_clamp_at() {
         let (graph, root) = setup();
         let fold = base_fold().map_finalize(clamp_at(500));
-        let total = Sequential.run(&fold, &graph, &root);
+        let total = Exec::fused().run(&fold, &graph, &root);
         // compile=min(600,500)=500, link=150, app=min(50+500+150,500)=500
         assert_eq!(total, 500);
         assert_snapshot!("clamp_at", format!("total={total} (clamped at 500)"));
@@ -168,7 +168,7 @@ mod tests {
     #[test]
     fn test_classify() {
         let (graph, root) = setup();
-        let (total, category) = Sequential.run(&base_fold().zipmap(classify), &graph, &root);
+        let (total, category) = Exec::fused().run(&base_fold().zipmap(classify), &graph, &root);
         assert_eq!(total, 800);
         assert_eq!(category, "critical");
         assert_snapshot!("classify", format!("total={total}, category={category}"));
@@ -178,7 +178,7 @@ mod tests {
     fn test_only_costly_deps() {
         let (graph, root) = setup();
         let filtered = only_costly_deps(&graph, 150);
-        let total = Sequential.run(&base_fold(), &filtered, &root);
+        let total = Exec::fused().run(&base_fold(), &filtered, &root);
         // parse(100) pruned: app(50)+compile(200)+typecheck(300)+link(150) = 700
         assert_eq!(total, 700);
         assert_snapshot!("only_costly", format!("total={total} (deps with cost < 150 pruned)"));
@@ -201,12 +201,12 @@ mod tests {
         });
         let root = reg.get("app").unwrap().clone();
 
-        let total = Sequential.run(&base_fold(), &graph, &root);
+        let total = Exec::fused().run(&base_fold(), &graph, &root);
         let raw_visits = *visit_count.lock().unwrap();
 
         *visit_count.lock().unwrap() = 0;
         let cached = memoize_treeish_by(&graph, |t: &Task| t.name.clone());
-        let total_memo = Sequential.run(&base_fold(), &cached, &root);
+        let total_memo = Exec::fused().run(&base_fold(), &cached, &root);
         let memo_visits = *visit_count.lock().unwrap();
 
         assert_eq!((total, raw_visits), (490, 5));
@@ -225,7 +225,7 @@ mod tests {
             .map_finalize(clamp_at(500))
             .zipmap(classify);
 
-        let (total, category) = Sequential.run(&pipeline, &graph, &root);
+        let (total, category) = Exec::fused().run(&pipeline, &graph, &root);
         let names: Vec<String> = visited.lock().unwrap().clone();
         assert_eq!(total, 500);
         assert_eq!(category, "critical");

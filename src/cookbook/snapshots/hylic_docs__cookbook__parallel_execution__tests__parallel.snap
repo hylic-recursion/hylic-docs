@@ -1,5 +1,5 @@
 ---
 source: hylic-docs/src/cookbook/parallel_execution.rs
-expression: "format!(\"sum = {expected}, verified across {} strategies\", ALL.len())"
+expression: "format!(\"sum = {expected}, verified across {} executors\", executors.len())"
 ---
-sum = 619, verified across 2 strategies
+sum = 619, verified across 3 executors

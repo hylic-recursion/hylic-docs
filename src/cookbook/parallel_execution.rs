@@ -1,16 +1,13 @@
-//! Parallel execution: same fold, different strategies.
-//! Demonstrates: Strategy enum, verifying equivalence across modes.
+//! Parallel execution: same fold, different executors.
+//! Demonstrates: Exec constructors produce identical results.
 
 #[cfg(test)]
 mod tests {
     use hylic::fold::simple_fold;
     use hylic::graph::treeish;
-    use hylic::cata::{Strategy, ALL};
+    use hylic::cata::Exec;
     use insta::assert_snapshot;
 
-
-    /// A computation node with configurable work per node.
-    /// The tree is wide (high branching factor) to benefit from parallelism.
     #[derive(Clone)]
     struct WorkNode {
         value: u64,
@@ -24,7 +21,6 @@ mod tests {
 
     #[test]
     fn parallel_strategies() {
-        // Wide tree: root with 6 children, each with 3 leaves.
         let tree = WorkNode::branch(1, (0..6).map(|i|
             WorkNode::branch(i * 10, (0..3).map(|j|
                 WorkNode::leaf(i * 10 + j)
@@ -32,22 +28,24 @@ mod tests {
         ).collect());
 
         let graph = treeish(|n: &WorkNode| n.children.clone());
-
         let sum = simple_fold(
             |n: &WorkNode| n.value,
             |heap: &mut u64, child: &u64| *heap += child,
         );
 
-        // All strategies produce the same result — parallelism is purely
-        // an execution concern. The fold algebra and graph are unchanged.
-        let expected = Strategy::Sequential.run(&sum, &graph, &tree);
-        for strategy in ALL {
-            let result = strategy.run(&sum, &graph, &tree);
-            assert_eq!(result, expected, "Strategy {:?} disagreed", strategy);
+        // All executors produce identical results.
+        let executors: Vec<Exec<WorkNode, u64>> = vec![
+            Exec::fused(),
+            Exec::sequential(),
+            Exec::rayon(),
+        ];
+        let expected = executors[0].run(&sum, &graph, &tree);
+        for exec in &executors {
+            assert_eq!(exec.run(&sum, &graph, &tree), expected);
         }
 
         assert_snapshot!("parallel", format!(
-            "sum = {expected}, verified across {} strategies", ALL.len()
+            "sum = {expected}, verified across {} executors", executors.len()
         ));
     }
 }
