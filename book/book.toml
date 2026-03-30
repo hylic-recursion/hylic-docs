@@ -1,0 +1,7 @@
+[book]
+title = "hylic"
+authors = ["Simon Leischnig"]
+language = "en"
+
+[build]
+build-dir = "../target/book"

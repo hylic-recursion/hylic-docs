@@ -1,22 +1,18 @@
-//! # Fibonacci via tree fold
-//!
-//! The simplest possible hylic example. Fibonacci numbers are a degenerate
-//! tree (each node has exactly two children: n-1 and n-2). The fold sums them.
-//!
-//! This is intentionally naive (exponential) — it demonstrates the mechanics,
-//! not performance. For efficient Fibonacci, don't use tree recursion.
+//! Fibonacci via tree fold — the simplest hylic example.
 
 #[cfg(test)]
 mod tests {
     use hylic::fold::simple_fold;
     use hylic::graph::treeish;
     use hylic::cata::Strategy;
+    use insta::assert_snapshot;
 
     #[derive(Clone)]
     struct FibNode(u64);
 
     #[test]
     fn fibonacci() {
+        // ANCHOR: fibonacci
         let graph = treeish(|n: &FibNode| {
             if n.0 <= 1 { vec![] }
             else { vec![FibNode(n.0 - 1), FibNode(n.0 - 2)] }
@@ -28,7 +24,9 @@ mod tests {
         );
 
         let result = Strategy::Sequential.run(&fib_fold, &graph, &FibNode(10));
+        // ANCHOR_END: fibonacci
+
         assert_eq!(result, 55);
-        eprintln!("fib(10) = {result}");
+        assert_snapshot!("fibonacci_result", format!("fib(10) = {result}"));
     }
 }

@@ -1,0 +1,5 @@
+---
+source: src/cookbook/expression_eval.rs
+expression: "format!(\"(3 + 4) * -(2) = {result}\")"
+---
+(3 + 4) * -(2) = -14

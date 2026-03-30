@@ -1,14 +1,11 @@
-//! # Filesystem tree summary
-//!
-//! Fold a directory tree to compute total size and file count.
-//! Demonstrates fold over a tree with heterogeneous data (files vs dirs)
-//! and a structured heap that accumulates multiple metrics.
+//! Filesystem tree summary — structured heap accumulating multiple metrics.
 
 #[cfg(test)]
 mod tests {
     use hylic::fold::simple_fold;
     use hylic::graph::treeish_visit;
     use hylic::cata::Strategy;
+    use insta::assert_snapshot;
 
     #[derive(Clone)]
     enum FsEntry {
@@ -18,18 +15,15 @@ mod tests {
 
     impl FsEntry {
         fn file(name: &str, size: u64) -> Self { FsEntry::File { name: name.into(), size } }
-        fn dir(name: &str, children: Vec<FsEntry>) -> Self { FsEntry::Dir { name: name.into(), children } }
+        fn dir(name: &str, ch: Vec<FsEntry>) -> Self { FsEntry::Dir { name: name.into(), children: ch } }
     }
 
     #[derive(Clone, Debug, PartialEq)]
-    struct Summary {
-        total_size: u64,
-        file_count: usize,
-        dir_count: usize,
-    }
+    struct Summary { total_size: u64, file_count: usize, dir_count: usize }
 
     #[test]
     fn summarize_filesystem() {
+        // ANCHOR: filesystem_summary
         let tree = FsEntry::dir("project", vec![
             FsEntry::file("README.md", 1200),
             FsEntry::dir("src", vec![
@@ -61,8 +55,14 @@ mod tests {
         );
 
         let result = Strategy::Sequential.run(&summarize, &graph, &tree);
+        // ANCHOR_END: filesystem_summary
 
         assert_eq!(result, Summary { total_size: 10400, file_count: 5, dir_count: 3 });
-        eprintln!("Summary: {result:?}");
+        assert_snapshot!("filesystem_summary_result", format!(
+            "project/: {total_size} bytes, {file_count} files, {dir_count} dirs",
+            total_size = result.total_size,
+            file_count = result.file_count,
+            dir_count = result.dir_count,
+        ));
     }
 }

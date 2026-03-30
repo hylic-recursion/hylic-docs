@@ -1,14 +1,11 @@
-//! # Expression evaluation (AST fold)
-//!
-//! A classic: fold an arithmetic expression tree bottom-up.
-//! Demonstrates how any AST with heterogeneous node types maps onto
-//! hylic's Treeish + Fold pattern.
+//! Expression evaluation — AST fold with heterogeneous nodes.
 
 #[cfg(test)]
 mod tests {
-    use hylic::fold::simple_fold;
+    use hylic::prelude::vec_fold::{vec_fold, VecHeap};
     use hylic::graph::treeish_visit;
     use hylic::cata::Strategy;
+    use insta::assert_snapshot;
 
     #[derive(Clone)]
     enum Expr {
@@ -25,6 +22,7 @@ mod tests {
 
     #[test]
     fn evaluate_expression() {
+        // ANCHOR: expression_eval
         // (3 + 4) * -(2)
         let expr = mul(add(num(3.0), num(4.0)), neg(num(2.0)));
 
@@ -36,38 +34,19 @@ mod tests {
             }
         });
 
-        // init: leaf value or identity for the operation
-        // accumulate: combine child results based on node type
-        let eval = simple_fold(
-            |e: &Expr| match e {
+        let eval = vec_fold(|heap: &VecHeap<Expr, f64>| {
+            match &heap.node {
                 Expr::Num(v) => *v,
-                Expr::Add(_, _) => 0.0,
-                Expr::Mul(_, _) => 1.0,
-                Expr::Neg(_) => 0.0,
-            },
-            |heap: &mut f64, child: &f64| {
-                // This works because add's identity is 0 (0+a+b = a+b)
-                // and mul's identity is 1 (1*a*b = a*b).
-                // Neg is special: it negates whatever its single child produced.
-                *heap += child; // for add and neg
-            },
-        );
+                Expr::Add(_, _) => heap.childresults.iter().sum(),
+                Expr::Mul(_, _) => heap.childresults.iter().product(),
+                Expr::Neg(_) => -heap.childresults[0],
+            }
+        });
 
-        // The simple_fold above doesn't distinguish add from mul in accumulate.
-        // For proper evaluation, use vec_fold which sees the node + all children:
-        let eval_proper = hylic::prelude::vec_fold::vec_fold(
-            |heap: &hylic::prelude::vec_fold::VecHeap<Expr, f64>| {
-                match &heap.node {
-                    Expr::Num(v) => *v,
-                    Expr::Add(_, _) => heap.childresults.iter().sum(),
-                    Expr::Mul(_, _) => heap.childresults.iter().product(),
-                    Expr::Neg(_) => -heap.childresults.first().unwrap_or(&0.0),
-                }
-            },
-        );
+        let result = Strategy::Sequential.run(&eval, &graph, &expr);
+        // ANCHOR_END: expression_eval
 
-        let result = Strategy::Sequential.run(&eval_proper, &graph, &expr);
-        assert_eq!(result, -14.0); // (3+4) * -(2) = 7 * -2 = -14
-        eprintln!("(3 + 4) * -(2) = {result}");
+        assert_eq!(result, -14.0);
+        assert_snapshot!("expression_eval_result", format!("(3 + 4) * -(2) = {result}"));
     }
 }
