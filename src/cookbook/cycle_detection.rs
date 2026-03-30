@@ -66,8 +66,10 @@ mod tests {
             ("D", &[]),
         ]);
 
-        // Tree structure: expand dependencies, threading ancestor set.
-        // Cycles (re-visited ancestors) become leaves — don't recurse further.
+        // The cycle state lives in the NODE TYPE (DepNode carries its ancestor set),
+        // not in the fold. The treeish decides what to traverse: cycles become
+        // leaves (empty children), stopping recursion. The fold just collects.
+        // This is the hylic pattern: structure decisions in Treeish, computation in Fold.
         let graph = treeish(move |node: &DepNode| {
             if node.is_cycle() { return vec![]; }
             graph_data.edges.get(&node.id)

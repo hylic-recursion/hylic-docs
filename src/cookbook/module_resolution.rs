@@ -57,10 +57,12 @@ mod tests {
             // "ghost" is not in the registry — will produce an error
         ]);
 
-        // The seed graph: this is where the "two-function pattern" is solved.
-        // - seeds_from_valid: given a resolved module, what are its dependency names?
-        // - grow_node: given a dependency name, look it up → Either<Error, Module>
-        // - seeds_from_top: the entry point — what names does the top-level spec produce?
+        // SeedGraph solves the "entry point differs from recursion" pattern:
+        // 1. seeds_from_valid: resolved module → dependency names (the recursive part)
+        // 2. grow_node: dependency name → Either<Error, Module> (the lookup)
+        // 3. seeds_from_top: top-level spec → initial names (the entry point)
+        // From these three, hylic constructs a Treeish<Either<Error, Module>>.
+        // Errors are Left nodes — they automatically have no children (no seeds).
         let seed_graph = SeedGraph::new(
             edgy(move |module: &Module| module.deps.clone()),
             {
@@ -75,7 +77,9 @@ mod tests {
             edgy(|top: &Vec<String>| top.clone()),
         );
 
-        // The fold: collect resolved names and errors bottom-up.
+        // The fold operates on Either<Error, Module> — both cases in one algebra.
+        // Left (error): no children, init produces the error.
+        // Right (valid): init produces the module name, children accumulate.
         let collect = simple_fold(
             |node: &Either<ResolveError, Module>| match node {
                 Either::Right(m) => Resolved {
@@ -93,6 +97,9 @@ mod tests {
             },
         );
 
+        // SeedFoldAdapter wires graph + fold + a top-level heap initializer.
+        // The third argument is heap_of_top: how to initialize the heap for
+        // the entry point (which isn't a graph node — it's the spec).
         let adapter = SeedFoldAdapter::new(
             seed_graph,
             collect,

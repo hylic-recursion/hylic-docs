@@ -15,13 +15,16 @@ mod tests {
 
     #[test]
     fn fibonacci() {
-        // Tree structure: each node > 1 has two children.
+        // treeish: given a node, return its children.
+        // Leaves (n <= 1) have no children — empty vec stops recursion.
         let graph = treeish(|n: &FibNode| {
             if n.0 <= 1 { vec![] }
             else { vec![FibNode(n.0 - 1), FibNode(n.0 - 2)] }
         });
 
-        // Fold: leaves contribute their value, inner nodes sum children.
+        // simple_fold: H = R (heap IS the result, finalize is clone).
+        // init: each node seeds its heap — leaves get their value, inner nodes get 0.
+        // accumulate: called once per child result, folds it into the heap.
         let fib = simple_fold(
             |n: &FibNode| if n.0 <= 1 { n.0 } else { 0 },
             |heap: &mut u64, child: &u64| *heap += child,

@@ -28,7 +28,8 @@ mod tests {
     fn evaluate_expression() {
         let expr = mul(add(num(3.0), num(4.0)), neg(num(2.0)));
 
-        // Tree structure: visit each child by reference.
+        // treeish_visit: callback-based traversal — no Vec allocation.
+        // Each variant decides which children to visit.
         let graph = treeish_visit(|e: &Expr, cb: &mut dyn FnMut(&Expr)| {
             match e {
                 Expr::Num(_) => {}
@@ -37,8 +38,9 @@ mod tests {
             }
         });
 
-        // Fold: vec_fold sees the node + all child results.
-        // Each node type combines results differently.
+        // vec_fold: unlike simple_fold, finalize sees the node AND all child
+        // results together. Needed here because each node type combines
+        // children differently (sum vs product vs negate).
         let eval = vec_fold(|heap: &VecHeap<Expr, f64>| {
             match &heap.node {
                 Expr::Num(v) => *v,

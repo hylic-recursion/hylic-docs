@@ -65,21 +65,23 @@ mod tests {
     // Each is a standalone function returning a closure that
     // matches the transformation contract.
 
-    /// Log each visited node.
-    /// Contract: FnOnce(InitFn<Task, u64>) -> InitFn<Task, u64>
+    /// Hooks into init: called once per node, before any children are processed.
+    /// Receives the original init and wraps it — original behavior is preserved,
+    /// the side effect (logging) is layered on top.
     fn visit_logger(sink: Arc<Mutex<Vec<String>>>)
         -> impl FnOnce(InitFn<Task, u64>) -> InitFn<Task, u64>
     {
         move |orig: InitFn<Task, u64>| -> InitFn<Task, u64> {
             Box::new(move |task: &Task| {
                 sink.lock().unwrap().push(task.name.clone());
-                orig(task)
+                orig(task) // original init still runs — we add, not replace
             })
         }
     }
 
-    /// Skip children whose result is below a threshold.
-    /// Contract: FnOnce(AccumulateFn<u64, u64>) -> AccumulateFn<u64, u64>
+    /// Hooks into accumulate: called once per child result as it's folded in.
+    /// By conditionally calling orig, some children's results are simply
+    /// never folded — the parent doesn't see them.
     fn skip_small_children(threshold: u64)
         -> impl FnOnce(AccumulateFn<u64, u64>) -> AccumulateFn<u64, u64>
     {
@@ -90,8 +92,9 @@ mod tests {
         }
     }
 
-    /// Cap each subtree's result at a maximum.
-    /// Contract: FnOnce(FinalizeFn<u64, u64>) -> FinalizeFn<u64, u64>
+    /// Hooks into finalize: called once per node, after all children
+    /// are accumulated. The heap holds the fully-accumulated value;
+    /// the clamp applies to the result seen by this node's parent.
     fn clamp_at(max: u64)
         -> impl FnOnce(FinalizeFn<u64, u64>) -> FinalizeFn<u64, u64>
     {
@@ -100,8 +103,9 @@ mod tests {
         }
     }
 
-    /// Categorize a subtree's total cost.
-    /// Contract: Fn(&u64) -> &str  (zipmap)
+    /// zipmap contract: a plain Fn(&R) -> Extra. No wrapping needed —
+    /// the function itself IS the feature. zipmap calls it per node,
+    /// pairing the original result with the derived value: R → (R, Extra).
     fn classify(total: &u64) -> &'static str {
         match *total {
             t if t >= 500 => "critical",
@@ -112,8 +116,10 @@ mod tests {
 
     // ── Graph transformations ───────────────────────────────
 
-    /// Prune children below a cost threshold.
-    /// Takes a Treeish, returns a Treeish — same type, fewer edges.
+    /// Graph-level transformation: wraps a Treeish, returns a Treeish.
+    /// Same node type, fewer edges — the fold is completely unchanged.
+    /// Uses Edgy::at() which returns a Visit (push-based iterator with
+    /// filter/map/collect — zero-allocation unless collected).
     fn only_costly_deps(graph: &Treeish<Task>, min_cost: u64) -> Treeish<Task> {
         let inner = graph.clone();
         treeish(move |task: &Task| {

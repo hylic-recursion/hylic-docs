@@ -63,12 +63,13 @@ mod tests {
             ]),
         ]);
 
+        // treeish_from: for structs with a children field — zero-clone slice access.
         let graph = treeish_from(|scope: &ConfigScope| scope.children.as_slice());
 
-        // Fold: each node starts with its own overrides.
-        // Children's merged configs bubble up — but we want
-        // parent-wins semantics (parent overrides beat children).
-        // So we merge children first, then overlay parent's own.
+        // init seeds the heap with the parent's own overrides.
+        // accumulate merges each child's resolved config upward.
+        // or_insert means: child values only fill in keys the parent hasn't set.
+        // This gives parent-wins semantics — init runs before accumulate.
         let resolve = simple_fold(
             |scope: &ConfigScope| ResolvedConfig {
                 scope: scope.name.clone(),

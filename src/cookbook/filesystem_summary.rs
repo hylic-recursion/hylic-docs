@@ -47,14 +47,16 @@ mod tests {
             FsEntry::file("Cargo.toml", 400),
         ]);
 
-        // Tree structure: directories have children, files don't.
+        // treeish_visit: callback avoids allocating empty Vecs for files.
+        // Only directories produce children; files are implicit leaves.
         let graph = treeish_visit(|entry: &FsEntry, cb: &mut dyn FnMut(&FsEntry)| {
             if let FsEntry::Dir { children, .. } = entry {
                 for child in children { cb(child); }
             }
         });
 
-        // Fold: each node initializes its own metric, children accumulate.
+        // The heap is a structured Summary — multiple metrics in one fold.
+        // init seeds the node's own contribution, accumulate merges children.
         let summarize = simple_fold(
             |entry: &FsEntry| match entry {
                 FsEntry::File { size, .. } =>

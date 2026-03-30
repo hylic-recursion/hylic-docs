@@ -38,7 +38,8 @@ mod tests {
             |heap: &mut u64, child: &u64| *heap += child,
         );
 
-        // All strategies produce the same result.
+        // All strategies produce the same result — parallelism is purely
+        // an execution concern. The fold algebra and graph are unchanged.
         let expected = Strategy::Sequential.run(&sum, &graph, &tree);
         for strategy in ALL {
             let result = strategy.run(&sum, &graph, &tree);
