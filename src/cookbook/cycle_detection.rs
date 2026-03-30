@@ -10,7 +10,6 @@ mod tests {
     use hylic::cata::Strategy;
     use insta::assert_snapshot;
 
-    // ANCHOR: cycle_detection
 
     /// A dependency graph defined as adjacency lists.
     /// Nodes are string IDs, edges are dependencies.
@@ -93,7 +92,6 @@ mod tests {
         assert_eq!(result.cycles, vec!["A"]);  // C → A cycle detected
         assert_eq!(result.visited, 6);          // A, B, C, D, D, A(cycle)
 
-        // ANCHOR_END: cycle_detection
         assert_snapshot!("cycles", format!(
             "cycles: {:?}, visited: {}", result.cycles, result.visited
         ));

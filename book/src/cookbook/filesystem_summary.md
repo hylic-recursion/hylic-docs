@@ -1,10 +1,11 @@
 # Filesystem summary
 
-Fold a directory tree to compute total size, file count, and directory count.
-The heap is a structured `Summary` that accumulates multiple metrics in one pass.
+Aggregate file sizes, counts, and directory depth across a tree.
+
+> **Imports:** `hylic::fold::simple_fold`, `hylic::graph::treeish_visit`, `hylic::cata::Strategy`
 
 ```rust
-{{#include ../../../src/cookbook/filesystem_summary.rs:filesystem_summary}}
+{{#include ../../../src/cookbook/filesystem_summary.rs}}
 ```
 
 Output:

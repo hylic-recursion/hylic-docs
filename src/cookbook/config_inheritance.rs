@@ -10,7 +10,6 @@ mod tests {
     use hylic::cata::Strategy;
     use insta::assert_snapshot;
 
-    // ANCHOR: config_inheritance
 
     /// A configuration scope. Each scope has its own key-value overrides
     /// and child scopes that inherit and can further override.
@@ -92,7 +91,6 @@ mod tests {
         assert_eq!(result.merged.get("debug").unwrap(), "false");  // production's value
         assert_eq!(result.merged.get("rate_limit").unwrap(), "1000");
 
-        // ANCHOR_END: config_inheritance
         let display: Vec<String> = result.merged.iter()
             .map(|(k, v)| format!("{k}={v}")).collect();
         assert_snapshot!("config", display.join(", "));

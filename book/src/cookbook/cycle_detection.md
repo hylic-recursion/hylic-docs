@@ -1,11 +1,12 @@
 # Cycle detection
 
-Detect cycles in a dependency graph during traversal. Each node carries
-its ancestor set — if a node appears in its own ancestors, it's a cycle.
-Cycles become leaves (no further recursion).
+Detect cycles in a dependency graph during traversal. Each node
+carries its ancestor set — cycles become leaves (no further recursion).
+
+> **Imports:** `hylic::fold::simple_fold`, `hylic::graph::treeish`, `hylic::cata::Strategy`
 
 ```rust
-{{#include ../../../src/cookbook/cycle_detection.rs:cycle_detection}}
+{{#include ../../../src/cookbook/cycle_detection.rs}}
 ```
 
 Output:

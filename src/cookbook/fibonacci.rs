@@ -7,7 +7,6 @@ mod tests {
     use hylic::cata::Strategy;
     use insta::assert_snapshot;
 
-    // ANCHOR: fibonacci
 
     /// A Fibonacci node: just the number n.
     /// Branches into n-1 and n-2 until reaching base cases 0 or 1.
@@ -31,7 +30,6 @@ mod tests {
         let result = Strategy::Sequential.run(&fib, &graph, &FibNode(10));
         assert_eq!(result, 55);
 
-        // ANCHOR_END: fibonacci
         assert_snapshot!("fib10", format!("fib(10) = {result}"));
     }
 }

@@ -1,11 +1,12 @@
 # Expression evaluation
 
-Fold an arithmetic expression tree (AST) bottom-up. Each node type
-(Num, Add, Mul, Neg) handles its children differently. `vec_fold`
-gives the finalize function access to the node and all child results.
+Evaluate an AST bottom-up. Uses `vec_fold` to inspect all child
+results during finalize.
+
+> **Imports:** `hylic::prelude::vec_fold` + `VecHeap`, `hylic::graph::treeish_visit`, `hylic::cata::Strategy`
 
 ```rust
-{{#include ../../../src/cookbook/expression_eval.rs:expression_eval}}
+{{#include ../../../src/cookbook/expression_eval.rs}}
 ```
 
 Output:

@@ -1,12 +1,16 @@
 # Module resolution
 
-The pattern that motivated hylic. The entry point (top-level spec) differs
-from the recursive part (module dependencies). `SeedGraph` separates these:
-seeds expand into nodes, nodes expand into more seeds, errors are just
-nodes with no children.
+The SeedGraph pattern: unfold from seeds, handle errors as
+`Either::Left` nodes, fold results bottom-up.
+
+> **Imports:**
+> - `hylic::ana::SeedGraph` — anamorphism: `seeds_from_top`, `grow_node`, `seeds_from_valid`
+> - `hylic::hylo::SeedFoldAdapter` — wires SeedGraph + Fold into a runnable pipeline
+> - `hylic::graph::edgy` — edge constructor for seed graphs
+> - `either::Either` — `Left(error)` or `Right(valid)` node types
 
 ```rust
-{{#include ../../../src/cookbook/module_resolution.rs:module_resolution}}
+{{#include ../../../src/cookbook/module_resolution.rs}}
 ```
 
 Output:

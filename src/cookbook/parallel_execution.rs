@@ -8,7 +8,6 @@ mod tests {
     use hylic::cata::{Strategy, ALL};
     use insta::assert_snapshot;
 
-    // ANCHOR: parallel_execution
 
     /// A computation node with configurable work per node.
     /// The tree is wide (high branching factor) to benefit from parallelism.
@@ -46,7 +45,6 @@ mod tests {
             assert_eq!(result, expected, "Strategy {:?} disagreed", strategy);
         }
 
-        // ANCHOR_END: parallel_execution
         assert_snapshot!("parallel", format!(
             "sum = {expected}, verified across {} strategies", ALL.len()
         ));

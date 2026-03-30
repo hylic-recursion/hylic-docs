@@ -13,7 +13,6 @@ mod tests {
     use hylic::cata::Sequential;
     use insta::assert_snapshot;
 
-    // ANCHOR: module_resolution
 
     /// A module has a name and declares dependencies on other modules.
     #[derive(Clone, Debug)]
@@ -109,7 +108,6 @@ mod tests {
         assert!(result.modules.contains(&"app".to_string()));
         assert!(result.errors.contains(&"not found: ghost".to_string()));
 
-        // ANCHOR_END: module_resolution
         assert_snapshot!("resolution", format!(
             "resolved: [{}], errors: [{}]",
             result.modules.join(", "),

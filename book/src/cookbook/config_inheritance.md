@@ -1,11 +1,12 @@
 # Configuration inheritance
 
-Overlay configuration scopes bottom-up. Each scope has its own overrides
-and child scopes. The fold merges children's keys upward, but the parent's
-own values always win.
+Overlay configuration scopes bottom-up — child overrides accumulate,
+but the parent's own values always win.
+
+> **Imports:** `hylic::fold::simple_fold`, `hylic::graph::treeish_from`, `hylic::cata::Strategy`
 
 ```rust
-{{#include ../../../src/cookbook/config_inheritance.rs:config_inheritance}}
+{{#include ../../../src/cookbook/config_inheritance.rs}}
 ```
 
 Output:

@@ -7,7 +7,6 @@ mod tests {
     use hylic::cata::Strategy;
     use insta::assert_snapshot;
 
-    // ANCHOR: filesystem_summary
 
     /// A filesystem entry: either a file (leaf) or a directory (branch).
     #[derive(Clone)]
@@ -75,7 +74,6 @@ mod tests {
             total_size: 10400, file_count: 5, dir_count: 3,
         });
 
-        // ANCHOR_END: filesystem_summary
         assert_snapshot!("fs_summary", format!(
             "project/: {} bytes, {} files, {} dirs",
             result.total_size, result.file_count, result.dir_count,

@@ -1,12 +1,11 @@
 # Fibonacci
 
-The simplest hylic example. Fibonacci numbers form a degenerate tree
-(each node branches into n-1 and n-2). The fold sums leaf values bottom-up.
+Recursive Fibonacci via tree fold — the simplest possible example.
 
-Intentionally naive — demonstrates the mechanics, not performance.
+> **Imports:** `hylic::fold::simple_fold`, `hylic::graph::treeish`, `hylic::cata::Strategy`
 
 ```rust
-{{#include ../../../src/cookbook/fibonacci.rs:fibonacci}}
+{{#include ../../../src/cookbook/fibonacci.rs}}
 ```
 
 Output:

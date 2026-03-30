@@ -7,7 +7,6 @@ mod tests {
     use hylic::cata::Strategy;
     use insta::assert_snapshot;
 
-    // ANCHOR: expression_eval
 
     /// An arithmetic expression tree.
     /// Each variant defines both its meaning and its children.
@@ -52,7 +51,6 @@ mod tests {
         let result = Strategy::Sequential.run(&eval, &graph, &expr);
         assert_eq!(result, -14.0);
 
-        // ANCHOR_END: expression_eval
         assert_snapshot!("expr_eval", format!("(3 + 4) * -(2) = {result}"));
     }
 }

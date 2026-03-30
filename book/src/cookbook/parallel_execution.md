@@ -1,10 +1,14 @@
 # Parallel execution
 
-Same fold, different execution strategies. All strategies produce identical
-results — parallelism is a traversal concern, not an algebra concern.
+Same fold with all three strategies — identical results. Strategy
+choice is independent of fold and graph definition.
+
+> **Imports:** `hylic::fold::simple_fold`, `hylic::graph::treeish`, `hylic::cata::{Strategy, ALL}`
+>
+> **Strategies** (in `hylic::cata`): `Sequential`, `ParTraverse`, `ParFoldLazy`
 
 ```rust
-{{#include ../../../src/cookbook/parallel_execution.rs:parallel_execution}}
+{{#include ../../../src/cookbook/parallel_execution.rs}}
 ```
 
 Output:
