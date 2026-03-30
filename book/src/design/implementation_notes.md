@@ -162,7 +162,14 @@ Types in `prelude/` are built on core but not required to use hylic:
 - `TreeFormatCfg`: Tree-to-string formatting. Domain-specific display.
 - `Visit`: Push-based iterator. Used internally by `Edgy::at()`.
 - `Traced`: Path tracking for tree nodes.
+- `memoize_treeish` / `memoize_treeish_by`: Graph-level caching for
+  DAGs. Wraps a `Treeish<N>` with a `HashMap<K, Vec<N>>` so repeated
+  visits to the same node return cached children. Returns `Treeish<N>`
+  — same node type, fold unchanged. `memoize_treeish_by` takes a
+  caller-provided key function; `memoize_treeish` uses the node itself
+  as key (requires `Hash + Eq`). Not related to `UIO` — `UIO` is for
+  parallel execution deferral, not caching.
 
-These are re-exported through `fold/mod.rs` for convenience —
-`hylic::fold::VecHeap` works — but live in `prelude/` to keep the
-core modules focused.
+These are re-exported through `prelude/mod.rs` — e.g.
+`hylic::prelude::memoize_treeish` — but live in `prelude/` to keep
+the core modules focused.

@@ -89,7 +89,7 @@ with `Fold` and provides `run_top(strategy, &spec)`.
 |---------|---------------------|-------|
 | Error handling | Modify both functions | Errors are `Either::Left` nodes — no children, fold handles them |
 | Logging | Add logging to the recursive function | `fold.map_init(add_logging)` — one transformation |
-| Caching | Add a cache to the recursive function | `memoize_treeish(graph)` — wrap the graph, fold unchanged |
+| Caching | Add a cache to the recursive function | `memoize_treeish_by(graph, key_fn)` — wrap the graph, fold unchanged |
 | Parallelism | Rewrite with async/threads | `Strategy::ParTraverse` — same fold, same graph |
 | Testing | Test both functions, mock dependencies | Test fold and graph independently, compose for integration |
 
