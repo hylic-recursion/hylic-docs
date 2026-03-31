@@ -11,5 +11,5 @@ combine children differently.
 Output:
 
 ```
-{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__expression_eval__tests__evaluate_expression.snap:5:}}
+{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__expression_eval__tests__expr_eval.snap:5:}}
 ```

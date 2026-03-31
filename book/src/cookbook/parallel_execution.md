@@ -85,10 +85,9 @@ Phase 1 runs `fold.init` for each node (quasi-fused — real work
 happens during tree construction). Phase 2 only runs accumulate
 and finalize, which are typically lightweight.
 
-**Tradeoff**: does not require `N: Clone`. Parallelism comes from
-rayon's `par_iter` inside `ParRef::join_par`. Two traversals of the
-tree structure (build + eval), but the second is cheap if
-accumulate/finalize are fast.
+**Tradeoff**: parallelism comes from rayon's `par_iter` inside
+`ParRef::join_par`. Two traversals of the tree structure (build +
+eval), but the second is cheap if accumulate/finalize are fast.
 
 ## Approach 3: ParEager — fork-join on a heap tree
 
@@ -146,17 +145,16 @@ while waiting. This is deadlock-free: waiting threads are productive
 The `WorkPool` uses scoped threads (`std::thread::scope`) — workers
 are guaranteed joined when `WorkPool::with` returns, even on panic.
 
-**Tradeoff**: does not require `N: Clone`. Hand-rolled scheduling
-avoids rayon's work-stealing overhead. Fixed thread count, no
-per-task allocation. Best when you want fine control over the
-thread pool.
+**Tradeoff**: hand-rolled scheduling avoids rayon's work-stealing
+overhead. Fixed thread count, no per-task allocation. Best when you
+want fine control over the thread pool.
 
 ## Comparison
 
 | | `Exec::rayon` | `ParLazy` | `ParEager` |
 |---|---|---|---|
 | Mechanism | rayon `par_iter` | ParRef tree + rayon `join_par` | Heap tree + WorkPool fork-join |
-| Requires `N: Clone` | yes | no | no |
+| Requires `N: Clone` | yes | yes | yes |
 | Thread management | rayon global pool | rayon global pool | explicit `WorkPool` |
 | Scheduling | work-stealing | work-stealing | fork-join with helping |
 | Is a Lift | no | yes | yes |

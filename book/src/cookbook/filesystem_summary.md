@@ -11,5 +11,5 @@ simultaneously.
 Output:
 
 ```
-{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__filesystem_summary__tests__summarize_filesystem.snap:5:}}
+{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__filesystem_summary__tests__fs_summary.snap:5:}}
 ```

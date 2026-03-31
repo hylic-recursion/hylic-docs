@@ -11,5 +11,5 @@ structure, the Fold just collects.
 Output:
 
 ```
-{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__cycle_detection__tests__detect_cycles.snap:5:}}
+{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__cycle_detection__tests__cycles.snap:5:}}
 ```

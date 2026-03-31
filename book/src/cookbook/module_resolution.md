@@ -12,5 +12,5 @@ a valid-only seed function to handle `Either<Error, Valid>` nodes.
 Output:
 
 ```
-{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__module_resolution__tests__resolve_modules.snap:5:}}
+{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__module_resolution__tests__resolution.snap:5:}}
 ```

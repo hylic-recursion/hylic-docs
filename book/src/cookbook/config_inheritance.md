@@ -11,5 +11,5 @@ parent's values are already in the map.
 Output:
 
 ```
-{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__config_inheritance__tests__config_overlay.snap:5:}}
+{{#include ../../../src/cookbook/snapshots/hylic_docs__cookbook__config_inheritance__tests__config.snap:5:}}
 ```
