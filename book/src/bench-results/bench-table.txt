@@ -1,0 +1,11 @@
+workload                         fused             rayon         uio+fused         uio+rayon
+--------------------------------------------------------------------------------------------
+0us_overhead             0.1ms  (best)     0.3ms (+303%)     0.6ms (+722%)     0.7ms (+970%)
+100us_fold-heavy       243.3ms (+250%)    69.6ms  (best)   265.4ms (+282%)      72.9ms (+5%)
+100us_graph-heavy      241.0ms (+274%)    64.4ms  (best)   230.9ms (+259%)      66.0ms (+3%)
+100us_large500        1435.8ms (+371%)     327.9ms (+8%)  1441.3ms (+373%)   304.9ms  (best)
+10us_light              20.2ms (+144%)     8.2ms  (best)    23.1ms (+180%)     8.3ms  (best)
+1ms_heavy             3072.1ms (+237%)   912.0ms  (best)  4676.3ms (+413%)   1072.7ms (+18%)
+200us_balanced         531.3ms (+203%)   175.6ms  (best)   562.3ms (+220%)    238.8ms (+36%)
+200us_deep               68.6ms (+56%)    44.0ms  (best)     66.2ms (+51%)     51.6ms (+17%)
+200us_io               190.4ms (+295%)      50.8ms (+6%)   206.5ms (+329%)    48.2ms  (best)
