@@ -2,6 +2,12 @@
 
 [Introduction](./intro.md)
 
+# Concepts
+
+- [The recursive pattern](./concepts/separation.md)
+- [Transformations and Lifts](./concepts/transforms.md)
+- [Entry points](./concepts/entry.md)
+
 # Cookbook
 
 - [Fibonacci](./cookbook/fibonacci.md)
@@ -14,9 +20,7 @@
 - [Module resolution](./cookbook/module_resolution.md)
 - [Benchmarks](./cookbook/benchmarks.md)
 
-# How it works
+# Reference
 
-- [Core composition](./design/core_composition.md)
-- [Lifts](./design/lifts.md)
-- [The two-function problem](./design/two_function_problem.md)
 - [Implementation notes](./design/implementation_notes.md)
+- [Theory](./design/theory.md)
