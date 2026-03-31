@@ -1,0 +1,10 @@
+workload                        hylic-fused       hylic-eager      hylic-parref       hylic-rayon     vanilla-rayon       vanilla-seq
+-------------------------------------------------------------------------------------------------------------------------------------
+large-dense_fast                      4.3ms       4.8ms 0.90x       1.3ms  3.4x       1.1ms  3.9x       1.4ms  3.0x       6.5ms 0.67x
+large-dense_slow                    103.9ms     118.4ms 0.88x      23.9ms  4.3x      27.8ms  3.7x      17.8ms  5.9x     116.6ms 0.89x
+large-sparse_fast                     4.6ms       5.0ms 0.92x       1.6ms  2.8x       1.5ms  3.1x       1.1ms  4.0x       5.4ms 0.85x
+large-sparse_slow                   100.8ms     110.5ms 0.91x      19.5ms  5.2x      18.2ms  5.5x      22.7ms  4.4x     138.2ms 0.73x
+small-dense_fast                      1.2ms       1.2ms 0.98x       0.5ms  2.5x       0.4ms  2.6x       0.4ms  2.7x       1.2ms  1.0x
+small-dense_slow                     25.0ms      28.9ms 0.87x       6.7ms  3.7x       6.4ms  3.9x       7.1ms  3.5x      28.3ms 0.88x
+small-sparse_fast                     1.2ms       1.2ms 1.00x       0.5ms  2.4x       0.5ms  2.6x       0.4ms  3.1x       1.1ms  1.1x
+small-sparse_slow                    24.8ms      28.4ms 0.87x       7.0ms  3.6x       6.6ms  3.7x       5.5ms  4.5x      27.9ms 0.89x

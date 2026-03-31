@@ -4,266 +4,322 @@
 <title>hylic bench report</title>
 <style>
   body { font-family: monospace; background: #1a1a1a; color: #ddd; padding: 20px; }
-  h1, h2 { color: #eee; }
+  h1, h2, h3 { color: #eee; }
   table { border-collapse: collapse; margin: 20px 0; }
   th, td { padding: 6px 14px; text-align: right; border: 1px solid #444; }
   th { background: #333; color: #ccc; }
   td.wl { text-align: left; background: #222; color: #aaa; font-weight: bold; }
   .best { font-weight: bold; }
-  a { color: #6ca; }
 </style>
 </head><body>
 <h1>hylic bench report</h1>
-<h2>Speedup vs fused (sequential baseline)</h2>
-<table><tr><th>workload</th><th>fused</th>
-<th>eager+fused</th>
-<th>eager+rayon</th>
-<th>parref+fused</th>
-<th>parref+rayon</th>
-<th>rayon</th>
-</tr>
-<tr><td class='wl'>0us_overhead</td>
-<td>0.0ms</td>
-<td style='background:hsl(45, 65%, 42%); color:#fff;'>0.1ms (0.11x)</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>0.3ms (0.05x)</td>
-<td style='background:hsl(29, 65%, 42%); color:#fff;'>0.2ms (0.09x)</td>
-<td style='background:hsl(47, 65%, 42%); color:#fff;'>0.1ms (0.11x)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>0.1ms (0.21x)</td>
-</tr>
-<tr><td class='wl'>100us_fold-heavy</td>
-<td>43.7ms</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>44.4ms (0.98x)</td>
-<td style='background:hsl(112, 65%, 42%); color:#fff;'>10.2ms (4.30x)</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>44.9ms (0.97x)</td>
-<td style='background:hsl(116, 65%, 42%); color:#fff;'>9.9ms (4.43x)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>9.6ms (4.54x)</td>
-</tr>
-<tr><td class='wl'>100us_graph-heavy</td>
-<td>40.5ms</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>46.0ms (0.88x)</td>
-<td style='background:hsl(94, 65%, 42%); color:#fff;'>10.9ms (3.72x)</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>46.3ms (0.88x)</td>
-<td style='background:hsl(106, 65%, 42%); color:#fff;'>9.9ms (4.08x)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>9.0ms (4.52x)</td>
-</tr>
-<tr><td class='wl'>100us_large500</td>
-<td>121.6ms</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>117.6ms (1.03x)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>17.0ms (7.17x)</td>
-<td style='background:hsl(4, 65%, 42%); color:#fff;'>99.0ms (1.23x)</td>
-<td style='background:hsl(82, 65%, 42%); color:#fff;'>23.3ms (5.21x)</td>
-<td style='background:hsl(113, 65%, 42%); color:#fff;'>17.9ms (6.80x)</td>
-</tr>
-<tr><td class='wl'>10us_light</td>
-<td>5.2ms</td>
-<td style='background:hsl(1, 65%, 42%); color:#fff;'>4.5ms (1.17x)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>1.0ms (5.28x)</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>4.5ms (1.15x)</td>
-<td style='background:hsl(93, 65%, 42%); color:#fff;'>1.2ms (4.33x)</td>
-<td style='background:hsl(66, 65%, 42%); color:#fff;'>1.5ms (3.41x)</td>
-</tr>
-<tr><td class='wl'>1ms_heavy</td>
-<td>436.4ms</td>
-<td style='background:hsl(1, 65%, 42%); color:#fff;'>386.3ms (1.13x)</td>
-<td style='background:hsl(91, 65%, 42%); color:#fff;'>85.2ms (5.12x)</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>401.3ms (1.09x)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>68.0ms (6.42x)</td>
-<td style='background:hsl(82, 65%, 42%); color:#fff;'>92.4ms (4.72x)</td>
-</tr>
-<tr><td class='wl'>200us_balanced</td>
-<td>78.9ms</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>87.8ms (0.90x)</td>
-<td style='background:hsl(109, 65%, 42%); color:#fff;'>20.5ms (3.85x)</td>
-<td style='background:hsl(1, 65%, 42%); color:#fff;'>85.3ms (0.92x)</td>
-<td style='background:hsl(115, 65%, 42%); color:#fff;'>19.7ms (4.01x)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>19.0ms (4.15x)</td>
-</tr>
-<tr><td class='wl'>200us_deep</td>
-<td>42.1ms</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>42.2ms (1.00x)</td>
-<td style='background:hsl(112, 65%, 42%); color:#fff;'>7.3ms (5.80x)</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>42.3ms (0.99x)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>6.9ms (6.13x)</td>
-<td style='background:hsl(118, 65%, 42%); color:#fff;'>7.0ms (6.03x)</td>
-</tr>
-<tr><td class='wl'>200us_io</td>
-<td>42.2ms</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>42.5ms (0.99x)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>7.0ms (6.07x)</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>42.4ms (1.00x)</td>
-<td style='background:hsl(117, 65%, 42%); color:#fff;'>7.1ms (5.94x)</td>
-<td style='background:hsl(108, 65%, 42%); color:#fff;'>7.6ms (5.54x)</td>
-</tr>
-</table>
-<h2>Absolute timing (colored by best-in-row)</h2>
+<h2>hylic-modes</h2>
+<h3>Absolute timing</h3>
 <table><tr><th>workload</th>
-<th>eager+fused</th>
-<th>eager+rayon</th>
-<th>fused</th>
-<th>parref+fused</th>
-<th>parref+rayon</th>
-<th>rayon</th>
+<th>hylic-eager+fused</th>
+<th>hylic-eager+rayon</th>
+<th>hylic-fused</th>
+<th>hylic-parref+fused</th>
+<th>hylic-parref+rayon</th>
+<th>hylic-rayon</th>
 </tr>
-<tr><td class='wl'>0us_overhead</td>
-<td style='background:hsl(71, 65%, 42%); color:#fff;'>0.1ms (+837%)</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>0.3ms (+2049%)</td>
+<tr><td class='wl'>aggr_sm</td>
+<td style='background:hsl(104, 65%, 42%); color:#fff;'>19.3ms (+36%)</td>
+<td style='background:hsl(108, 65%, 42%); color:#fff;'>18.1ms (+27%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>52.2ms (+266%)</td>
+<td style='background:hsl(104, 65%, 42%); color:#fff;'>19.1ms (+34%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>14.2ms</td>
+<td style='background:hsl(112, 65%, 42%); color:#fff;'>16.7ms (+17%)</td>
+</tr>
+<tr><td class='wl'>bal_sm</td>
+<td style='background:hsl(10, 65%, 42%); color:#fff;'>74.2ms (+224%)</td>
+<td style='background:hsl(113, 65%, 42%); color:#fff;'>26.1ms (+14%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>78.9ms (+245%)</td>
+<td style='background:hsl(29, 65%, 42%); color:#fff;'>65.1ms (+185%)</td>
+<td style='background:hsl(108, 65%, 42%); color:#fff;'>28.3ms (+24%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>22.9ms</td>
+</tr>
+<tr><td class='wl'>deep_sm</td>
+<td style='background:hsl(28, 65%, 42%); color:#fff;'>26.3ms (+265%)</td>
+<td style='background:hsl(111, 65%, 42%); color:#fff;'>9.2ms (+27%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>32.2ms (+346%)</td>
+<td style='background:hsl(25, 65%, 42%); color:#fff;'>26.9ms (+273%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>7.2ms</td>
+<td style='background:hsl(116, 65%, 42%); color:#fff;'>8.1ms (+12%)</td>
+</tr>
+<tr><td class='wl'>hash_sm</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>4.9ms (+262%)</td>
+<td style='background:hsl(103, 65%, 42%); color:#fff;'>1.9ms (+37%)</td>
+<td style='background:hsl(7, 65%, 42%); color:#fff;'>4.7ms (+247%)</td>
+<td style='background:hsl(26, 65%, 42%); color:#fff;'>4.1ms (+205%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>1.4ms</td>
+<td style='background:hsl(113, 65%, 42%); color:#fff;'>1.6ms (+16%)</td>
+</tr>
+<tr><td class='wl'>io_sm</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>42.8ms (+455%)</td>
+<td style='background:hsl(119, 65%, 42%); color:#fff;'>7.9ms (+2%)</td>
+<td style='background:hsl(3, 65%, 42%); color:#fff;'>42.1ms (+447%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>42.9ms (+457%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>7.7ms</td>
+<td style='background:hsl(119, 65%, 42%); color:#fff;'>8.0ms (+4%)</td>
+</tr>
+<tr><td class='wl'>lg-dense_sm</td>
+<td style='background:hsl(10, 65%, 42%); color:#fff;'>75.3ms (+361%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>16.3ms</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>80.6ms (+393%)</td>
+<td style='background:hsl(20, 65%, 42%); color:#fff;'>69.7ms (+326%)</td>
+<td style='background:hsl(115, 65%, 42%); color:#fff;'>19.0ms (+16%)</td>
+<td style='background:hsl(116, 65%, 42%); color:#fff;'>18.4ms (+12%)</td>
+</tr>
+<tr><td class='wl'>noop_sm</td>
+<td style='background:hsl(61, 65%, 42%); color:#fff;'>0.2ms (+851%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>0.3ms (+1718%)</td>
 <td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>0.0ms</td>
-<td style='background:hsl(57, 65%, 42%); color:#fff;'>0.2ms (+1068%)</td>
-<td style='background:hsl(72, 65%, 42%); color:#fff;'>0.1ms (+820%)</td>
-<td style='background:hsl(97, 65%, 42%); color:#fff;'>0.1ms (+386%)</td>
+<td style='background:hsl(57, 65%, 42%); color:#fff;'>0.2ms (+904%)</td>
+<td style='background:hsl(68, 65%, 42%); color:#fff;'>0.1ms (+742%)</td>
+<td style='background:hsl(99, 65%, 42%); color:#fff;'>0.1ms (+303%)</td>
 </tr>
-<tr><td class='wl'>100us_fold-heavy</td>
-<td style='background:hsl(2, 65%, 42%); color:#fff;'>44.4ms (+361%)</td>
-<td style='background:hsl(118, 65%, 42%); color:#fff;'>10.2ms (+6%)</td>
-<td style='background:hsl(4, 65%, 42%); color:#fff;'>43.7ms (+354%)</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>44.9ms (+367%)</td>
-<td style='background:hsl(119, 65%, 42%); color:#fff;'>9.9ms (+2%)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>9.6ms</td>
+<tr><td class='wl'>parse-hv_sm</td>
+<td style='background:hsl(1, 65%, 42%); color:#fff;'>125.0ms (+401%)</td>
+<td style='background:hsl(115, 65%, 42%); color:#fff;'>29.6ms (+19%)</td>
+<td style='background:hsl(22, 65%, 42%); color:#fff;'>107.7ms (+332%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>126.1ms (+406%)</td>
+<td style='background:hsl(110, 65%, 42%); color:#fff;'>33.2ms (+33%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>24.9ms</td>
 </tr>
-<tr><td class='wl'>100us_graph-heavy</td>
-<td style='background:hsl(1, 65%, 42%); color:#fff;'>46.0ms (+413%)</td>
-<td style='background:hsl(114, 65%, 42%); color:#fff;'>10.9ms (+22%)</td>
-<td style='background:hsl(19, 65%, 42%); color:#fff;'>40.5ms (+352%)</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>46.3ms (+417%)</td>
-<td style='background:hsl(117, 65%, 42%); color:#fff;'>9.9ms (+11%)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>9.0ms</td>
+<tr><td class='wl'>parse-lt_sm</td>
+<td style='background:hsl(3, 65%, 42%); color:#fff;'>34.5ms (+366%)</td>
+<td style='background:hsl(106, 65%, 42%); color:#fff;'>10.6ms (+43%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>35.1ms (+374%)</td>
+<td style='background:hsl(40, 65%, 42%); color:#fff;'>25.9ms (+250%)</td>
+<td style='background:hsl(112, 65%, 42%); color:#fff;'>9.2ms (+24%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>7.4ms</td>
 </tr>
-<tr><td class='wl'>100us_large500</td>
-<td style='background:hsl(5, 65%, 42%); color:#fff;'>117.6ms (+594%)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>17.0ms</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>121.6ms (+617%)</td>
-<td style='background:hsl(26, 65%, 42%); color:#fff;'>99.0ms (+484%)</td>
-<td style='background:hsl(113, 65%, 42%); color:#fff;'>23.3ms (+38%)</td>
-<td style='background:hsl(119, 65%, 42%); color:#fff;'>17.9ms (+5%)</td>
+<tr><td class='wl'>wide_sm</td>
+<td style='background:hsl(27, 65%, 42%); color:#fff;'>28.5ms (+262%)</td>
+<td style='background:hsl(113, 65%, 42%); color:#fff;'>9.3ms (+18%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>34.4ms (+337%)</td>
+<td style='background:hsl(29, 65%, 42%); color:#fff;'>28.1ms (+257%)</td>
+<td style='background:hsl(118, 65%, 42%); color:#fff;'>8.3ms (+6%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>7.9ms</td>
 </tr>
-<tr><td class='wl'>10us_light</td>
-<td style='background:hsl(22, 65%, 42%); color:#fff;'>4.5ms (+350%)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>1.0ms</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>5.2ms (+428%)</td>
-<td style='background:hsl(20, 65%, 42%); color:#fff;'>4.5ms (+357%)</td>
-<td style='background:hsl(114, 65%, 42%); color:#fff;'>1.2ms (+22%)</td>
-<td style='background:hsl(105, 65%, 42%); color:#fff;'>1.5ms (+55%)</td>
-</tr>
-<tr><td class='wl'>1ms_heavy</td>
-<td style='background:hsl(16, 65%, 42%); color:#fff;'>386.3ms (+468%)</td>
-<td style='background:hsl(114, 65%, 42%); color:#fff;'>85.2ms (+25%)</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>436.4ms (+542%)</td>
-<td style='background:hsl(11, 65%, 42%); color:#fff;'>401.3ms (+490%)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>68.0ms</td>
-<td style='background:hsl(112, 65%, 42%); color:#fff;'>92.4ms (+36%)</td>
-</tr>
-<tr><td class='wl'>200us_balanced</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>87.8ms (+362%)</td>
-<td style='background:hsl(117, 65%, 42%); color:#fff;'>20.5ms (+8%)</td>
-<td style='background:hsl(15, 65%, 42%); color:#fff;'>78.9ms (+315%)</td>
-<td style='background:hsl(4, 65%, 42%); color:#fff;'>85.3ms (+349%)</td>
-<td style='background:hsl(119, 65%, 42%); color:#fff;'>19.7ms (+3%)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>19.0ms</td>
-</tr>
-<tr><td class='wl'>200us_deep</td>
-<td style='background:hsl(1, 65%, 42%); color:#fff;'>42.2ms (+514%)</td>
-<td style='background:hsl(119, 65%, 42%); color:#fff;'>7.3ms (+6%)</td>
-<td style='background:hsl(1, 65%, 42%); color:#fff;'>42.1ms (+513%)</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>42.3ms (+517%)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>6.9ms</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;'>7.0ms (+2%)</td>
-</tr>
-<tr><td class='wl'>200us_io</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>42.5ms (+511%)</td>
-<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>7.0ms</td>
-<td style='background:hsl(1, 65%, 42%); color:#fff;'>42.2ms (+507%)</td>
-<td style='background:hsl(0, 65%, 42%); color:#fff;'>42.4ms (+509%)</td>
-<td style='background:hsl(119, 65%, 42%); color:#fff;'>7.1ms (+2%)</td>
-<td style='background:hsl(118, 65%, 42%); color:#fff;'>7.6ms (+10%)</td>
+<tr><td class='wl'>xform_sm</td>
+<td style='background:hsl(95, 65%, 42%); color:#fff;'>22.3ms (+68%)</td>
+<td style='background:hsl(116, 65%, 42%); color:#fff;'>14.7ms (+11%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>57.2ms (+332%)</td>
+<td style='background:hsl(112, 65%, 42%); color:#fff;'>16.3ms (+23%)</td>
+<td style='background:hsl(112, 65%, 42%); color:#fff;'>16.1ms (+22%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>13.2ms</td>
 </tr>
 </table>
-<h2>Bar chart</h2>
-<svg xmlns="http://www.w3.org/2000/svg" width="1792" height="450" font-family="monospace" font-size="11">
-<rect width="1792" height="450" fill="white"/>
-<line x1="80" y1="330" x2="1772" y2="330" stroke="#ddd" stroke-width="1"/>
-<text x="75" y="334" text-anchor="end" fill="#666">0ms</text>
-<line x1="80" y1="255" x2="1772" y2="255" stroke="#ddd" stroke-width="1"/>
-<text x="75" y="259" text-anchor="end" fill="#666">109ms</text>
-<line x1="80" y1="180" x2="1772" y2="180" stroke="#ddd" stroke-width="1"/>
-<text x="75" y="184" text-anchor="end" fill="#666">218ms</text>
-<line x1="80" y1="105" x2="1772" y2="105" stroke="#ddd" stroke-width="1"/>
-<text x="75" y="109" text-anchor="end" fill="#666">327ms</text>
-<line x1="80" y1="30" x2="1772" y2="30" stroke="#ddd" stroke-width="1"/>
-<text x="75" y="34" text-anchor="end" fill="#666">436ms</text>
-<rect x="80" y="330" width="24" height="0" fill="#4e79a7"/>
-<rect x="108" y="330" width="24" height="0" fill="#e15759"/>
-<rect x="136" y="330" width="24" height="0" fill="#59a14f"/>
-<rect x="164" y="330" width="24" height="0" fill="#f28e2b"/>
-<rect x="192" y="330" width="24" height="0" fill="#4e79a7"/>
-<rect x="220" y="330" width="24" height="0" fill="#e15759"/>
-<text x="164" y="345" text-anchor="middle" transform="rotate(45 164 345)" fill="#333">0us_overhead</text>
-<rect x="268" y="299" width="24" height="31" fill="#4e79a7"/>
-<rect x="296" y="323" width="24" height="7" fill="#e15759"/>
-<rect x="324" y="300" width="24" height="30" fill="#59a14f"/>
-<rect x="352" y="299" width="24" height="31" fill="#f28e2b"/>
-<rect x="380" y="323" width="24" height="7" fill="#4e79a7"/>
-<rect x="408" y="323" width="24" height="7" fill="#e15759"/>
-<text x="352" y="345" text-anchor="middle" transform="rotate(45 352 345)" fill="#333">100us_fold-heavy</text>
-<rect x="456" y="298" width="24" height="32" fill="#4e79a7"/>
-<rect x="484" y="323" width="24" height="7" fill="#e15759"/>
-<rect x="512" y="302" width="24" height="28" fill="#59a14f"/>
-<rect x="540" y="298" width="24" height="32" fill="#f28e2b"/>
-<rect x="568" y="323" width="24" height="7" fill="#4e79a7"/>
-<rect x="596" y="324" width="24" height="6" fill="#e15759"/>
-<text x="540" y="345" text-anchor="middle" transform="rotate(45 540 345)" fill="#333">100us_graph-heavy</text>
-<rect x="644" y="249" width="24" height="81" fill="#4e79a7"/>
-<rect x="672" y="318" width="24" height="12" fill="#e15759"/>
-<rect x="700" y="246" width="24" height="84" fill="#59a14f"/>
-<rect x="728" y="262" width="24" height="68" fill="#f28e2b"/>
-<rect x="756" y="314" width="24" height="16" fill="#4e79a7"/>
-<rect x="784" y="318" width="24" height="12" fill="#e15759"/>
-<text x="728" y="345" text-anchor="middle" transform="rotate(45 728 345)" fill="#333">100us_large500</text>
-<rect x="832" y="327" width="24" height="3" fill="#4e79a7"/>
-<rect x="860" y="329" width="24" height="1" fill="#e15759"/>
-<rect x="888" y="326" width="24" height="4" fill="#59a14f"/>
-<rect x="916" y="327" width="24" height="3" fill="#f28e2b"/>
-<rect x="944" y="329" width="24" height="1" fill="#4e79a7"/>
-<rect x="972" y="329" width="24" height="1" fill="#e15759"/>
-<text x="916" y="345" text-anchor="middle" transform="rotate(45 916 345)" fill="#333">10us_light</text>
-<rect x="1020" y="64" width="24" height="266" fill="#4e79a7"/>
-<rect x="1048" y="271" width="24" height="59" fill="#e15759"/>
-<rect x="1076" y="30" width="24" height="300" fill="#59a14f"/>
-<rect x="1104" y="54" width="24" height="276" fill="#f28e2b"/>
-<rect x="1132" y="283" width="24" height="47" fill="#4e79a7"/>
-<rect x="1160" y="266" width="24" height="64" fill="#e15759"/>
-<text x="1104" y="345" text-anchor="middle" transform="rotate(45 1104 345)" fill="#333">1ms_heavy</text>
-<rect x="1208" y="270" width="24" height="60" fill="#4e79a7"/>
-<rect x="1236" y="316" width="24" height="14" fill="#e15759"/>
-<rect x="1264" y="276" width="24" height="54" fill="#59a14f"/>
-<rect x="1292" y="271" width="24" height="59" fill="#f28e2b"/>
-<rect x="1320" y="316" width="24" height="14" fill="#4e79a7"/>
-<rect x="1348" y="317" width="24" height="13" fill="#e15759"/>
-<text x="1292" y="345" text-anchor="middle" transform="rotate(45 1292 345)" fill="#333">200us_balanced</text>
-<rect x="1396" y="301" width="24" height="29" fill="#4e79a7"/>
-<rect x="1424" y="325" width="24" height="5" fill="#e15759"/>
-<rect x="1452" y="301" width="24" height="29" fill="#59a14f"/>
-<rect x="1480" y="301" width="24" height="29" fill="#f28e2b"/>
-<rect x="1508" y="325" width="24" height="5" fill="#4e79a7"/>
-<rect x="1536" y="325" width="24" height="5" fill="#e15759"/>
-<text x="1480" y="345" text-anchor="middle" transform="rotate(45 1480 345)" fill="#333">200us_deep</text>
-<rect x="1584" y="301" width="24" height="29" fill="#4e79a7"/>
-<rect x="1612" y="325" width="24" height="5" fill="#e15759"/>
-<rect x="1640" y="301" width="24" height="29" fill="#59a14f"/>
-<rect x="1668" y="301" width="24" height="29" fill="#f28e2b"/>
-<rect x="1696" y="325" width="24" height="5" fill="#4e79a7"/>
-<rect x="1724" y="325" width="24" height="5" fill="#e15759"/>
-<text x="1668" y="345" text-anchor="middle" transform="rotate(45 1668 345)" fill="#333">200us_io</text>
-<rect x="80" y="425" width="12" height="12" fill="#4e79a7"/>
-<text x="96" y="435" fill="#333">eager+fused</text>
-<rect x="220" y="425" width="12" height="12" fill="#e15759"/>
-<text x="236" y="435" fill="#333">eager+rayon</text>
-<rect x="360" y="425" width="12" height="12" fill="#59a14f"/>
-<text x="376" y="435" fill="#333">fused</text>
-<rect x="500" y="425" width="12" height="12" fill="#f28e2b"/>
-<text x="516" y="435" fill="#333">parref+fused</text>
-<rect x="640" y="425" width="12" height="12" fill="#4e79a7"/>
-<text x="656" y="435" fill="#333">parref+rayon</text>
-<rect x="780" y="425" width="12" height="12" fill="#e15759"/>
-<text x="796" y="435" fill="#333">rayon</text>
-</svg>
+<h2>overhead</h2>
+<h3>Absolute timing</h3>
+<table><tr><th>workload</th>
+<th>hand-pool</th>
+<th>hand-rayon</th>
+<th>hand-seq</th>
+<th>hylic-eager+fused</th>
+<th>hylic-eager+rayon</th>
+<th>hylic-fused</th>
+<th>hylic-parref+fused</th>
+<th>hylic-parref+rayon</th>
+<th>hylic-rayon</th>
+</tr>
+<tr><td class='wl'>aggr_sm</td>
+<td style='background:hsl(94, 65%, 42%); color:#fff;'>21.2ms (+60%)</td>
+<td style='background:hsl(112, 65%, 42%); color:#fff;'>15.6ms (+18%)</td>
+<td style='background:hsl(3, 65%, 42%); color:#fff;'>48.7ms (+269%)</td>
+<td style='background:hsl(90, 65%, 42%); color:#fff;'>22.2ms (+68%)</td>
+<td style='background:hsl(99, 65%, 42%); color:#fff;'>19.6ms (+48%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>49.5ms (+274%)</td>
+<td style='background:hsl(112, 65%, 42%); color:#fff;'>15.8ms (+19%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>13.2ms</td>
+<td style='background:hsl(111, 65%, 42%); color:#fff;'>15.9ms (+20%)</td>
+</tr>
+<tr><td class='wl'>bal_sm</td>
+<td style='background:hsl(101, 65%, 42%); color:#fff;'>29.7ms (+53%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>19.4ms</td>
+<td style='background:hsl(3, 65%, 42%); color:#fff;'>83.7ms (+331%)</td>
+<td style='background:hsl(44, 65%, 42%); color:#fff;'>61.4ms (+216%)</td>
+<td style='background:hsl(108, 65%, 42%); color:#fff;'>26.0ms (+34%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>85.3ms (+339%)</td>
+<td style='background:hsl(56, 65%, 42%); color:#fff;'>54.7ms (+182%)</td>
+<td style='background:hsl(114, 65%, 42%); color:#fff;'>22.8ms (+17%)</td>
+<td style='background:hsl(119, 65%, 42%); color:#fff;'>20.0ms (+3%)</td>
+</tr>
+<tr><td class='wl'>deep_sm</td>
+<td style='background:hsl(97, 65%, 42%); color:#fff;'>12.7ms (+88%)</td>
+<td style='background:hsl(112, 65%, 42%); color:#fff;'>8.7ms (+29%)</td>
+<td style='background:hsl(18, 65%, 42%); color:#fff;'>33.0ms (+388%)</td>
+<td style='background:hsl(33, 65%, 42%); color:#fff;'>29.4ms (+334%)</td>
+<td style='background:hsl(108, 65%, 42%); color:#fff;'>9.9ms (+47%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>37.8ms (+459%)</td>
+<td style='background:hsl(38, 65%, 42%); color:#fff;'>27.9ms (+313%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>6.8ms</td>
+<td style='background:hsl(113, 65%, 42%); color:#fff;'>8.5ms (+26%)</td>
+</tr>
+<tr><td class='wl'>hash_sm</td>
+<td style='background:hsl(98, 65%, 42%); color:#fff;'>1.6ms (+71%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>1.0ms</td>
+<td style='background:hsl(18, 65%, 42%); color:#fff;'>4.1ms (+325%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>4.7ms (+382%)</td>
+<td style='background:hsl(97, 65%, 42%); color:#fff;'>1.7ms (+72%)</td>
+<td style='background:hsl(1, 65%, 42%); color:#fff;'>4.6ms (+377%)</td>
+<td style='background:hsl(3, 65%, 42%); color:#fff;'>4.5ms (+371%)</td>
+<td style='background:hsl(109, 65%, 42%); color:#fff;'>1.3ms (+34%)</td>
+<td style='background:hsl(107, 65%, 42%); color:#fff;'>1.4ms (+41%)</td>
+</tr>
+<tr><td class='wl'>io_sm</td>
+<td style='background:hsl(105, 65%, 42%); color:#fff;'>11.2ms (+64%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>6.8ms</td>
+<td style='background:hsl(1, 65%, 42%); color:#fff;'>42.2ms (+516%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>42.3ms (+518%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;'>6.9ms (+1%)</td>
+<td style='background:hsl(1, 65%, 42%); color:#fff;'>42.2ms (+517%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>42.5ms (+520%)</td>
+<td style='background:hsl(119, 65%, 42%); color:#fff;'>7.1ms (+4%)</td>
+<td style='background:hsl(119, 65%, 42%); color:#fff;'>7.0ms (+3%)</td>
+</tr>
+<tr><td class='wl'>lg-dense_sm</td>
+<td style='background:hsl(97, 65%, 42%); color:#fff;'>30.0ms (+83%)</td>
+<td style='background:hsl(113, 65%, 42%); color:#fff;'>20.6ms (+26%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>88.6ms (+439%)</td>
+<td style='background:hsl(24, 65%, 42%); color:#fff;'>73.8ms (+349%)</td>
+<td style='background:hsl(108, 65%, 42%); color:#fff;'>23.4ms (+43%)</td>
+<td style='background:hsl(20, 65%, 42%); color:#fff;'>76.6ms (+366%)</td>
+<td style='background:hsl(26, 65%, 42%); color:#fff;'>72.8ms (+343%)</td>
+<td style='background:hsl(113, 65%, 42%); color:#fff;'>20.7ms (+26%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>16.4ms</td>
+</tr>
+<tr><td class='wl'>noop_sm</td>
+<td style='background:hsl(57, 65%, 42%); color:#fff;'>0.1ms (+7190%)</td>
+<td style='background:hsl(105, 65%, 42%); color:#fff;'>0.0ms (+1707%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>0.0ms</td>
+<td style='background:hsl(24, 65%, 42%); color:#fff;'>0.2ms (+11019%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>0.2ms (+13784%)</td>
+<td style='background:hsl(110, 65%, 42%); color:#fff;'>0.0ms (+1099%)</td>
+<td style='background:hsl(13, 65%, 42%); color:#fff;'>0.2ms (+12289%)</td>
+<td style='background:hsl(32, 65%, 42%); color:#fff;'>0.1ms (+10127%)</td>
+<td style='background:hsl(76, 65%, 42%); color:#fff;'>0.1ms (+5098%)</td>
+</tr>
+<tr><td class='wl'>parse-hv_sm</td>
+<td style='background:hsl(103, 65%, 42%); color:#fff;'>37.9ms (+79%)</td>
+<td style='background:hsl(117, 65%, 42%); color:#fff;'>23.9ms (+13%)</td>
+<td style='background:hsl(33, 65%, 42%); color:#fff;'>108.2ms (+413%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>141.4ms (+570%)</td>
+<td style='background:hsl(107, 65%, 42%); color:#fff;'>34.5ms (+64%)</td>
+<td style='background:hsl(26, 65%, 42%); color:#fff;'>115.0ms (+445%)</td>
+<td style='background:hsl(46, 65%, 42%); color:#fff;'>95.4ms (+353%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>21.1ms</td>
+<td style='background:hsl(117, 65%, 42%); color:#fff;'>24.4ms (+16%)</td>
+</tr>
+<tr><td class='wl'>parse-lt_sm</td>
+<td style='background:hsl(98, 65%, 42%); color:#fff;'>9.9ms (+84%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>5.4ms</td>
+<td style='background:hsl(21, 65%, 42%); color:#fff;'>25.7ms (+376%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>29.9ms (+455%)</td>
+<td style='background:hsl(115, 65%, 42%); color:#fff;'>6.4ms (+19%)</td>
+<td style='background:hsl(5, 65%, 42%); color:#fff;'>28.8ms (+434%)</td>
+<td style='background:hsl(16, 65%, 42%); color:#fff;'>26.6ms (+393%)</td>
+<td style='background:hsl(110, 65%, 42%); color:#fff;'>7.4ms (+37%)</td>
+<td style='background:hsl(110, 65%, 42%); color:#fff;'>7.4ms (+36%)</td>
+</tr>
+<tr><td class='wl'>wide_sm</td>
+<td style='background:hsl(105, 65%, 42%); color:#fff;'>11.9ms (+36%)</td>
+<td style='background:hsl(117, 65%, 42%); color:#fff;'>9.4ms (+8%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>33.3ms (+281%)</td>
+<td style='background:hsl(6, 65%, 42%); color:#fff;'>32.0ms (+267%)</td>
+<td style='background:hsl(118, 65%, 42%); color:#fff;'>9.1ms (+4%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>33.3ms (+282%)</td>
+<td style='background:hsl(25, 65%, 42%); color:#fff;'>28.2ms (+224%)</td>
+<td style='background:hsl(119, 65%, 42%); color:#fff;'>9.0ms (+3%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>8.7ms</td>
+</tr>
+<tr><td class='wl'>xform_sm</td>
+<td style='background:hsl(102, 65%, 42%); color:#fff;'>16.5ms (+47%)</td>
+<td style='background:hsl(119, 65%, 42%); color:#fff;'>11.5ms (+3%)</td>
+<td style='background:hsl(1, 65%, 42%); color:#fff;'>47.2ms (+321%)</td>
+<td style='background:hsl(90, 65%, 42%); color:#fff;'>20.4ms (+81%)</td>
+<td style='background:hsl(99, 65%, 42%); color:#fff;'>17.6ms (+56%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>47.6ms (+324%)</td>
+<td style='background:hsl(109, 65%, 42%); color:#fff;'>14.6ms (+30%)</td>
+<td style='background:hsl(117, 65%, 42%); color:#fff;'>12.1ms (+8%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>11.2ms</td>
+</tr>
+</table>
+<h2>module-sim</h2>
+<h3>Absolute timing</h3>
+<table><tr><th>workload</th>
+<th>hylic-eager</th>
+<th>hylic-fused</th>
+<th>hylic-parref</th>
+<th>hylic-rayon</th>
+<th>vanilla-rayon</th>
+<th>vanilla-seq</th>
+</tr>
+<tr><td class='wl'>large-dense_fast</td>
+<td style='background:hsl(38, 65%, 42%); color:#fff;'>4.8ms (+334%)</td>
+<td style='background:hsl(48, 65%, 42%); color:#fff;'>4.3ms (+292%)</td>
+<td style='background:hsl(116, 65%, 42%); color:#fff;'>1.3ms (+14%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>1.1ms</td>
+<td style='background:hsl(112, 65%, 42%); color:#fff;'>1.4ms (+32%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>6.5ms (+488%)</td>
+</tr>
+<tr><td class='wl'>large-dense_slow</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>118.4ms (+567%)</td>
+<td style='background:hsl(17, 65%, 42%); color:#fff;'>103.9ms (+485%)</td>
+<td style='background:hsl(113, 65%, 42%); color:#fff;'>23.9ms (+35%)</td>
+<td style='background:hsl(108, 65%, 42%); color:#fff;'>27.8ms (+56%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>17.8ms</td>
+<td style='background:hsl(2, 65%, 42%); color:#fff;'>116.6ms (+557%)</td>
+</tr>
+<tr><td class='wl'>large-sparse_fast</td>
+<td style='background:hsl(11, 65%, 42%); color:#fff;'>5.0ms (+340%)</td>
+<td style='background:hsl(22, 65%, 42%); color:#fff;'>4.6ms (+304%)</td>
+<td style='background:hsl(107, 65%, 42%); color:#fff;'>1.6ms (+42%)</td>
+<td style='background:hsl(110, 65%, 42%); color:#fff;'>1.5ms (+31%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>1.1ms</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>5.4ms (+374%)</td>
+</tr>
+<tr><td class='wl'>large-sparse_slow</td>
+<td style='background:hsl(28, 65%, 42%); color:#fff;'>110.5ms (+507%)</td>
+<td style='background:hsl(37, 65%, 42%); color:#fff;'>100.8ms (+454%)</td>
+<td style='background:hsl(119, 65%, 42%); color:#fff;'>19.5ms (+7%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>18.2ms</td>
+<td style='background:hsl(115, 65%, 42%); color:#fff;'>22.7ms (+25%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>138.2ms (+659%)</td>
+</tr>
+<tr><td class='wl'>small-dense_fast</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>1.2ms (+177%)</td>
+<td style='background:hsl(4, 65%, 42%); color:#fff;'>1.2ms (+172%)</td>
+<td style='background:hsl(115, 65%, 42%); color:#fff;'>0.5ms (+8%)</td>
+<td style='background:hsl(118, 65%, 42%); color:#fff;'>0.4ms (+3%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>0.4ms</td>
+<td style='background:hsl(6, 65%, 42%); color:#fff;'>1.2ms (+168%)</td>
+</tr>
+<tr><td class='wl'>small-dense_slow</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>28.9ms (+354%)</td>
+<td style='background:hsl(20, 65%, 42%); color:#fff;'>25.0ms (+293%)</td>
+<td style='background:hsl(118, 65%, 42%); color:#fff;'>6.7ms (+6%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>6.4ms</td>
+<td style='background:hsl(116, 65%, 42%); color:#fff;'>7.1ms (+12%)</td>
+<td style='background:hsl(3, 65%, 42%); color:#fff;'>28.3ms (+345%)</td>
+</tr>
+<tr><td class='wl'>small-sparse_fast</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>1.2ms (+210%)</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>1.2ms (+209%)</td>
+<td style='background:hsl(103, 65%, 42%); color:#fff;'>0.5ms (+29%)</td>
+<td style='background:hsl(110, 65%, 42%); color:#fff;'>0.5ms (+18%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>0.4ms</td>
+<td style='background:hsl(20, 65%, 42%); color:#fff;'>1.1ms (+175%)</td>
+</tr>
+<tr><td class='wl'>small-sparse_slow</td>
+<td style='background:hsl(0, 65%, 42%); color:#fff;'>28.4ms (+416%)</td>
+<td style='background:hsl(19, 65%, 42%); color:#fff;'>24.8ms (+351%)</td>
+<td style='background:hsl(112, 65%, 42%); color:#fff;'>7.0ms (+27%)</td>
+<td style='background:hsl(114, 65%, 42%); color:#fff;'>6.6ms (+21%)</td>
+<td style='background:hsl(120, 65%, 42%); color:#fff;' class='best'>5.5ms</td>
+<td style='background:hsl(2, 65%, 42%); color:#fff;'>27.9ms (+408%)</td>
+</tr>
+</table>
 </body></html>

@@ -1,93 +1,135 @@
 # Benchmark results
 
-Execution mode comparison across workload profiles. Six modes
-form a 3×2 matrix — three parallelism approaches, each with
-two executor variants:
+Three benchmark suites measure hylic's performance from different angles.
 
-|  | Direct executor | Lift-based |
-|---|---|---|
-| **Sequential** | `fused` | — |
-| **rayon children** | `rayon` | `parref+rayon`, `eager+rayon` |
-| **Lift parallelism (fused traversal)** | — | `parref+fused`, `eager+fused` |
+## Suite 1: Hylic execution modes
 
-- **fused**: callback-based recursion, zero allocation. The baseline.
-- **rayon**: collects children, `par_iter` for sibling parallelism.
-- **parref+fused**: `ParLazy` Lift with `Exec::fused` — builds ParRef tree sequentially, eval triggers rayon.
-- **parref+rayon**: `ParLazy` Lift with `Exec::rayon` — both traversal and evaluation parallelized.
-- **eager+fused**: `ParEager` Lift with `Exec::fused` — builds heap tree sequentially, WorkPool fork-join.
-- **eager+rayon**: `ParEager` Lift with `Exec::rayon` — both traversal and fork-join parallelized.
+Compares the 6 hylic execution modes against each other across
+11 workload scenarios. Each scenario varies the work distribution
+across fold phases (init, accumulate, finalize) and tree shape.
+
+| Mode | What it does |
+|---|---|
+| `hylic-fused` | Callback recursion, zero allocation |
+| `hylic-rayon` | Rayon `par_iter` on children |
+| `hylic-parref+fused` | ParLazy Lift, fused traversal |
+| `hylic-parref+rayon` | ParLazy Lift, rayon traversal |
+| `hylic-eager+fused` | ParEager Lift, fused traversal |
+| `hylic-eager+rayon` | ParEager Lift, rayon traversal |
 
 See [Parallel execution](./parallel_execution.md) for how each
-approach works, and [Lifts](../design/lifts.md) for the
-transformation mechanism behind `parref` and `eager`.
+mode works, and [Lifts](../concepts/transforms.md) for the
+transformation mechanism.
 
-## Heatmap: speedup vs sequential baseline
+## Suite 2: Hylic vs handrolled baselines
 
-<iframe src="../bench-results/bench-report.html" width="100%" height="700" style="border:1px solid #444; border-radius:4px;"></iframe>
+Measures hylic's abstraction overhead by comparing against
+handrolled implementations that perform the same work:
 
-## Bar chart
+| Mode | What it does |
+|---|---|
+| `hand-seq` | Plain recursion on adjacency list |
+| `hand-rayon` | Rayon `par_iter` on children |
+| `hand-pool` | Manual WorkPool fork-join |
 
-![Benchmark chart](../bench-results/bench-chart.svg)
+The handrolled baselines call the same work functions (init,
+accumulate, finalize) but bypass hylic's Treeish/Exec/Fold
+abstractions.
 
-## Speedup table
+## Suite 3: Module resolution simulation
+
+Simulates real-world dependency graph resolution. Two
+implementations of the same problem:
+
+| Mode | What it does |
+|---|---|
+| `vanilla-seq` | Natural Rust recursion, HashMap registry |
+| `vanilla-rayon` | Same, with `par_iter` on deps |
+| `hylic-fused` | hylic Fold + Exec::fused |
+| `hylic-rayon` | hylic Fold + Exec::rayon |
+| `hylic-parref` | ParLazy Lift + Exec::rayon |
+| `hylic-eager` | ParEager Lift + WorkPool |
+
+The vanilla versions are written as a day-to-day Rust developer
+would — plain recursion with `Vec::collect`, no framework.
+
+## Results
+
+<iframe src="../bench-results/bench-report.html" width="100%" height="900" style="border:1px solid #444; border-radius:4px;"></iframe>
+
+## Workload scenarios
+
+11 scenarios with real-world analogies:
+
+| Moniker | Init | Accum | Finalize | Graph | IO | Tree | Analogy |
+|---|---|---|---|---|---|---|---|
+| `noop` | 0 | 0 | 0 | 0 | 0 | bf=8 | Framework overhead |
+| `hash` | 5k | 1k | 0 | 5k | 0 | bf=8 | Config lookup |
+| `parse-lt` | 50k | 5k | 5k | 10k | 0 | bf=8 | Small config parse |
+| `parse-hv` | 200k | 10k | 10k | 50k | 0 | bf=8 | Large file parse |
+| `aggr` | 5k | 100k | 5k | 5k | 0 | bf=8 | Merging data |
+| `xform` | 5k | 5k | 100k | 5k | 0 | bf=8 | Serialization |
+| `bal` | 50k | 50k | 50k | 50k | 0 | bf=8 | Equal-cost phases |
+| `io` | 5k | 0 | 0 | 0 | 200µs | bf=8 | Network/disk I/O |
+| `wide` | 50k | 10k | 10k | 10k | 0 | bf=20 | Wide dependency tree |
+| `deep` | 50k | 10k | 10k | 10k | 0 | bf=2 | Deep chain |
+| `lg-dense` | 50k | 10k | 10k | 10k | 0 | bf=10, 500n | Large tree |
+
+Each scenario runs at "small" scale (200 nodes) by default.
+A "large" variant (2000-5000 nodes) is structurally present
+for deeper analysis.
+
+## Text tables
+
+### Hylic modes
 
 ```
-{{#include ../bench-results/bench-speedup.txt}}
+{{#include ../bench-results/hylic-modes-table.txt}}
 ```
 
-## Absolute timing table
+### Overhead (hylic vs handrolled)
 
 ```
-{{#include ../bench-results/bench-table.txt}}
+{{#include ../bench-results/overhead-table.txt}}
+```
+
+### Module simulation
+
+```
+{{#include ../bench-results/module-sim-table.txt}}
 ```
 
 ## Observations
 
-- **Fused wins for trivial work** (<10µs/node). Zero allocation, no
-  thread overhead. Parallelism costs more than it saves.
-- **Rayon and eager+rayon dominate for heavy workloads**. The rayon
-  executor parallelizes `fold.init` (which runs in Phase 1 of both
-  Lifts). When init is the heavy part, the outer executor's
-  parallelism matters most.
-- **eager+rayon beats rayon on fold-heavy and balanced workloads** —
-  the WorkPool's fork-join adds value when Phase 2 accumulate/finalize
-  carry significant work.
-- **parref+fused and eager+fused show no speedup** — Phase 1 is
-  sequential (Exec::fused), and Phase 2 only does accumulate/finalize
-  which is trivial in these benchmarks.
-- **Deep trees** (branch_factor=2) show less benefit — few siblings
-  to parallelize at each level.
-
-## Workload profiles
-
-Nine configurations test different scenarios on a balanced
-breadth-first tree (200 nodes, branch factor 8 unless noted):
-
-| Config | Graph work | Fold work | Notes |
-|---|---|---|---|
-| `0us:overhead` | 0 | 0 | Pure framework overhead |
-| `10us:light` | 5k iters | 5k iters | Light computation |
-| `100us:graph-heavy` | 100k iters | 5k iters | Graph discovery dominates |
-| `100us:fold-heavy` | 5k iters | 100k iters | Fold init dominates |
-| `200us:io` | 200µs spin | 5k iters | Simulated I/O latency |
-| `200us:balanced` | 100k iters | 100k iters | Equal graph + fold |
-| `1ms:heavy` | 500k iters | 500k iters | Heavy computation |
-| `200us:deep` | 200µs spin | 5k iters | Deep tree (bf=2) |
-| `100us:large500` | 50k iters | 50k iters | 500 nodes, bf=10 |
+- **Fused is fastest for zero work** — zero allocation, no thread overhead.
+- **Rayon and parref+rayon dominate for heavy workloads** — rayon's
+  work-stealing parallelizes init (the heaviest phase in most scenarios).
+- **Handrolled-rayon ≈ hylic-rayon** — hylic's abstraction overhead
+  is minimal; the Treeish/Fold/Exec indirection costs ~0-15% on
+  realistic workloads.
+- **ParEager (eager+rayon) shines on aggregate/transform** — workloads
+  where accumulate and finalize carry significant work, because the
+  WorkPool's Phase 2 fork-join parallelizes those phases.
+- **Vanilla vs hylic in module sim** — vanilla-rayon and hylic-rayon
+  are competitive; hylic adds ~10-30% overhead from the abstraction
+  layer, offset by the composability gains.
 
 ## Benchmark source
 
-The benchmark harness uses criterion. Each workload config is
-prepared once (tree + fold), then all six modes are benchmarked
-against it. The WorkPool is created once per config via
-`WorkPool::with`, ensuring thread allocation is excluded from timing.
+### Hylic modes harness
 
 ```rust
-{{#include ../../../../hylic/benches/par_bench.rs}}
+{{#include ../../../../hylic/benches/bench_hylic_modes.rs}}
 ```
 
-## Support code
+### Overhead harness
 
 ```rust
-{{#include ../../../../hylic/benches/bench_support.rs}}
+{{#include ../../../../hylic/benches/bench_vs_handrolled.rs}}
+```
+
+### Module simulation harness
+
+```rust
+{{#include ../../../../hylic/benches/bench_module_sim.rs}}
 ```

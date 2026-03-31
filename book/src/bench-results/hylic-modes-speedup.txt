@@ -1,0 +1,13 @@
+workload                        hylic-fused hylic-eager+fused hylic-eager+rayonhylic-parref+fusedhylic-parref+rayon       hylic-rayon
+-------------------------------------------------------------------------------------------------------------------------------------
+aggr_sm                              52.2ms      19.3ms  2.7x      18.1ms  2.9x      19.1ms  2.7x      14.2ms  3.7x      16.7ms  3.1x
+bal_sm                               78.9ms      74.2ms  1.1x      26.1ms  3.0x      65.1ms  1.2x      28.3ms  2.8x      22.9ms  3.5x
+deep_sm                              32.2ms      26.3ms  1.2x       9.2ms  3.5x      26.9ms  1.2x       7.2ms  4.5x       8.1ms  4.0x
+hash_sm                               4.7ms       4.9ms 0.96x       1.9ms  2.5x       4.1ms  1.1x       1.4ms  3.5x       1.6ms  3.0x
+io_sm                                42.1ms      42.8ms 0.98x       7.9ms  5.3x      42.9ms 0.98x       7.7ms  5.5x       8.0ms  5.3x
+lg-dense_sm                          80.6ms      75.3ms  1.1x      16.3ms  4.9x      69.7ms  1.2x      19.0ms  4.2x      18.4ms  4.4x
+noop_sm                               0.0ms       0.2ms 0.11x       0.3ms 0.06x       0.2ms 0.10x       0.1ms 0.12x       0.1ms 0.25x
+parse-hv_sm                         107.7ms     125.0ms 0.86x      29.6ms  3.6x     126.1ms 0.85x      33.2ms  3.2x      24.9ms  4.3x
+parse-lt_sm                          35.1ms      34.5ms  1.0x      10.6ms  3.3x      25.9ms  1.4x       9.2ms  3.8x       7.4ms  4.7x
+wide_sm                              34.4ms      28.5ms  1.2x       9.3ms  3.7x      28.1ms  1.2x       8.3ms  4.1x       7.9ms  4.4x
+xform_sm                             57.2ms      22.3ms  2.6x      14.7ms  3.9x      16.3ms  3.5x      16.1ms  3.6x      13.2ms  4.3x
