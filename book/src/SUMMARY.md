@@ -12,6 +12,7 @@
 - [Parallel execution](./cookbook/parallel_execution.md)
 - [Transformations](./cookbook/transformations.md)
 - [Module resolution](./cookbook/module_resolution.md)
+- [Benchmarks](./cookbook/benchmarks.md)
 
 # How it works
 

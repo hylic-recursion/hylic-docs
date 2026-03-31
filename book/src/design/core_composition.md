@@ -81,45 +81,55 @@ digraph {
     node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=11];
     edge [fontname="sans-serif", fontsize=10];
 
-    uio     [label="uio\nlazy computation"];
-    graph_  [label="graph\nEdgy, Treeish, Graph, Visit"];
+    uio     [label="uio\nlazy computation (FnOnce)"];
+    graph_  [label="graph\nEdgy, Treeish, Graph\nVisit, SeedGraph"];
     fold    [label="fold\nFold, init/accumulate/finalize"];
-    cata    [label="cata\nExec (fused/sequential/rayon)"];
-    ana     [label="ana\nSeedGraph"];
-    hylo    [label="hylo\nGraphWithFold"];
-    prelude [label="prelude\nVecFold, Explainer, memoize\nseeds_for_fallible"];
+    cata    [label="cata\nExec, Lift"];
+    pipe    [label="pipeline\nGraphWithFold"];
+    prelude [label="prelude\nVecFold, Explainer, memoize\nseeds_for_fallible, uio_parallel"];
 
     uio -> cata;
     graph_ -> cata;
     fold -> cata;
-    graph_ -> ana;
-    ana -> hylo;
-    cata -> hylo;
-    fold -> hylo;
+    graph_ -> pipe;
+    cata -> pipe;
+    fold -> pipe;
     graph_ -> prelude;
     fold -> prelude;
     cata -> prelude;
-    graph_ -> hylo;
+    uio -> prelude;
 }
 ```
 
 `graph` and `fold` are independent of each other. `cata` combines
-them via `Exec`. `ana` builds graphs from seeds. `hylo` wires
-everything into `GraphWithFold` — the runnable hylomorphism pipeline.
-`prelude` provides convenience types built on all of the above.
+them via `Exec` and provides `Lift` for type-domain transformations.
+`pipeline` wires graph + fold + entry point into `GraphWithFold`.
+`prelude` provides batteries: VecFold, Explainer, memoization,
+fallible seed helpers, and UIO-based parallelization.
 
-## Seed-based graphs (ana)
+## SeedGraph (in graph/)
 
-`SeedGraph<Node, Seed, Top>` is a general anamorphism — it defines
-how to unfold a tree from seeds:
+`SeedGraph<Node, Seed, Top>` defines how to unfold a tree from seeds:
 - **seeds_from_node**: given a node, what are its dependency seeds?
 - **grow**: given a seed, produce a node
 - **seeds_from_top**: entry point → initial seeds
 
-`SeedGraph` knows nothing about error handling or Either types.
-For fallible resolution (where growing can fail), the prelude
-provides `seeds_for_fallible` which lifts a valid-only seed function
-to handle Either<Error, Valid> nodes — errors become leaves.
+It's general — no assumption about the Node type. For fallible
+resolution (Either<Error, Valid> nodes), the prelude provides
+`seeds_for_fallible` which lifts a valid-only seed function so
+errors become leaves.
+
+## Lift (in cata/)
+
+`Lift<N,H,R, N2,H2,R2>` is a paired transformation that lifts
+Treeish + Fold to another type domain. The lifted computation runs
+internally (via `Exec::run_lifted`); unwrap recovers the original
+result type.
+
+The library's UIO-based parallelization (`uio_parallel()`) is a Lift:
+it transforms the fold to produce `UIO<R>` results where sibling
+subtrees evaluate in parallel. The Treeish is unchanged — parallelism
+is purely in the fold's result domain.
 
 This is the pattern described in the next section,
 [The two-function problem](./two_function_problem.md).

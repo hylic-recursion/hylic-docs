@@ -83,6 +83,25 @@ The recursive function is stack-allocated inside `run()` — captures
 only `Arc`-based values (fold, graph, child visitor), so it's `Send +
 Sync` without requiring bounds on N, H, or R.
 
+`Exec::run_lifted()` accepts a `Lift<N,H,R, N2,H2,R2>` — a paired
+transformation of Treeish + Fold to another type domain. The lifted
+computation runs with fused traversal internally; the result is
+unwrapped back to R. This is how UIO-based parallelization works:
+the fold is transformed to produce `UIO<R>`, siblings evaluate in
+parallel via `join_par`, and the result is unwrapped by `.eval()`.
+
+## UIO: lazy memoized computation
+
+`UIO<T>` wraps a `FnOnce() -> T` with `OnceLock` — computed at most
+once, subsequent calls return the cached value. `FnOnce` (not `Fn`)
+is the correct trait: the compute closure is consumed on first
+evaluation. Internally stored as `Mutex<Option<Box<dyn FnOnce>>>`.
+
+`UIO::join_par(uios)` evaluates a `Vec<UIO<T>>` in parallel via
+rayon's `par_iter`. This is the mechanism behind `uio_parallel()` —
+each node's result is a UIO that, when evaluated, evaluates its
+children in parallel first.
+
 ## Resolution children: `Arc<[Resolution]>`
 
 The `Resolution` type (in mb_resolver) stores children as
