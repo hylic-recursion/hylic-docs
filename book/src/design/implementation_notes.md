@@ -19,7 +19,7 @@ enabling composability — chain `map().zipmap().map_init()` and store
 the result.
 
 **Why `Arc`, not `Box`:** `Fold` needs `Clone` for transformation
-methods and the adapter layer. `Box<dyn Fn>` is not `Clone`;
+methods and the Lift layer. `Box<dyn Fn>` is not `Clone`;
 `Arc<dyn Fn>` is (atomic reference count increment). The cost is
 negligible.
 
@@ -61,7 +61,6 @@ a zero-allocation push-based iterator with `map`, `filter`, `fold`,
 `Exec` is parameterized by a single child-visiting lambda:
 
 ```rust
-// ChildVisitorFn<N, R>: how children are visited and results delivered
 pub type ChildVisitorFn<N, R> = dyn Fn(
     &Treeish<N>,                          // graph
     &N,                                    // current node
@@ -83,36 +82,41 @@ The recursive function is stack-allocated inside `run()` — captures
 only `Arc`-based values (fold, graph, child visitor), so it's `Send +
 Sync` without requiring bounds on N, H, or R.
 
-`Exec::run_lifted()` accepts a `Lift<N,H,R, N2,H2,R2>` — a paired
-transformation of Treeish + Fold to another type domain. The lifted
-computation runs with fused traversal internally; the result is
-unwrapped back to R. This is how UIO-based parallelization works:
-the fold is transformed to produce `UIO<R>`, siblings evaluate in
-parallel via `join_par`, and the result is unwrapped by `.eval()`.
+**`Exec::run_lifted`**: The uniform entry point for lifted execution.
+Accepts a [Lift](./lifts.md), transforms fold + treeish, runs the
+lifted computation, and unwraps the result. This is how all parallel
+strategies and the Explainer integrate: they are Lifts, and
+`run_lifted` orchestrates their execution.
 
-## UIO: lazy memoized computation
+## ParRef: lazy memoized computation
 
-`UIO<T>` wraps a `FnOnce() -> T` with `OnceLock` — computed at most
+`ParRef<T>` wraps a `FnOnce() -> T` with `OnceLock` — computed at most
 once, subsequent calls return the cached value. `FnOnce` (not `Fn`)
 is the correct trait: the compute closure is consumed on first
 evaluation. Internally stored as `Mutex<Option<Box<dyn FnOnce>>>`.
 
-`UIO::join_par(uios)` evaluates a `Vec<UIO<T>>` in parallel via
-rayon's `par_iter`. This is the mechanism behind `uio_parallel()` —
-each node's result is a UIO that, when evaluated, evaluates its
+`ParRef::join_par(parrefs)` evaluates a `Vec<ParRef<T>>` in parallel
+via rayon's `par_iter`. This is the mechanism behind `ParLazy` —
+each node's result is a `ParRef` that, when evaluated, evaluates its
 children in parallel first.
+
+## WorkPool: scoped fork-join
+
+`WorkPool` is a fixed-size thread pool created via `WorkPool::with` —
+a scoped lifecycle that guarantees all workers are joined on return
+(using `std::thread::scope`). No public constructor exists; the pool
+cannot escape the closure.
+
+Internally: `Mutex<Vec<Box<dyn FnOnce>>>` work queue + `Condvar` for
+worker sleep/wake + `AtomicBool` shutdown flag. Workers loop: pop from
+queue or wait on condvar. The calling thread helps drain the queue
+while waiting for its children (cooperative scheduling, deadlock-free
+for nested fork-join).
 
 ## Resolution children: `Arc<[Resolution]>`
 
 The `Resolution` type (in mb_resolver) stores children as
 `Arc<[Resolution]>` instead of `Vec<Resolution>`:
-
-```rust
-pub struct Resolution {
-    pub data: HeapData,
-    pub children: Arc<[Resolution]>,
-}
-```
 
 `Vec` clone would deep-copy the subtree — O(n) per clone.
 `Arc<[Resolution]>` makes clone O(1). Building uses `Vec` during
@@ -122,15 +126,16 @@ accumulation, converting to `Arc<[Resolution]>` in finalize.
 
 Types in `prelude/` are built on core but not required to use hylic:
 
-- `VecFold` / `VecHeap`: Convenience fold that collects all children
+- **VecFold / VecHeap**: Convenience fold that collects all children
   before finalizing.
-- `Explainer`: Wraps a fold to record computation traces.
-- `TreeFormatCfg`: Tree-to-string formatting.
-- `Visit`: Push-based iterator. Used internally by `Edgy::at()`.
-- `Traced`: Path tracking for tree nodes.
-- `memoize_treeish` / `memoize_treeish_by`: Graph-level caching for
-  DAGs. Wraps a `Treeish<N>` with `HashMap<K, Vec<N>>` so repeated
-  visits return cached children. Same node type — fold unchanged.
-- `seeds_for_fallible`: Lifts `Edgy<Valid, Seed>` to
+- **Explainer**: Wraps a fold to record computation traces. Expressed
+  as a [Lift](./lifts.md) — `Explainer::lift()` for transparent
+  tracing, `Explainer::explain()` for direct trace access.
+- **TreeFormatCfg**: Tree-to-string formatting.
+- **Traced**: Path tracking for tree nodes.
+- **memoize_treeish / memoize_treeish_by**: Graph-level caching for
+  DAGs. Same node type — fold unchanged.
+- **seeds_for_fallible**: Lifts `Edgy<Valid, Seed>` to
   `Edgy<Either<Err, Valid>, Seed>` for the fallible seed pattern.
-  Uses `contramap_or` — a core graph primitive.
+- **parallel/**: `ParLazy`, `ParEager`, `WorkPool` — parallel
+  execution strategies as Lifts. See [Parallel execution](../cookbook/parallel_execution.md).

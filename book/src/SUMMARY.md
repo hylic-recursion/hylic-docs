@@ -17,5 +17,6 @@
 # How it works
 
 - [Core composition](./design/core_composition.md)
+- [Lifts](./design/lifts.md)
 - [The two-function problem](./design/two_function_problem.md)
 - [Implementation notes](./design/implementation_notes.md)

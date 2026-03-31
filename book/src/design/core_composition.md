@@ -71,6 +71,32 @@ digraph {
 Similarly, Treeish/Edgy has: **map**, **contramap**, **contramap_or**,
 **filter**, **treemap**. Graph has **map_treeish**, **map_top_edgy**.
 
+## Lift: type-domain transformations
+
+When simple fold transformations aren't enough — when you need
+to change the heap type, the result type, or the entire
+computation strategy — you use a [Lift](./lifts.md).
+
+A Lift transforms both the Treeish and the Fold into a different
+type domain, runs the computation there, and maps the result back.
+Execution goes through `Exec::run_lifted`:
+
+```rust
+// Direct execution:
+let r = Exec::fused().run(&fold, &graph, &root);
+
+// Lifted execution — same result, enriched computation:
+let r = Exec::fused().run_lifted(&lift, &fold, &graph, &root);
+```
+
+hylic's three built-in Lifts:
+
+| Lift | Purpose | See |
+|---|---|---|
+| `Explainer::lift()` | Record computation trace | [Transformations](../cookbook/transformations.md) |
+| `ParLazy::lift()` | Lazy parallel evaluation | [Parallel execution](../cookbook/parallel_execution.md) |
+| `ParEager::lift(pool)` | Eager fork-join parallelism | [Parallel execution](../cookbook/parallel_execution.md) |
+
 ## The layers
 
 Each layer only depends downward:
@@ -81,14 +107,14 @@ digraph {
     node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=11];
     edge [fontname="sans-serif", fontsize=10];
 
-    uio     [label="uio\nlazy computation (FnOnce)"];
+    parref  [label="parref\nParRef<T>\nlazy memoized computation"];
     graph_  [label="graph\nEdgy, Treeish, Graph\nVisit, SeedGraph"];
     fold    [label="fold\nFold, init/accumulate/finalize"];
     cata    [label="cata\nExec, Lift"];
     pipe    [label="pipeline\nGraphWithFold"];
-    prelude [label="prelude\nVecFold, Explainer, memoize\nseeds_for_fallible, uio_parallel"];
+    prelude [label="prelude\nVecFold, Explainer, memoize\nParLazy, ParEager, WorkPool"];
 
-    uio -> cata;
+    parref -> prelude;
     graph_ -> cata;
     fold -> cata;
     graph_ -> pipe;
@@ -97,15 +123,14 @@ digraph {
     graph_ -> prelude;
     fold -> prelude;
     cata -> prelude;
-    uio -> prelude;
 }
 ```
 
 `graph` and `fold` are independent of each other. `cata` combines
 them via `Exec` and provides `Lift` for type-domain transformations.
-`pipeline` wires graph + fold + entry point into `GraphWithFold`.
-`prelude` provides batteries: VecFold, Explainer, memoization,
-fallible seed helpers, and UIO-based parallelization.
+`pipeline` wires graph + fold into runnable pipelines (`GraphWithFold`).
+`prelude` provides batteries built on core: VecFold, Explainer,
+memoization, fallible seed helpers, and parallel execution strategies.
 
 ## SeedGraph (in graph/)
 
@@ -119,17 +144,5 @@ resolution (Either<Error, Valid> nodes), the prelude provides
 `seeds_for_fallible` which lifts a valid-only seed function so
 errors become leaves.
 
-## Lift (in cata/)
-
-`Lift<N,H,R, N2,H2,R2>` is a paired transformation that lifts
-Treeish + Fold to another type domain. The lifted computation runs
-internally (via `Exec::run_lifted`); unwrap recovers the original
-result type.
-
-The library's UIO-based parallelization (`uio_parallel()`) is a Lift:
-it transforms the fold to produce `UIO<R>` results where sibling
-subtrees evaluate in parallel. The Treeish is unchanged — parallelism
-is purely in the fold's result domain.
-
-This is the pattern described in the next section,
-[The two-function problem](./two_function_problem.md).
+See [The two-function problem](./two_function_problem.md) for the
+motivation behind SeedGraph.

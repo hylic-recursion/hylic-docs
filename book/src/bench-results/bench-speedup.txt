@@ -1,0 +1,11 @@
+workload                              fused       eager+fused       eager+rayon      parref+fused      parref+rayon             rayon
+-------------------------------------------------------------------------------------------------------------------------------------
+0us_overhead                          0.0ms       0.1ms 0.10x       0.2ms 0.06x       0.2ms 0.09x       0.1ms 0.11x       0.1ms 0.23x
+100us_fold-heavy                     46.0ms      47.8ms 0.96x       8.0ms  5.7x      47.6ms 0.97x      11.2ms  4.1x      11.3ms  4.1x
+100us_graph-heavy                    45.4ms      47.0ms 0.96x      11.6ms  3.9x      45.3ms  1.0x      10.8ms  4.2x      10.8ms  4.2x
+100us_large500                      110.8ms     115.9ms 0.96x      18.7ms  5.9x     113.4ms 0.98x      24.9ms  4.4x      24.8ms  4.5x
+10us_light                            4.4ms       4.5ms 0.98x       1.4ms  3.2x       4.5ms 0.98x       1.2ms  3.8x       1.1ms  3.9x
+1ms_heavy                           393.4ms     444.0ms 0.89x      94.2ms  4.2x     459.7ms 0.86x      93.2ms  4.2x      89.5ms  4.4x
+200us_balanced                       91.6ms      89.4ms  1.0x      14.5ms  6.3x      89.1ms  1.0x      19.2ms  4.8x      21.0ms  4.4x
+200us_deep                           42.2ms      42.3ms 1.00x       7.6ms  5.5x      42.7ms 0.99x       7.1ms  6.0x       7.4ms  5.7x
+200us_io                             42.0ms      42.5ms 0.99x       8.2ms  5.1x      42.5ms 0.99x       7.0ms  6.0x       7.9ms  5.3x
