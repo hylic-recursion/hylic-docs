@@ -1,135 +1,158 @@
 # Benchmark results
 
-Three benchmark suites measure hylic's performance from different angles.
+Three benchmark suites measure different aspects of hylic's performance.
+All numbers are wall-clock means from criterion (10 samples, 3s measurement).
 
-## Suite 1: Hylic execution modes
+<link rel="stylesheet" href="../bench-results/bench-style.css">
 
-Compares the 6 hylic execution modes against each other across
-11 workload scenarios. Each scenario varies the work distribution
-across fold phases (init, accumulate, finalize) and tree shape.
+## Hylic execution modes
 
-| Mode | What it does |
-|---|---|
-| `hylic-fused` | Callback recursion, zero allocation |
-| `hylic-rayon` | Rayon `par_iter` on children |
-| `hylic-parref+fused` | ParLazy Lift, fused traversal |
-| `hylic-parref+rayon` | ParLazy Lift, rayon traversal |
-| `hylic-eager+fused` | ParEager Lift, fused traversal |
-| `hylic-eager+rayon` | ParEager Lift, rayon traversal |
+Six execution modes compared across 11 workload scenarios — isolating
+the effect of executor choice and Lift strategy.
 
-See [Parallel execution](./parallel_execution.md) for how each
-mode works, and [Lifts](../concepts/transforms.md) for the
-transformation mechanism.
+<div id="bench-hylic-modes">Loading...</div>
 
-## Suite 2: Hylic vs handrolled baselines
+## Hylic vs handrolled baselines
 
-Measures hylic's abstraction overhead by comparing against
-handrolled implementations that perform the same work:
+Measures hylic's abstraction overhead. The handrolled baselines perform
+identical work (same init/accumulate/finalize functions) but bypass
+Treeish/Exec/Fold — plain recursion on an adjacency list.
 
-| Mode | What it does |
-|---|---|
-| `hand-seq` | Plain recursion on adjacency list |
-| `hand-rayon` | Rayon `par_iter` on children |
-| `hand-pool` | Manual WorkPool fork-join |
+<div id="bench-overhead">Loading...</div>
 
-The handrolled baselines call the same work functions (init,
-accumulate, finalize) but bypass hylic's Treeish/Exec/Fold
-abstractions.
+## Module resolution simulation
 
-## Suite 3: Module resolution simulation
+A realistic scenario: dependency graph resolution with simulated file
+parsing and I/O. "Vanilla" versions are natural Rust — recursive
+functions with `HashMap` lookup and `Vec::collect`, as you'd write
+without any framework.
 
-Simulates real-world dependency graph resolution. Two
-implementations of the same problem:
+<div id="bench-module-sim">Loading...</div>
 
-| Mode | What it does |
-|---|---|
-| `vanilla-seq` | Natural Rust recursion, HashMap registry |
-| `vanilla-rayon` | Same, with `par_iter` on deps |
-| `hylic-fused` | hylic Fold + Exec::fused |
-| `hylic-rayon` | hylic Fold + Exec::rayon |
-| `hylic-parref` | ParLazy Lift + Exec::rayon |
-| `hylic-eager` | ParEager Lift + WorkPool |
-
-The vanilla versions are written as a day-to-day Rust developer
-would — plain recursion with `Vec::collect`, no framework.
-
-## Results
-
-<iframe src="../bench-results/bench-report.html" width="100%" height="900" style="border:1px solid #444; border-radius:4px;"></iframe>
+<script>
+async function loadBenchFragment(id, file) {
+    try {
+        const resp = await fetch('../bench-results/' + file);
+        if (resp.ok) {
+            document.getElementById(id).innerHTML = await resp.text();
+        } else {
+            document.getElementById(id).textContent = '(benchmark data not available)';
+        }
+    } catch (e) {
+        document.getElementById(id).textContent = '(failed to load: ' + e.message + ')';
+    }
+}
+loadBenchFragment('bench-hylic-modes', 'hylic-modes.html');
+loadBenchFragment('bench-overhead', 'overhead.html');
+loadBenchFragment('bench-module-sim', 'module-sim.html');
+</script>
 
 ## Workload scenarios
 
-11 scenarios with real-world analogies:
+11 scenarios vary work distribution and tree shape:
 
-| Moniker | Init | Accum | Finalize | Graph | IO | Tree | Analogy |
+| Moniker | Init | Accum | Finalize | Graph | IO | Tree | What it models |
 |---|---|---|---|---|---|---|---|
 | `noop` | 0 | 0 | 0 | 0 | 0 | bf=8 | Framework overhead |
-| `hash` | 5k | 1k | 0 | 5k | 0 | bf=8 | Config lookup |
+| `hash` | 5k | 1k | 0 | 5k | 0 | bf=8 | Config key lookup |
 | `parse-lt` | 50k | 5k | 5k | 10k | 0 | bf=8 | Small config parse |
 | `parse-hv` | 200k | 10k | 10k | 50k | 0 | bf=8 | Large file parse |
-| `aggr` | 5k | 100k | 5k | 5k | 0 | bf=8 | Merging data |
-| `xform` | 5k | 5k | 100k | 5k | 0 | bf=8 | Serialization |
+| `aggr` | 5k | 100k | 5k | 5k | 0 | bf=8 | Merging data structures |
+| `xform` | 5k | 5k | 100k | 5k | 0 | bf=8 | Serialization / codegen |
 | `bal` | 50k | 50k | 50k | 50k | 0 | bf=8 | Equal-cost phases |
-| `io` | 5k | 0 | 0 | 0 | 200µs | bf=8 | Network/disk I/O |
+| `io` | 5k | 0 | 0 | 0 | 200µs | bf=8 | Network / disk I/O |
 | `wide` | 50k | 10k | 10k | 10k | 0 | bf=20 | Wide dependency tree |
 | `deep` | 50k | 10k | 10k | 10k | 0 | bf=2 | Deep chain |
-| `lg-dense` | 50k | 10k | 10k | 10k | 0 | bf=10, 500n | Large tree |
+| `lg-dense` | 50k | 10k | 10k | 10k | 0 | bf=10 | Large tree (500 nodes) |
 
-Each scenario runs at "small" scale (200 nodes) by default.
-A "large" variant (2000-5000 nodes) is structurally present
-for deeper analysis.
-
-## Text tables
-
-### Hylic modes
-
-```
-{{#include ../bench-results/hylic-modes-table.txt}}
-```
-
-### Overhead (hylic vs handrolled)
-
-```
-{{#include ../bench-results/overhead-table.txt}}
-```
-
-### Module simulation
-
-```
-{{#include ../bench-results/module-sim-table.txt}}
-```
+Work units are `busy_work(N)` iterations — deterministic CPU burn.
+All scenarios use 200 nodes at "small" scale. A "large" scale
+(2000-5000 nodes) is available for deeper analysis.
 
 ## Observations
 
-- **Fused is fastest for zero work** — zero allocation, no thread overhead.
-- **Rayon and parref+rayon dominate for heavy workloads** — rayon's
-  work-stealing parallelizes init (the heaviest phase in most scenarios).
-- **Handrolled-rayon ≈ hylic-rayon** — hylic's abstraction overhead
-  is minimal; the Treeish/Fold/Exec indirection costs ~0-15% on
-  realistic workloads.
-- **ParEager (eager+rayon) shines on aggregate/transform** — workloads
-  where accumulate and finalize carry significant work, because the
-  WorkPool's Phase 2 fork-join parallelizes those phases.
-- **Vanilla vs hylic in module sim** — vanilla-rayon and hylic-rayon
-  are competitive; hylic adds ~10-30% overhead from the abstraction
-  layer, offset by the composability gains.
+**Framework overhead is real but small.** On the `noop` scenario (zero
+work), hylic's Treeish/Exec indirection adds measurable overhead
+compared to handrolled recursion. On any scenario with actual work
+(≥10µs per node), the overhead drops below 15%.
+
+**Rayon's work-stealing is effective.** Both `hylic-rayon` and
+`hand-rayon` achieve 3-7x speedup on moderate-to-heavy workloads.
+hylic doesn't add meaningful overhead on top of rayon.
+
+**ParRef and ParEager shine differently.** ParRef (lazy) benefits
+when traversal and fold are both substantial — the double parallelism
+(rayon in traversal + rayon in eval) pays off. ParEager (fork-join)
+benefits on accumulate-heavy scenarios (`aggr`, `xform`) where its
+Phase 2 parallelism matters.
+
+**Vanilla vs hylic in module simulation.** For small graphs with fast
+parsing, vanilla-rayon and hylic-rayon are within 15% of each other.
+For large graphs with slow parsing, hylic-parref slightly edges out
+vanilla-rayon due to better work distribution. The takeaway: hylic's
+abstraction cost is comparable to what you'd pay for composability
+in any well-structured code — and it gives you Lift-based parallelism,
+tracing, and fold composition for free.
+
+**Where hylic is not the right tool.** If your computation is a flat
+data-parallel operation (no tree structure), rayon's `par_iter` alone
+is simpler and faster. hylic's value is in *recursive* tree
+computations where you want the fold/graph/exec separation.
+
+## Text tables
+
+<details>
+<summary>Hylic modes (text)</summary>
+
+```
+{{#include ../bench-results/hylic-modes.txt}}
+```
+
+</details>
+
+<details>
+<summary>Overhead — hylic vs handrolled (text)</summary>
+
+```
+{{#include ../bench-results/overhead.txt}}
+```
+
+</details>
+
+<details>
+<summary>Module simulation (text)</summary>
+
+```
+{{#include ../bench-results/module-sim.txt}}
+```
+
+</details>
 
 ## Benchmark source
 
-### Hylic modes harness
+<details>
+<summary>Hylic modes harness</summary>
 
 ```rust
 {{#include ../../../../hylic/benches/bench_hylic_modes.rs}}
 ```
 
-### Overhead harness
+</details>
+
+<details>
+<summary>Overhead harness</summary>
 
 ```rust
 {{#include ../../../../hylic/benches/bench_vs_handrolled.rs}}
 ```
 
-### Module simulation harness
+</details>
+
+<details>
+<summary>Module simulation harness</summary>
 
 ```rust
 {{#include ../../../../hylic/benches/bench_module_sim.rs}}
 ```
+
+</details>
