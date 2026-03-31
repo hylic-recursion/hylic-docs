@@ -23,7 +23,7 @@ digraph {
 
     subgraph cluster_original {
         label="Original domain";
-        style=dashed; color="#999";
+        style=dashed; color="#999999";
         fontname="sans-serif";
         F [label="Fold<N, H, R>"];
         T [label="Treeish<N>"];
@@ -31,7 +31,7 @@ digraph {
 
     subgraph cluster_lifted {
         label="Lifted domain";
-        style=solid; color="#333";
+        style=solid; color="#333333";
         fontname="sans-serif";
         F2 [label="Fold<N2, H2, R2>"];
         T2 [label="Treeish<N2>"];

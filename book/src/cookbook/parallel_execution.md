@@ -60,7 +60,7 @@ digraph {
 
     subgraph cluster_p1 {
         label="Phase 1: build ParRef tree\n(sequential, via Exec::fused)";
-        style=dashed; color="#999"; fontname="sans-serif";
+        style=dashed; color="#999999"; fontname="sans-serif";
         init1 [label="init(node) → (H, [])"];
         acc1  [label="accumulate:\npush child ParRef"];
         fin1  [label="finalize:\ncreate ParRef closure\ncapturing H + children"];
@@ -69,7 +69,7 @@ digraph {
 
     subgraph cluster_p2 {
         label="Phase 2: evaluate\n(parallel, via rayon)";
-        style=solid; color="#333"; fontname="sans-serif";
+        style=solid; color="#333333"; fontname="sans-serif";
         eval [label="root.eval()"];
         join [label="ParRef::join_par(children)\nrayon par_iter on siblings"];
         accf [label="accumulate child results"];
@@ -115,7 +115,7 @@ digraph {
 
     subgraph cluster_p1 {
         label="Phase 1: build heap tree\n(sequential, via Exec::fused)";
-        style=dashed; color="#999"; fontname="sans-serif";
+        style=dashed; color="#999999"; fontname="sans-serif";
         init1 [label="init(node) → EagerNode{heap, []}"];
         acc1  [label="accumulate:\npush child Arc<EagerNode>"];
         fin1  [label="finalize:\nwrap into Arc<EagerNode>"];
@@ -124,7 +124,7 @@ digraph {
 
     subgraph cluster_p2 {
         label="Phase 2: fork-join\n(parallel, via WorkPool)";
-        style=solid; color="#333"; fontname="sans-serif";
+        style=solid; color="#333333"; fontname="sans-serif";
         fork [label="submit n-1 children\nto WorkPool"];
         self_ [label="execute last child\nin current thread"];
         help [label="help process queue\nwhile waiting"];
