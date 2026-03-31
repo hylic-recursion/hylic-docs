@@ -10,6 +10,7 @@ hylic-docs-build:
 	@cd book && mdbook build
 
 hylic-docs-serve: hylic-docs-build
+	@fuser -k 8321/tcp 2>/dev/null || true
 	@echo "Serving at http://localhost:8321/"
 	@cd target/book && python3 -m http.server 8321
 
