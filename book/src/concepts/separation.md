@@ -65,18 +65,22 @@ nodes and edges are the same type:
 You construct one by providing a function from node to children:
 
 ```rust
-let graph = treeish(|d: &Dir| d.children.clone());
+{{#include ../../../src/docs_examples.rs:treeish_constructor}}
 ```
 
 The callback-based signature (`Fn(&N, &mut dyn FnMut(&N))`) means
 zero allocation per visit. The `treeish()` constructor wraps a
 `Vec`-returning function into this form.
 
-**Fold** — the computation. Three closures behind Arc:
+**Fold** — the computation. In the Shared domain, three closures behind Arc:
 
 ```rust
 {{#include ../../../../hylic/src/fold/algebra.rs:fold_struct}}
 ```
+
+Other [domains](../design/domains.md) use Rc (Local) or Box (Owned)
+— same operations, different boxing. The fold type doesn't carry the
+domain; the [executor](../design/executors.md) does.
 
 - `init`: node → heap (initialize working state)
 - `accumulate`: heap × child result → heap (fold in one child)
@@ -87,19 +91,13 @@ without collecting them first. `simple_fold` is a shorthand where
 `H = R` and finalize is clone:
 
 ```rust
-let sum = simple_fold(
-    |d: &Dir| d.size,                        // init
-    |heap: &mut u64, child: &u64| *heap += child,  // accumulate
-);
+{{#include ../../../src/docs_examples.rs:simple_fold_example}}
 ```
 
 **Executor** — the strategy. Controls HOW the recursion runs:
 
 ```rust
-use hylic::cata::exec::{self, Executor};
-
-let r = exec::FUSED.run(&fold, &treeish, &root);  // sequential
-let r = exec::RAYON.run(&fold, &treeish, &root);   // parallel
+{{#include ../../../src/docs_examples.rs:exec_usage}}
 ```
 
 Four built-in executors, each in its own module, each

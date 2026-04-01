@@ -61,9 +61,7 @@ a zero-allocation push-based iterator with `map`, `filter`, `fold`,
 The executor is parameterized by a boxing domain:
 
 ```rust
-pub trait Executor<N: 'static, R: 'static, D: Domain<N>> {
-    fn run<H: 'static>(&self, fold: &D::Fold<H, R>, graph: &D::Treeish, root: &N) -> R;
-}
+{{#include ../../../../hylic/src/cata/exec/mod.rs:executor_trait}}
 ```
 
 Each variant is a zero-sized struct `XxxIn<D>(PhantomData<D>)` with

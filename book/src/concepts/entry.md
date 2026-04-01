@@ -125,14 +125,7 @@ GraphWithFold supports the same transformation pattern as Fold:
 | `map_fold(f)` | Transform the fold |
 | `map_graph(f)` | Transform the graph |
 
-This is how derived pipelines work in practice:
-
-```rust
-let resolution = Resolver::resolution();       // base pipeline
-let outcome = resolution.zipmap(outcome::split);  // derived: R → (R, OutcomeSplit)
-let analysis = resolution.zipmap(analysis::annotate); // derived: R → (R, Analysis)
-```
-
-Each derived pipeline runs the same fold on the same graph,
-but augments the result with additional computed data. One
-traversal, multiple views.
+Derived pipelines use these transforms: the base pipeline
+produces `R`, and `zipmap` augments it with extra data.
+One traversal, multiple views — each derived pipeline runs
+the same fold on the same graph.

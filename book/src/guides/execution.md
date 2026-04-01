@@ -20,18 +20,7 @@ use hylic::cata::exec::{self, Executor};
 Same fold, same graph, one-token change:
 
 ```rust
-use hylic::cata::exec::{self, Executor};
-
-let init = |n: &Node| n.value;
-let acc  = |h: &mut u64, r: &u64| *h += r;
-let fold = hylic::fold::simple_fold(init, acc);
-let graph = hylic::graph::treeish(|n: &Node| n.children.clone());
-
-// Sequential — zero overhead:
-let r = exec::FUSED.run(&fold, &graph, &root);
-
-// Parallel via rayon — same fold, same graph:
-let r = exec::RAYON.run(&fold, &graph, &root);
+{{#include ../../../src/docs_examples.rs:exec_usage}}
 ```
 
 ## When to use which executor
@@ -68,15 +57,7 @@ The executor's type parameter determines the boxing domain.
 Same closures, different constructor, different executor const:
 
 ```rust
-// Shared domain (standard):
-let fold = hylic::fold::fold(init, acc, fin);
-let graph = hylic::graph::treeish_visit(children_fn);
-exec::FUSED.run(&fold, &graph, &root);
-
-// Owned domain (zero-boxing, maximum speed):
-let fold = hylic::domain::owned::fold(init, acc, fin);
-let graph = hylic::domain::owned::treeish_visit(children_fn);
-exec::FUSED_OWNED.run(&fold, &graph, &root);
+{{#include ../../../src/docs_examples.rs:domain_switching}}
 ```
 
 The type system enforces compatibility — `exec::RAYON` only accepts
@@ -90,10 +71,7 @@ See [Domain system](../design/domains.md) for details.
 When the executor is chosen at runtime, use the `Exec` enum:
 
 ```rust
-let executors = vec![exec::Exec::fused(), exec::Exec::rayon()];
-for e in &executors {
-    assert_eq!(e.run(&fold, &graph, &root), expected);
-}
+{{#include ../../../src/docs_examples.rs:runtime_dispatch}}
 ```
 
 `Exec` operates in the Shared domain. Its `.run()` is an inherent
@@ -120,19 +98,7 @@ let (r, trace) = exec::FUSED.run_lifted_zipped(
 implements it automatically. Import it alongside `Executor` when
 using Lifts.
 
-## Performance characteristics
+## Performance
 
-From the April 2026 benchmark run (200 nodes, bf=8):
-
-| Executor | parse-lt (50k init) | parse-hv (200k init) |
-|----------|--------------------|--------------------|
-| `exec::FUSED` | 27.2ms | 129.4ms |
-| `exec::RAYON` | 6.0ms | 17.5ms |
-| ParLazy+rayon | 5.1ms | 23.3ms |
-| ParEager+rayon | 7.8ms | 26.5ms |
-| real-seq (hand-written) | 39.5ms | 142.9ms |
-
-`exec::FUSED` beats hand-written sequential recursion on most
-workloads (simpler stack frame → better compiler optimization).
-`exec::RAYON` provides 4-8x speedup on CPU-bound work.
-See [Benchmarks](../cookbook/benchmarks.md) for the full comparison.
+See [Benchmarks](../cookbook/benchmarks.md) for the full comparison
+across all execution modes, domains, and handrolled baselines.

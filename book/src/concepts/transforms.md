@@ -38,18 +38,14 @@ digraph {
 | `contramap(f)` | Change node type: `Fold<N,...> → Fold<N2,...>` |
 | `product(other)` | Two folds in one traversal: `(R1, R2)` |
 
-Each returns a new `Fold` — the original is unchanged. Example:
+Each returns a new `Fold` — the original is unchanged. Examples:
 
 ```rust
-// Add logging to any fold, without modifying it
-let logged = fold.map_init(|orig| Box::new(move |n: &Dir| {
-    println!("visiting {}", n.name);
-    orig(n)
-}));
+{{#include ../../../src/docs_examples.rs:fold_map_init}}
+```
 
-// Two independent folds in one pass
-let both = size_fold.product(&depth_fold());
-let (total_size, max_depth) = exec.run(&both, &graph, &root);
+```rust
+{{#include ../../../src/docs_examples.rs:fold_product}}
 ```
 
 ## Treeish transformations
@@ -137,19 +133,7 @@ transitions, working state). The result becomes `ExplainerResult`
 (original result + full trace). Unwrap extracts `R`.
 
 ```rust
-use hylic::cata::exec::{self, Executor, ExecutorExt};
-
-// Transparent: get R, trace discarded
-let r = exec::FUSED.run_lifted(&Explainer::lift(), &fold, &graph, &root);
-
-// With callback: inspect trace before extracting R
-let r = exec::FUSED.run_lifted(
-    &Explainer::lift_with(|trace| println!("{:?}", trace)),
-    &fold, &graph, &root,
-);
-
-// Zipped: get both R and the full ExplainerResult
-let (r, trace) = exec::FUSED.run_lifted_zipped(&Explainer::lift(), &fold, &graph, &root);
+{{#include ../../../src/docs_examples.rs:explainer_usage}}
 ```
 
 In recursion-scheme terms, this is a histomorphism — each node
@@ -163,7 +147,7 @@ of `ParRef` values (Phase 1). Unwrap calls `eval()` on the root,
 which triggers bottom-up parallel evaluation via rayon (Phase 2).
 
 ```rust
-let r = exec::FUSED.run_lifted(&ParLazy::lift(), &fold, &graph, &root);
+{{#include ../../../src/docs_examples.rs:parlazy_usage}}
 ```
 
 ### ParEager — fork-join parallelism
@@ -173,9 +157,7 @@ let r = exec::FUSED.run_lifted(&ParLazy::lift(), &fold, &graph, &root);
 scheduler backed by a `WorkPool` (Phase 2).
 
 ```rust
-WorkPool::with(WorkPoolSpec::threads(3), |pool| {
-    exec::FUSED.run_lifted(&ParEager::lift(pool), &fold, &graph, &root)
-});
+{{#include ../../../src/docs_examples.rs:pareager_usage}}
 ```
 
 See [Parallel execution](../cookbook/parallel_execution.md) for

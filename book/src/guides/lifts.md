@@ -45,22 +45,7 @@ each child result accumulated, and the final result. A histomorphism
 — each node sees its subtree's full computation history.
 
 ```rust
-use hylic::cata::exec::{self, Executor, ExecutorExt};
-use hylic::prelude::Explainer;
-
-// Transparent: get R, trace discarded
-let r = exec::FUSED.run_lifted(&Explainer::lift(), &fold, &graph, &root);
-
-// With callback: inspect trace at each node
-let r = exec::FUSED.run_lifted(
-    &Explainer::lift_with(|trace| eprintln!("trace: {:?}", trace)),
-    &fold, &graph, &root,
-);
-
-// Zipped: get both R and the full ExplainerResult
-let (r, trace) = exec::FUSED.run_lifted_zipped(
-    &Explainer::lift(), &fold, &graph, &root
-);
+{{#include ../../../src/docs_examples.rs:explainer_usage}}
 ```
 
 The `ExplainerResult` contains the original result plus the full
@@ -77,9 +62,7 @@ lazy, memoized computation. Phase 1 builds the ParRef tree (cheap).
 Phase 2 evaluates bottom-up via rayon's `par_iter`.
 
 ```rust
-use hylic::prelude::ParLazy;
-
-let r = exec::FUSED.run_lifted(&ParLazy::lift(), &fold, &graph, &root);
+{{#include ../../../src/docs_examples.rs:parlazy_usage}}
 ```
 
 ```dot process
@@ -114,16 +97,7 @@ Extracts heaps into an `EagerNode` tree (Phase 1), then executes
 bottom-up with fork-join via a `WorkPool` (Phase 2).
 
 ```rust
-use hylic::prelude::{ParEager, WorkPool, WorkPoolSpec};
-
-WorkPool::with(WorkPoolSpec::threads(3), |pool| {
-    exec::FUSED.run_lifted(&ParEager::lift(pool), &fold, &graph, &root)
-});
-
-// Convenience form:
-ParEager::with(WorkPoolSpec::threads(3), |lift| {
-    exec::FUSED.run_lifted(lift, &fold, &graph, &root)
-});
+{{#include ../../../src/docs_examples.rs:pareager_usage}}
 ```
 
 ```dot process
@@ -171,22 +145,10 @@ trees where both phases benefit from parallelism.
 
 A Lift is four functions:
 
-```rust
-use hylic::cata::Lift;
-
-let my_lift = Lift::new(
-    |treeish| treeish,                      // lift_treeish: Treeish<N> → Treeish<N2>
-    |fold| transform_fold(fold),            // lift_fold: Fold<N,H,R> → Fold<N2,H2,R2>
-    |root| root.clone(),                    // lift_root: &N → N2
-    |lifted_result| extract(lifted_result), // unwrap: R2 → R
-);
-
-let r = exec::FUSED.run_lifted(&my_lift, &fold, &graph, &root);
-```
-
-The key constraint: `unwrap(run(lift_fold(fold), lift_treeish(graph), lift_root(root)))`
-must produce the same `R` as `run(fold, graph, root)`. The Lift is
-transparent — it doesn't change the answer, only how it's computed.
+A Lift is `Lift::new(lift_treeish, lift_fold, lift_root, unwrap)`.
+See the [Lift struct](../concepts/transforms.md) for the type signature
+(included from source). The three built-in Lifts (Explainer, ParLazy,
+ParEager) in `prelude/` are the reference implementations.
 
 Common patterns:
 - **Identity treeish**: `|t| t` — don't change the tree, only the fold

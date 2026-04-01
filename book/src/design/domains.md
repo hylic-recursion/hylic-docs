@@ -30,10 +30,7 @@ digraph {
 ## The `Domain` trait
 
 ```rust
-pub trait Domain<N: 'static>: 'static {
-    type Fold<H: 'static, R: 'static>: FoldOps<N, H, R>;
-    type Treeish: TreeOps<N>;
-}
+{{#include ../../../../hylic/src/domain/mod.rs:domain_trait}}
 ```
 
 Each domain marker implements this trait, providing concrete Fold
@@ -41,9 +38,7 @@ and Treeish types via GATs (Generic Associated Types). The executor
 trait is parameterized by the domain:
 
 ```rust
-pub trait Executor<N: 'static, R: 'static, D: Domain<N>> {
-    fn run<H: 'static>(&self, fold: &D::Fold<H, R>, graph: &D::Treeish, root: &N) -> R;
-}
+{{#include ../../../../hylic/src/cata/exec/mod.rs:executor_trait}}
 ```
 
 The compiler resolves `D::Fold<H, R>` to the concrete type — e.g.,
@@ -112,40 +107,12 @@ for the full technical details.
 The same closures work in any domain — closures are domain-independent:
 
 ```rust
-let init = |n: &i32| *n as u64;
-let acc  = |h: &mut u64, r: &u64| *h += r;
-let fin  = |h: &u64| *h;
-
-// Shared domain (standard — composable, parallel-ready):
-let fold = hylic::fold::fold(init, acc, fin);
-
-// Local domain (lighter, single-thread):
-let fold = hylic::domain::local::fold(init, acc, fin);
-
-// Owned domain (lightest, zero refcount):
-let fold = hylic::domain::owned::fold(init, acc, fin);
+{{#include ../../../src/docs_examples.rs:domain_switching}}
 ```
 
 The constructor selects the domain. The closures are the source of
 truth. To switch domains, use the same closures with a different
 constructor — no conversion functions needed.
-
-## Switching domains
-
-Same closures, different executor const:
-
-```rust
-// Start with Shared + Fused:
-exec::FUSED.run(&shared_fold, &shared_graph, &root);
-
-// Try Rayon (same domain, parallel):
-exec::RAYON.run(&shared_fold, &shared_graph, &root);
-
-// Try Owned (different domain, zero-boxing):
-let owned_fold = owned::fold(init, acc, fin);
-let owned_graph = owned::treeish_visit(children_fn);
-exec::FUSED_OWNED.run(&owned_fold, &owned_graph, &root);
-```
 
 The type system enforces compatibility: `exec::RAYON` only accepts
 Shared-domain folds. Passing an `owned::Fold` to `exec::RAYON`

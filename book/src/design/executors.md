@@ -20,14 +20,7 @@ The `exec` module is the single namespace for all executor concerns.
 ## The `Executor` trait
 
 ```rust
-pub trait Executor<N: 'static, R: 'static, D: Domain<N>> {
-    fn run<H: 'static>(
-        &self,
-        fold: &D::Fold<H, R>,
-        graph: &D::Treeish,
-        root: &N,
-    ) -> R;
-}
+{{#include ../../../../hylic/src/cata/exec/mod.rs:executor_trait}}
 ```
 
 Three type parameters: the node type `N`, the result type `R`, and
@@ -39,10 +32,7 @@ Treeish types the executor accepts — via GATs on the `Domain` trait
 via `ExecutorExt` (Shared domain only):
 
 ```rust
-pub trait ExecutorExt<N, R>: Executor<N, R, Shared> {
-    fn run_lifted(...)  -> R0 { /* uses self.run() */ }
-    fn run_lifted_zipped(...) -> (R0, R) { /* uses self.run() */ }
-}
+{{#include ../../../../hylic/src/cata/exec/mod.rs:executor_ext_trait}}
 ```
 
 Any executor supporting the Shared domain automatically gets Lift

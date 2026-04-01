@@ -9,10 +9,7 @@ independently — producing a new Fold without modifying the original.
 Always extract closures before passing to the constructor:
 
 ```rust
-let init = |n: &MyNode| n.value;
-let acc  = |heap: &mut u64, child: &u64| *heap += child;
-let fin  = |heap: &u64| *heap;
-let fold = fold::fold(init, acc, fin);
+{{#include ../../../src/docs_examples.rs:named_closures_pattern}}
 ```
 
 This makes closures reusable across domains and readable without nesting.
@@ -41,32 +38,11 @@ digraph {
 ### map_init — add side effects to initialization
 
 ```rust
-let logged = fold.map_init(|orig_init| Box::new(move |n: &Node| {
-    println!("visiting {}", n.name);
-    orig_init(n)
-}));
+{{#include ../../../src/docs_examples.rs:fold_map_init}}
 ```
 
 The mapper receives the original init closure and returns a new one.
 Useful for logging, instrumentation, or augmenting the initial heap.
-
-### map_accumulate — intercept child results
-
-```rust
-let counted = fold.map_accumulate(|orig_acc| Box::new(move |h, r| {
-    println!("  child result: {:?}", r);
-    orig_acc(h, r);
-}));
-```
-
-### map_finalize — post-process the result
-
-```rust
-let clamped = fold.map_finalize(|orig_fin| Box::new(move |h| {
-    let r = orig_fin(h);
-    r.min(1000)  // clamp result
-}));
-```
 
 ## Result-type transformations
 
@@ -87,26 +63,10 @@ digraph {
 }
 ```
 
-### map — transform the result type
-
-```rust
-// Convert u64 result to String
-let string_fold = fold.map(
-    |r: &u64| format!("total: {}", r),   // forward: R → R2
-    |s: &String| s.parse().unwrap(),       // backward: R2 → R (for accumulate)
-);
-```
-
-The backward function is needed because `accumulate` receives child
-results — they must be in the original type for the original accumulate
-to process them.
-
 ### zipmap — augment with extra data
 
 ```rust
-let with_count = fold.zipmap(|r: &u64| if *r > 100 { "large" } else { "small" });
-// Result: (u64, &str) — original result + classification
-let (total, category) = exec::FUSED.run(&with_count, &graph, &root);
+{{#include ../../../src/docs_examples.rs:fold_zipmap}}
 ```
 
 `zipmap` is the most common transformation — add extra computed data
@@ -117,8 +77,7 @@ without changing the fold's core logic.
 ### contramap — change the input type
 
 ```rust
-// Fold<Module, H, R> → Fold<String, H, R>
-let by_name = fold.contramap(|name: &String| lookup_module(name));
+{{#include ../../../src/docs_examples.rs:fold_contramap}}
 ```
 
 Only init sees the node. Contramap wraps init to transform the input.
@@ -129,8 +88,7 @@ Accumulate and finalize are unchanged.
 ### product — two folds in one traversal
 
 ```rust
-let both = size_fold.product(&depth_fold());
-let (total_size, max_depth) = exec::FUSED.run(&both, &graph, &root);
+{{#include ../../../src/docs_examples.rs:fold_product}}
 ```
 
 The categorical product: each fold maintains its own heap, sees its
