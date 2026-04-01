@@ -11,7 +11,7 @@ mod tests {
     use hylic::graph::SeedGraph;
     use hylic::pipeline::GraphWithFold;
     use hylic::prelude::seeds_for_fallible;
-    use hylic::cata::Exec;
+    use hylic::cata::{Fused, Executor};
     use insta::assert_snapshot;
 
 
@@ -112,7 +112,7 @@ mod tests {
         );
 
         let top_deps = vec!["app".to_string()];
-        let result = pipeline.run(&Exec::fused(), &top_deps);
+        let result = pipeline.run(&Fused, &top_deps);
 
         // Bottom-up order: utils resolved first, then logging, config, app
         // ghost produces an error

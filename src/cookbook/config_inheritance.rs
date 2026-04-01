@@ -7,7 +7,7 @@ mod tests {
     use std::collections::BTreeMap;
     use hylic::fold::simple_fold;
     use hylic::graph::treeish_from;
-    use hylic::cata::Exec;
+    use hylic::cata::{Fused, Executor};
     use insta::assert_snapshot;
 
 
@@ -83,7 +83,7 @@ mod tests {
             },
         );
 
-        let result = Exec::fused().run(&resolve, &graph, &root);
+        let result = Fused.run(&resolve, &graph, &root);
 
         // Global scope sees all keys from all descendants,
         // but its own values win for "color", "font_size", "theme".

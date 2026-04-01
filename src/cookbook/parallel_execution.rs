@@ -5,7 +5,7 @@
 mod tests {
     use hylic::fold::simple_fold;
     use hylic::graph::treeish;
-    use hylic::cata::Exec;
+    use hylic::cata::{Exec, Fused, Rayon, Executor};
     use insta::assert_snapshot;
 
     #[derive(Clone)]
@@ -35,9 +35,9 @@ mod tests {
 
         // All executors produce identical results.
         let executors: Vec<Exec<WorkNode, u64>> = vec![
-            Exec::fused(),
+            Fused.into(),
             Exec::sequential(),
-            Exec::rayon(),
+            Rayon.into(),
         ];
         let expected = executors[0].run(&sum, &graph, &tree);
         for exec in &executors {

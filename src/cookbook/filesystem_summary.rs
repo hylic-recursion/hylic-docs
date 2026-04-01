@@ -4,7 +4,7 @@
 mod tests {
     use hylic::fold::simple_fold;
     use hylic::graph::treeish_visit;
-    use hylic::cata::Exec;
+    use hylic::cata::{Fused, Executor};
     use insta::assert_snapshot;
 
 
@@ -71,7 +71,7 @@ mod tests {
             },
         );
 
-        let result = Exec::fused().run(&summarize, &graph, &tree);
+        let result = Fused.run(&summarize, &graph, &tree);
         assert_eq!(result, Summary {
             total_size: 10400, file_count: 5, dir_count: 3,
         });

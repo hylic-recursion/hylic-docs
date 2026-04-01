@@ -22,5 +22,6 @@
 
 # Reference
 
+- [Executor architecture](./design/executors.md)
 - [Implementation notes](./design/implementation_notes.md)
 - [Theory](./design/theory.md)

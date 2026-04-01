@@ -4,7 +4,7 @@
 mod tests {
     use hylic::fold::simple_fold;
     use hylic::graph::treeish;
-    use hylic::cata::Exec;
+    use hylic::cata::{Fused, Executor};
     use insta::assert_snapshot;
 
 
@@ -30,7 +30,7 @@ mod tests {
             |heap: &mut u64, child: &u64| *heap += child,
         );
 
-        let result = Exec::fused().run(&fib, &graph, &FibNode(10));
+        let result = Fused.run(&fib, &graph, &FibNode(10));
         assert_eq!(result, 55);
 
         assert_snapshot!("fib10", format!("fib(10) = {result}"));

@@ -88,7 +88,7 @@ Four functions:
 Execution goes through `Exec::run_lifted`:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec.rs:run_lifted}}
+{{#include ../../../../hylic/src/cata/exec/mod.rs:run_lifted}}
 ```
 
 The pattern: lift types → run in lifted domain → unwrap back to R.

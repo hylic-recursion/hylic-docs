@@ -7,7 +7,7 @@ mod tests {
     use std::collections::{HashMap, HashSet};
     use hylic::fold::simple_fold;
     use hylic::graph::treeish;
-    use hylic::cata::Exec;
+    use hylic::cata::{Fused, Executor};
     use insta::assert_snapshot;
 
 
@@ -89,7 +89,7 @@ mod tests {
             },
         );
 
-        let result = Exec::fused().run(&detect, &graph, &DepNode::root("A"));
+        let result = Fused.run(&detect, &graph, &DepNode::root("A"));
 
         assert_eq!(result.cycles, vec!["A"]);  // C → A cycle detected
         assert_eq!(result.visited, 6);          // A, B, C, D, D, A(cycle)

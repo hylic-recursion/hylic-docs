@@ -9,7 +9,7 @@ transform each part independently.
 This is the entire computation, from `exec.rs`:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec.rs:run_inner}}
+{{#include ../../../../hylic/src/cata/exec/variant/fused/mod.rs:run_inner}}
 ```
 
 Read it carefully. At each node:
@@ -93,23 +93,26 @@ let sum = simple_fold(
 );
 ```
 
-**Exec** — the executor. Controls HOW the recursion runs:
+**Executor** — the strategy. Controls HOW the recursion runs:
 
 ```rust
-let r = Exec::fused().run(&fold, &treeish, &root);
+let r = Fused.run(&fold, &treeish, &root);         // zero overhead
+let r = Rayon.run(&fold, &treeish, &root);          // parallel
+let r = Exec::rayon().run(&fold, &treeish, &root);  // via runtime dispatch
 ```
 
-Three modes, same result:
+Four built-in executors, each in its own module:
 
-| Constructor | How it visits children | Allocation |
-|---|---|---|
-| `Exec::fused()` | Callback-based recursion | Zero |
-| `Exec::sequential()` | Collect to Vec, iterate | Vec per node |
-| `Exec::rayon()` | Collect to Vec, `par_iter` | Vec per node, parallel |
+| Executor | How it visits children | Allocation | Arc/node |
+|---|---|---|---|
+| `Fused` | Callback recursion | Zero | 0 |
+| `Sequential` | Collect to Vec, iterate | Vec/node | 0 |
+| `Rayon` | Collect to Vec, `par_iter` | Vec/node | 0 |
+| `Custom` | User-defined visitor | depends | 5 |
 
-The executor is parameterized by a single lambda (the "child visitor")
-that encapsulates traversal mode and parallelism. `run_inner` above
-takes this lambda as its first parameter `vc`.
+Each implements the `Executor` trait — one `run()` method. Lift
+integration (`run_lifted`, `run_lifted_zipped`) is provided automatically.
+See [Executor architecture](../design/executors.md) for details.
 
 ## The separation
 
@@ -134,7 +137,7 @@ The fold doesn't know about the tree. The tree doesn't know about
 the fold. The executor connects them. This separation is why
 transformations work: you change one piece, the others stay.
 
-Everything in hylic reduces to `Exec::run(&fold, &treeish, &root)`.
+Everything in hylic reduces to `executor.run(&fold, &treeish, &root)`.
 Even `GraphWithFold::run` (the pipeline for lazy tree discovery)
 is just one manual fold step for the entry point, then `exec.run`
 for each child tree — see [Entry points](./entry.md).
