@@ -4,7 +4,7 @@
 mod tests {
     use hylic::fold::simple_fold;
     use hylic::graph::treeish;
-    use hylic::cata::{Fused, Executor};
+    use hylic::cata::exec::{self, Executor};
     use insta::assert_snapshot;
 
 
@@ -25,12 +25,11 @@ mod tests {
         // simple_fold: H = R (heap IS the result, finalize is clone).
         // init: each node seeds its heap — leaves get their value, inner nodes get 0.
         // accumulate: called once per child result, folds it into the heap.
-        let fib = simple_fold(
-            |n: &FibNode| if n.0 <= 1 { n.0 } else { 0 },
-            |heap: &mut u64, child: &u64| *heap += child,
-        );
+        let init = |n: &FibNode| if n.0 <= 1 { n.0 } else { 0 };
+        let acc = |heap: &mut u64, child: &u64| *heap += child;
+        let fib = simple_fold(init, acc);
 
-        let result = Fused.run(&fib, &graph, &FibNode(10));
+        let result = exec::FUSED.run(&fib, &graph, &FibNode(10));
         assert_eq!(result, 55);
 
         assert_snapshot!("fib10", format!("fib(10) = {result}"));

@@ -7,7 +7,7 @@ mod tests {
     use std::collections::BTreeMap;
     use hylic::fold::simple_fold;
     use hylic::graph::treeish_from;
-    use hylic::cata::{Fused, Executor};
+    use hylic::cata::exec::{self, Executor};
     use insta::assert_snapshot;
 
 
@@ -70,20 +70,19 @@ mod tests {
         // accumulate merges each child's resolved config upward.
         // or_insert means: child values only fill in keys the parent hasn't set.
         // This gives parent-wins semantics — init runs before accumulate.
-        let resolve = simple_fold(
-            |scope: &ConfigScope| ResolvedConfig {
-                scope: scope.name.clone(),
-                merged: scope.overrides.clone(),
-            },
-            |heap: &mut ResolvedConfig, child: &ResolvedConfig| {
-                // Child values only fill in keys the parent hasn't set.
-                for (k, v) in &child.merged {
-                    heap.merged.entry(k.clone()).or_insert_with(|| v.clone());
-                }
-            },
-        );
+        let init = |scope: &ConfigScope| ResolvedConfig {
+            scope: scope.name.clone(),
+            merged: scope.overrides.clone(),
+        };
+        let acc = |heap: &mut ResolvedConfig, child: &ResolvedConfig| {
+            // Child values only fill in keys the parent hasn't set.
+            for (k, v) in &child.merged {
+                heap.merged.entry(k.clone()).or_insert_with(|| v.clone());
+            }
+        };
+        let resolve = simple_fold(init, acc);
 
-        let result = Fused.run(&resolve, &graph, &root);
+        let result = exec::FUSED.run(&resolve, &graph, &root);
 
         // Global scope sees all keys from all descendants,
         // but its own values win for "color", "font_size", "theme".

@@ -11,7 +11,7 @@ mod tests {
     use hylic::graph::SeedGraph;
     use hylic::pipeline::GraphWithFold;
     use hylic::prelude::seeds_for_fallible;
-    use hylic::cata::{Fused, Executor};
+    use hylic::cata::exec::{self, Executor};
     use insta::assert_snapshot;
 
 
@@ -84,22 +84,21 @@ mod tests {
         // The fold operates on Either<Error, Module> — both cases in one algebra.
         // Left (error): no children, init produces the error.
         // Right (valid): init produces the module name, children accumulate.
-        let collect = simple_fold(
-            |node: &Either<ResolveError, Module>| match node {
-                Either::Right(m) => Resolved {
-                    modules: vec![m.name.clone()],
-                    errors: vec![],
-                },
-                Either::Left(e) => Resolved {
-                    modules: vec![],
-                    errors: vec![e.0.clone()],
-                },
+        let init = |node: &Either<ResolveError, Module>| match node {
+            Either::Right(m) => Resolved {
+                modules: vec![m.name.clone()],
+                errors: vec![],
             },
-            |heap: &mut Resolved, child: &Resolved| {
-                heap.modules.extend(child.modules.iter().cloned());
-                heap.errors.extend(child.errors.iter().cloned());
+            Either::Left(e) => Resolved {
+                modules: vec![],
+                errors: vec![e.0.clone()],
             },
-        );
+        };
+        let acc = |heap: &mut Resolved, child: &Resolved| {
+            heap.modules.extend(child.modules.iter().cloned());
+            heap.errors.extend(child.errors.iter().cloned());
+        };
+        let collect = simple_fold(init, acc);
 
         // GraphWithFold wires graph + fold + a top-level heap initializer.
         // heap_of_top initializes the heap for the entry point (which isn't
@@ -112,7 +111,7 @@ mod tests {
         );
 
         let top_deps = vec!["app".to_string()];
-        let result = pipeline.run(&Fused, &top_deps);
+        let result = pipeline.run(&exec::FUSED, &top_deps);
 
         // Bottom-up order: utils resolved first, then logging, config, app
         // ghost produces an error

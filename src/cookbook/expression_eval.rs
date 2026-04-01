@@ -4,7 +4,7 @@
 mod tests {
     use hylic::prelude::vec_fold::{vec_fold, VecHeap};
     use hylic::graph::treeish_visit;
-    use hylic::cata::{Fused, Executor};
+    use hylic::cata::exec::{self, Executor};
     use insta::assert_snapshot;
 
 
@@ -41,16 +41,17 @@ mod tests {
         // vec_fold: unlike simple_fold, finalize sees the node AND all child
         // results together. Needed here because each node type combines
         // children differently (sum vs product vs negate).
-        let eval = vec_fold(|heap: &VecHeap<Expr, f64>| {
+        let format = |heap: &VecHeap<Expr, f64>| {
             match &heap.node {
                 Expr::Num(v) => *v,
                 Expr::Add(_, _) => heap.childresults.iter().sum(),
                 Expr::Mul(_, _) => heap.childresults.iter().product(),
                 Expr::Neg(_) => -heap.childresults[0],
             }
-        });
+        };
+        let eval = vec_fold(format);
 
-        let result = Fused.run(&eval, &graph, &expr);
+        let result = exec::FUSED.run(&eval, &graph, &expr);
         assert_eq!(result, -14.0);
 
         assert_snapshot!("expr_eval", format!("(3 + 4) * -(2) = {result}"));

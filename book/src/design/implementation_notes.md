@@ -49,56 +49,46 @@ signature `Fn(&N, &mut dyn FnMut(&E))` visits children by reference.
 No allocation, no cloning.
 
 **`apply()` as escape hatch:** When a `Vec` is actually needed (e.g.,
-for parallel iteration in `Exec::rayon()`), `apply()` collects via
+for parallel iteration in `exec::RAYON`), `apply()` collects via
 the callback.
 
 **`Visit<T, F>` combinator:** `Edgy::at(node)` returns a `Visit` —
 a zero-allocation push-based iterator with `map`, `filter`, `fold`,
 `collect_vec`.
 
-## Execution: `Executor` trait and variant modules
+## Execution: domain-parameterized executors
 
-The executor is a trait with one required method:
+The executor is parameterized by a boxing domain:
 
 ```rust
-pub trait Executor<N: 'static, R: 'static> {
-    fn run<H: 'static>(&self, fold: &Fold<N, H, R>, graph: &Treeish<N>, root: &N) -> R;
-    // provided: run_lifted, run_lifted_zipped
+pub trait Executor<N: 'static, R: 'static, D: Domain<N>> {
+    fn run<H: 'static>(&self, fold: &D::Fold<H, R>, graph: &D::Treeish, root: &N) -> R;
 }
 ```
 
-Each variant lives in its own module under `cata/exec/variant/`:
+Each variant is a zero-sized struct `XxxIn<D>(PhantomData<D>)` with
+a blanket (or domain-specific) `Executor` impl. The domain marker
+lives on the executor type, not on Fold or Treeish. Const values
+provide the flattened API: `exec::FUSED`, `exec::RAYON`, etc.
 
-- **`variant/fused/`**: `Fused` — callback-based recursion via
-  `graph.visit`. Zero allocation, zero Arc clones. Fold and graph are
-  passed by `&` reference through the entire recursion. **No Send,
-  Sync, or Arc appears in this module's code** — all thread-boundary
-  concerns are absent.
+Four variants in `cata/exec/variant/`:
 
-- **`variant/custom/`**: `Custom<N, R>` — wraps a `ChildVisitorFn`
-  that controls how children are visited. Send + Sync bounds are
-  contained here. Two built-in constructors:
-  - `Custom::sequential()` — collect children to Vec, iterate (N: Clone)
-  - `Custom::rayon()` — collect children, par_iter (N: Clone+Send+Sync)
+- **`fused/`**: `FusedIn<D>` — callback-based, all domains. Zero
+  allocation, zero Arc clones. No Send/Sync/Arc in this module.
+- **`sequential/`**: `SequentialIn<D>` — Vec-collect, all domains.
+- **`rayon/`**: `RayonIn<D>` — par_iter, Shared only. Needs Sync.
+- **`custom/`**: `Custom<N, R>` — user-defined visitor, Shared only.
 
-The `Exec<N, R>` enum wraps these variants for everyday runtime
-dispatch. Its API is identical to pre-trait usage (`Exec::fused()`,
-`Exec::rayon()`, `exec.run(...)`). Inherent methods on the enum
-shadow the trait methods, so no `use Executor` import is needed.
+Each recursion engine takes `&impl FoldOps + &impl TreeOps` — generic
+over the operations traits. When called with a concrete user struct,
+the compiler monomorphizes and inlines completely.
 
-For zero-overhead static dispatch, use variant types directly:
-`Fused.run(...)` or `Custom::rayon().run(...)`.
+**`ExecutorExt`**: provides `run_lifted` and `run_lifted_zipped` via
+blanket impl for any `Executor<N, R, Shared>`. Lift integration is
+Shared-only (Lifts clone Fold/Treeish).
 
-**`run_lifted`**: Provided by the trait — implementors get it free.
-Accepts a [Lift](./lifts.md), transforms fold + treeish, runs the
-lifted computation, unwraps. This is how parallel strategies and
-the Explainer integrate.
-
-**Adding a new executor:** Create a directory `variant/<name>/`,
-define a struct, implement `Executor<N, R>`. Only `run()` is
-required; `run_lifted` and `run_lifted_zipped` are provided
-automatically. Add the variant to the `Exec` enum and its inherent
-method dispatchers.
+See [Executor architecture](./executors.md) and
+[Domain system](./domains.md) for the full design.
 
 ## ParRef: lazy memoized computation
 

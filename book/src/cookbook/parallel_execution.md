@@ -4,20 +4,22 @@ hylic offers three approaches to parallelism, each at a different
 level of the architecture. All produce identical results for the
 same fold and graph.
 
-## Approach 1: Exec::rayon — parallel child visiting
+## Approach 1: exec::RAYON — parallel child visiting
 
-The simplest form. `Exec::rayon()` collects a node's children into
+The simplest form. `exec::RAYON` collects a node's children into
 a `Vec`, then evaluates sibling subtrees in parallel via rayon's
 `par_iter`. No Lift needed — the fold and graph are unchanged.
 
 ```rust
+use hylic::cata::exec::{self, Executor};
+
 // Same fold, different executor — identical results
-let r1 = Exec::fused().run(&fold, &graph, &root);
-let r2 = Exec::rayon().run(&fold, &graph, &root);
+let r1 = exec::FUSED.run(&fold, &graph, &root);
+let r2 = exec::RAYON.run(&fold, &graph, &root);
 assert_eq!(r1, r2);
 ```
 
-Internally, `Exec::rayon` does this at each node:
+Internally, `exec::RAYON` does this at each node:
 
 ```dot process
 digraph {
@@ -47,7 +49,7 @@ tree of `ParRef` values (Phase 1). Calling `eval()` on the root
 triggers bottom-up parallel evaluation (Phase 2).
 
 ```rust
-let result = Exec::fused().run_lifted(&ParLazy::lift(), &fold, &graph, &root);
+let result = exec::FUSED.run_lifted(&ParLazy::lift(), &fold, &graph, &root);
 ```
 
 The execution proceeds in two phases:
@@ -59,7 +61,7 @@ digraph {
     edge [fontname="sans-serif", fontsize=10];
 
     subgraph cluster_p1 {
-        label="Phase 1: build ParRef tree\n(sequential, via Exec::fused)";
+        label="Phase 1: build ParRef tree\n(sequential, via exec::FUSED)";
         style=dashed; color="#999999"; fontname="sans-serif";
         init1 [label="init(node) → (H, [])"];
         acc1  [label="accumulate:\npush child ParRef"];
@@ -97,11 +99,11 @@ fork-join scheduler backed by a `WorkPool` (Phase 2).
 
 ```rust
 WorkPool::with(WorkPoolSpec::threads(3), |pool| {
-    Exec::fused().run_lifted(&ParEager::lift(pool), &fold, &graph, &root)
+    exec::FUSED.run_lifted(&ParEager::lift(pool), &fold, &graph, &root)
 });
 // or the convenience form:
 ParEager::with(WorkPoolSpec::threads(3), |lift| {
-    Exec::fused().run_lifted(lift, &fold, &graph, &root)
+    exec::FUSED.run_lifted(lift, &fold, &graph, &root)
 });
 ```
 
@@ -114,7 +116,7 @@ digraph {
     edge [fontname="sans-serif", fontsize=10];
 
     subgraph cluster_p1 {
-        label="Phase 1: build heap tree\n(sequential, via Exec::fused)";
+        label="Phase 1: build heap tree\n(sequential, via exec::FUSED)";
         style=dashed; color="#999999"; fontname="sans-serif";
         init1 [label="init(node) → EagerNode{heap, []}"];
         acc1  [label="accumulate:\npush child Arc<EagerNode>"];
@@ -151,7 +153,7 @@ want fine control over the thread pool.
 
 ## Comparison
 
-| | `Exec::rayon` | `ParLazy` | `ParEager` |
+| | `exec::RAYON` | `ParLazy` | `ParEager` |
 |---|---|---|---|
 | Mechanism | rayon `par_iter` | ParRef tree + rayon `join_par` | Heap tree + WorkPool fork-join |
 | Requires `N: Clone` | yes | yes | yes |

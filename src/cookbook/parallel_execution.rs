@@ -5,7 +5,7 @@
 mod tests {
     use hylic::fold::simple_fold;
     use hylic::graph::treeish;
-    use hylic::cata::{Exec, Fused, Rayon, Executor};
+    use hylic::cata::exec::{self, Executor, ExecutorExt};
     use insta::assert_snapshot;
 
     #[derive(Clone)]
@@ -28,16 +28,15 @@ mod tests {
         ).collect());
 
         let graph = treeish(|n: &WorkNode| n.children.clone());
-        let sum = simple_fold(
-            |n: &WorkNode| n.value,
-            |heap: &mut u64, child: &u64| *heap += child,
-        );
+        let init = |n: &WorkNode| n.value;
+        let acc = |heap: &mut u64, child: &u64| *heap += child;
+        let sum = simple_fold(init, acc);
 
         // All executors produce identical results.
-        let executors: Vec<Exec<WorkNode, u64>> = vec![
-            Fused.into(),
-            Exec::sequential(),
-            Rayon.into(),
+        let executors: Vec<exec::Exec<WorkNode, u64>> = vec![
+            exec::Exec::fused(),
+            exec::Exec::sequential(),
+            exec::Exec::rayon(),
         ];
         let expected = executors[0].run(&sum, &graph, &tree);
         for exec in &executors {

@@ -7,7 +7,7 @@ mod tests {
     use std::collections::{HashMap, HashSet};
     use hylic::fold::simple_fold;
     use hylic::graph::treeish;
-    use hylic::cata::{Fused, Executor};
+    use hylic::cata::exec::{self, Executor};
     use insta::assert_snapshot;
 
 
@@ -78,18 +78,17 @@ mod tests {
         });
 
         // Fold: collect cycles from leaves, count visited nodes.
-        let detect = simple_fold(
-            |node: &DepNode| CycleResult {
-                cycles: if node.is_cycle() { vec![node.id.clone()] } else { vec![] },
-                visited: 1,
-            },
-            |heap: &mut CycleResult, child: &CycleResult| {
-                heap.cycles.extend(child.cycles.iter().cloned());
-                heap.visited += child.visited;
-            },
-        );
+        let init = |node: &DepNode| CycleResult {
+            cycles: if node.is_cycle() { vec![node.id.clone()] } else { vec![] },
+            visited: 1,
+        };
+        let acc = |heap: &mut CycleResult, child: &CycleResult| {
+            heap.cycles.extend(child.cycles.iter().cloned());
+            heap.visited += child.visited;
+        };
+        let detect = simple_fold(init, acc);
 
-        let result = Fused.run(&detect, &graph, &DepNode::root("A"));
+        let result = exec::FUSED.run(&detect, &graph, &DepNode::root("A"));
 
         assert_eq!(result.cycles, vec!["A"]);  // C → A cycle detected
         assert_eq!(result.visited, 6);          // A, B, C, D, D, A(cycle)

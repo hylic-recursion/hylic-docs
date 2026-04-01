@@ -63,6 +63,22 @@ a runtime function (`Treeish<N>` = `Fn(&N, &mut dyn FnMut(&N))`). This
 trades compile-time structural guarantees for runtime flexibility: the
 same fold works with any tree shape without redefining types.
 
+## Operations traits and domain abstraction
+
+`FoldOps<N, H, R>` and `TreeOps<N>` abstract the fold and graph
+operations from their storage. The standard types (`Fold`, `Treeish`)
+store closures behind Arc (the Shared domain). Alternative
+implementations can use Rc (Local), Box (Owned), or concrete structs
+(zero-boxing). The executor's recursion engine takes `&impl FoldOps +
+&impl TreeOps` — fully generic over the storage, monomorphized to
+zero overhead for concrete types.
+
+This is a form of defunctionalization: the operations traits are the
+abstract interface; the domain-specific types are the concrete
+representations. The `Domain` trait with GATs maps the marker type
+(Shared, Local, Owned) to the concrete types — a type-level function
+from boxing strategy to implementation.
+
 ## Further reading
 
 - Meijer, Fokkinga, Paterson. *Functional Programming with Bananas, Lenses, Envelopes and Barbed Wire.* (1991) — the original recursion schemes paper.

@@ -137,17 +137,19 @@ transitions, working state). The result becomes `ExplainerResult`
 (original result + full trace). Unwrap extracts `R`.
 
 ```rust
+use hylic::cata::exec::{self, Executor, ExecutorExt};
+
 // Transparent: get R, trace discarded
-let r = Exec::fused().run_lifted(&Explainer::lift(), &fold, &graph, &root);
+let r = exec::FUSED.run_lifted(&Explainer::lift(), &fold, &graph, &root);
 
 // With callback: inspect trace before extracting R
-let r = Exec::fused().run_lifted(
+let r = exec::FUSED.run_lifted(
     &Explainer::lift_with(|trace| println!("{:?}", trace)),
     &fold, &graph, &root,
 );
 
 // Zipped: get both R and the full ExplainerResult
-let (r, trace) = Exec::fused().run_lifted_zipped(&Explainer::lift(), &fold, &graph, &root);
+let (r, trace) = exec::FUSED.run_lifted_zipped(&Explainer::lift(), &fold, &graph, &root);
 ```
 
 In recursion-scheme terms, this is a histomorphism — each node
@@ -161,7 +163,7 @@ of `ParRef` values (Phase 1). Unwrap calls `eval()` on the root,
 which triggers bottom-up parallel evaluation via rayon (Phase 2).
 
 ```rust
-let r = Exec::fused().run_lifted(&ParLazy::lift(), &fold, &graph, &root);
+let r = exec::FUSED.run_lifted(&ParLazy::lift(), &fold, &graph, &root);
 ```
 
 ### ParEager — fork-join parallelism
@@ -172,7 +174,7 @@ scheduler backed by a `WorkPool` (Phase 2).
 
 ```rust
 WorkPool::with(WorkPoolSpec::threads(3), |pool| {
-    Exec::fused().run_lifted(&ParEager::lift(pool), &fold, &graph, &root)
+    exec::FUSED.run_lifted(&ParEager::lift(pool), &fold, &graph, &root)
 });
 ```
 

@@ -4,7 +4,7 @@
 mod tests {
     use hylic::fold::simple_fold;
     use hylic::graph::treeish_visit;
-    use hylic::cata::{Fused, Executor};
+    use hylic::cata::exec::{self, Executor};
     use insta::assert_snapshot;
 
 
@@ -57,21 +57,20 @@ mod tests {
 
         // The heap is a structured Summary — multiple metrics in one fold.
         // init seeds the node's own contribution, accumulate merges children.
-        let summarize = simple_fold(
-            |entry: &FsEntry| match entry {
-                FsEntry::File { size, .. } =>
-                    Summary { total_size: *size, file_count: 1, dir_count: 0 },
-                FsEntry::Dir { .. } =>
-                    Summary { total_size: 0, file_count: 0, dir_count: 1 },
-            },
-            |heap: &mut Summary, child: &Summary| {
-                heap.total_size += child.total_size;
-                heap.file_count += child.file_count;
-                heap.dir_count += child.dir_count;
-            },
-        );
+        let init = |entry: &FsEntry| match entry {
+            FsEntry::File { size, .. } =>
+                Summary { total_size: *size, file_count: 1, dir_count: 0 },
+            FsEntry::Dir { .. } =>
+                Summary { total_size: 0, file_count: 0, dir_count: 1 },
+        };
+        let acc = |heap: &mut Summary, child: &Summary| {
+            heap.total_size += child.total_size;
+            heap.file_count += child.file_count;
+            heap.dir_count += child.dir_count;
+        };
+        let summarize = simple_fold(init, acc);
 
-        let result = Fused.run(&summarize, &graph, &tree);
+        let result = exec::FUSED.run(&summarize, &graph, &tree);
         assert_eq!(result, Summary {
             total_size: 10400, file_count: 5, dir_count: 3,
         });

@@ -96,22 +96,25 @@ let sum = simple_fold(
 **Executor** — the strategy. Controls HOW the recursion runs:
 
 ```rust
-let r = Fused.run(&fold, &treeish, &root);         // zero overhead
-let r = Rayon.run(&fold, &treeish, &root);          // parallel
-let r = Exec::rayon().run(&fold, &treeish, &root);  // via runtime dispatch
+use hylic::cata::exec::{self, Executor};
+
+let r = exec::FUSED.run(&fold, &treeish, &root);  // sequential
+let r = exec::RAYON.run(&fold, &treeish, &root);   // parallel
 ```
 
-Four built-in executors, each in its own module:
+Four built-in executors, each in its own module, each
+domain-parameterized:
 
-| Executor | How it visits children | Allocation | Arc/node |
+| Executor | Traversal | Domains | Arc/node |
 |---|---|---|---|
-| `Fused` | Callback recursion | Zero | 0 |
-| `Sequential` | Collect to Vec, iterate | Vec/node | 0 |
-| `Rayon` | Collect to Vec, `par_iter` | Vec/node | 0 |
-| `Custom` | User-defined visitor | depends | 5 |
+| `exec::FUSED` | Callback | all | 0 |
+| `exec::SEQUENTIAL` | Vec collect | all | 0 |
+| `exec::RAYON` | `par_iter` | Shared | 0 |
+| `Custom` | User-defined | Shared | 5 |
 
-Each implements the `Executor` trait — one `run()` method. Lift
-integration (`run_lifted`, `run_lifted_zipped`) is provided automatically.
+Each implements the `Executor<N, R, D>` trait — parameterized by
+a boxing [domain](../design/domains.md). Lift integration is
+provided automatically via `ExecutorExt`.
 See [Executor architecture](../design/executors.md) for details.
 
 ## The separation
@@ -124,20 +127,23 @@ digraph {
 
     Treeish [label="Treeish<N>\nstructure"];
     Fold [label="Fold<N, H, R>\ncomputation"];
-    Exec [label="Exec\nstrategy"];
+    Exec [label="exec::FUSED\nstrategy"];
+    Domain [label="Domain\n(Shared / Local / Owned)", fillcolor="#fff3cd"];
     R [label="R", shape=ellipse, style=filled, fillcolor="#d4edda"];
 
     Treeish -> Exec [label="graph"];
     Fold -> Exec [label="algebra"];
+    Domain -> Exec [label="boxing", style=dashed];
     Exec -> R [label="run"];
 }
 ```
 
 The fold doesn't know about the tree. The tree doesn't know about
-the fold. The executor connects them. This separation is why
-transformations work: you change one piece, the others stay.
+the fold. The executor connects them. The domain determines how
+closures are stored — but the fold and treeish don't carry it;
+the executor does.
 
-Everything in hylic reduces to `executor.run(&fold, &treeish, &root)`.
+Everything in hylic reduces to `exec::FUSED.run(&fold, &treeish, &root)`.
 Even `GraphWithFold::run` (the pipeline for lazy tree discovery)
 is just one manual fold step for the entry point, then `exec.run`
 for each child tree — see [Entry points](./entry.md).
