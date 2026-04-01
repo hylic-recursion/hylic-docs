@@ -424,4 +424,18 @@ mod tests {
         assert_eq!(result, 5);
     }
     // ANCHOR_END: fold_contramap
+
+    // ── intro.md ───────────────────────────────────────
+
+    #[test]
+    fn intro_example() {
+        use hylic::cata::exec::{self, Executor};
+
+        let init = |n: &i32| *n as u64;
+        let acc  = |h: &mut u64, c: &u64| *h += c;
+        let fold = hylic::fold::simple_fold(init, acc);
+        let graph = hylic::graph::treeish(|n: &i32| if *n > 1 { vec![n - 1, n - 2] } else { vec![] });
+        let result = exec::FUSED.run(&fold, &graph, &5);
+        assert!(result > 0);
+    }
 }

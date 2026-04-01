@@ -145,3 +145,25 @@ Everything in hylic reduces to `exec::FUSED.run(&fold, &treeish, &root)`.
 Even `GraphWithFold::run` (the pipeline for lazy tree discovery)
 is just one manual fold step for the entry point, then `exec.run`
 for each child tree — see [Entry points](./entry.md).
+
+## Under the hood: operations traits
+
+The executor's recursion engine doesn't know about Arc, Rc, or Box.
+It takes `&impl FoldOps<N, H, R>` and `&impl TreeOps<N>` — pure
+operation traits:
+
+```rust
+{{#include ../../../../hylic/src/ops/fold.rs:foldops_trait}}
+```
+
+```rust
+{{#include ../../../../hylic/src/ops/tree.rs:treeops_trait}}
+```
+
+The standard `Fold<N, H, R>` and `Treeish<N>` implement these traits.
+So do `local::Fold`, `owned::Fold`, and any user-defined struct with
+the right methods. The executor is generic over these traits — when
+called with a concrete struct, the compiler inlines completely.
+
+See [Domain system](../design/domains.md) for how domains connect
+operations to storage.
