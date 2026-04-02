@@ -16,6 +16,8 @@ Prefer `treeish_visit` for performance — no Vec allocation per node.
 
 ## Edge transformations
 
+<!-- -->
+
 ```dot process
 digraph {
     rankdir=LR;
@@ -34,6 +36,8 @@ digraph {
 ```
 
 ### filter — prune children
+
+<!-- -->
 
 ```rust
 {{#include ../../../src/docs_examples.rs:graph_filter}}

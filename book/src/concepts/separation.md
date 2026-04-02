@@ -117,6 +117,8 @@ See [Executor architecture](../design/executors.md) for details.
 
 ## The separation
 
+<!-- -->
+
 ```dot process
 digraph {
     rankdir=LR;

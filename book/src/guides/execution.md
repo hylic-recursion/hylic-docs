@@ -4,26 +4,23 @@ The executor determines HOW the tree is traversed — sequential,
 parallel, fused, unfused. Changing the executor changes the
 performance characteristics without changing the fold or graph.
 
-## The exec module
+## One import, inherent methods
 
-All executor concerns live in one namespace:
+<!-- -->
 
 ```rust
-use hylic::cata::exec::{self, Executor};
+use hylic::domain::shared as dom;
 ```
 
-`exec::FUSED`, `exec::RAYON`, etc. are zero-sized const values.
-`Executor` is the trait — imported to call `.run()`.
-
-## Switching executors
-
-Same fold, same graph, one-token change:
+Every executor const has inherent `.run()` — no trait import:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:exec_usage}}
 ```
 
 ## When to use which executor
+
+<!-- -->
 
 ```dot process
 digraph {
@@ -32,71 +29,82 @@ digraph {
     edge [fontname="sans-serif", fontsize=10];
 
     start [label="Need parallelism?", shape=diamond, fillcolor="#fff3cd"];
-    fused [label="exec::FUSED\nzero overhead", fillcolor="#d4edda"];
+    fused [label="dom::FUSED\nzero overhead", fillcolor="#d4edda"];
     heavy [label="Work per node?", shape=diamond, fillcolor="#fff3cd"];
-    rayon [label="exec::RAYON\nrayon par_iter", fillcolor="#d4edda"];
+    pool [label="PoolIn\nfork-join, all domains", fillcolor="#d4edda"];
+    rayon [label="dom::RAYON\nrayon (Shared only)", fillcolor="#d4edda"];
     lift [label="Use a Lift\n(ParLazy / ParEager)", fillcolor="#d4edda"];
 
     start -> fused [label="no"];
     start -> heavy [label="yes"];
-    heavy -> rayon [label="heavy\n(>10µs/node)"];
-    heavy -> lift [label="mixed\nor I/O"];
+    heavy -> pool [label="heavy\n(>10us/node)"];
+    heavy -> rayon [label="rayon available\n& Shared domain"];
+    heavy -> lift [label="mixed\nor pipelined"];
 }
 ```
 
-| Executor | Best for | Overhead |
-|----------|----------|----------|
-| `exec::FUSED` | Sequential, any workload | ~4µs per 200 nodes |
-| `exec::SEQUENTIAL` | Testing unfused path | Vec alloc per node |
-| `exec::RAYON` | CPU-bound parallel work | rayon scheduling |
-| Lifts (ParLazy/ParEager) | Mixed or I/O workloads | Phase 1 + Phase 2 |
+| Executor | Domain | Best for | Overhead |
+|----------|--------|----------|----------|
+| `dom::FUSED` | all | Sequential, any workload | ~4us per 200 nodes |
+| `dom::SEQUENTIAL` | all | Testing unfused path | Vec alloc per node |
+| `dom::RAYON` | Shared | CPU-bound parallel work | rayon scheduling |
+| `PoolIn<D>` | all | CPU-bound parallel, any domain | fork-join scheduling |
+| Lifts | Shared | Mixed or pipelined workloads | Phase 1 + Phase 2 |
+
+## The Pool executor
+
+Our own parallel executor — no rayon dependency. Works with all
+domains via SyncRef (scoped-thread safety wrapper):
+
+```rust
+use hylic::domain::shared as dom;
+use hylic::cata::exec::{PoolIn, PoolSpec};
+use hylic::prelude::{WorkPool, WorkPoolSpec};
+
+WorkPool::with(WorkPoolSpec::threads(4), |pool| {
+    let exec = PoolIn::<hylic::domain::Shared>::new(pool, PoolSpec::default_for(4));
+    exec.run(&fold, &graph, &root);
+});
+```
+
+Tree-aware fork-join: binary-split child processing with depth-based
+sequential cutoff. Competitive with rayon, works with Local and
+Owned domains too.
 
 ## Switching domains
 
-The executor's type parameter determines the boxing domain.
-Same closures, different constructor, different executor const:
+Same closures, different constructor, different executor:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:domain_switching}}
 ```
 
-The type system enforces compatibility — `exec::RAYON` only accepts
-Shared-domain folds. Passing an `owned::Fold` to `exec::RAYON` is a
-compile error.
+The type system enforces compatibility — `dom::RAYON` only accepts
+Shared-domain folds. The Pool executor accepts all domains.
 
 See [Domain system](../design/domains.md) for details.
 
 ## Runtime dispatch
 
-When the executor is chosen at runtime, use the `Exec` enum:
+When the executor is chosen at runtime, use `DynExec`:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:runtime_dispatch}}
 ```
 
-`Exec` operates in the Shared domain. Its `.run()` is an inherent
-method — no trait import needed (unlike the const values).
+`DynExec` operates in the Shared domain. Its `.run()` is an inherent
+method — no trait import needed.
 
 ## Lift integration
 
-Any Shared-domain executor gets `run_lifted` automatically:
+Every executor with inherent methods gets `.run_lifted()`:
 
 ```rust
-use hylic::cata::exec::{self, Executor, ExecutorExt};
-use hylic::prelude::{ParLazy, Explainer};
-
-// Parallel evaluation:
-let r = exec::FUSED.run_lifted(&ParLazy::lift(), &fold, &graph, &root);
-
-// Computation tracing:
-let (r, trace) = exec::FUSED.run_lifted_zipped(
-    &Explainer::lift(), &fold, &graph, &root
-);
+{{#include ../../../src/docs_examples.rs:parlazy_usage}}
 ```
 
-`ExecutorExt` is a blanket trait — any `Executor<N, R, Shared>`
-implements it automatically. Import it alongside `Executor` when
-using Lifts.
+The Lift transforms fold + treeish, the executor runs the result.
+See [Lifts](./lifts.md) for ParLazy, ParEager, and Explainer.
 
 ## Performance
 

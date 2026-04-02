@@ -6,6 +6,8 @@ maximum capability to zero overhead.
 
 ## The three domains
 
+<!-- -->
+
 ```dot process
 digraph {
     rankdir=LR;
@@ -24,10 +26,26 @@ digraph {
 | Domain | Storage | Clone | Send+Sync | Executors | Use case |
 |--------|---------|-------|-----------|-----------|----------|
 | **Shared** | `Arc<dyn Fn + Send + Sync>` | yes | yes | all | Rayon, Lifts, pipelines |
-| **Local** | `Rc<dyn Fn>` | yes | no | Fused, Sequential | single-thread, lighter refcount |
-| **Owned** | `Box<dyn Fn>` | no | no | Fused, Sequential | zero refcount, maximum speed |
+| **Local** | `Rc<dyn Fn>` | yes | no | Fused, Sequential, Pool, Lifts | lighter refcount |
+| **Owned** | `Box<dyn Fn>` | no | no | Fused, Sequential, Pool | zero refcount |
+
+## Domain modules as the single entry point
+
+Each domain has its own module that re-exports everything needed:
+
+```rust
+use hylic::domain::shared as dom;   // the standard choice
+use hylic::domain::local as dom;    // lighter refcount
+use hylic::domain::owned as dom;    // zero overhead
+```
+
+Implementation modules (`fold/`, `graph/`, `pipeline.rs`, `parref.rs`)
+are `pub(crate)` — internal. Users access types and constructors
+exclusively through domain modules. One way in.
 
 ## The `Domain` trait
+
+<!-- -->
 
 ```rust
 {{#include ../../../../hylic/src/domain/mod.rs:domain_trait}}
@@ -79,44 +97,31 @@ digraph {
 
 Any type implementing `init`/`accumulate`/`finalize` is a fold. Any
 type implementing `visit` is a graph. The executor's recursion engine
-takes `&impl FoldOps + &impl TreeOps` — fully generic. When called
-with a concrete user struct, the compiler monomorphizes and inlines:
-zero vtable, zero boxing.
+takes `&impl FoldOps + &impl TreeOps` — fully generic.
 
 ## Why the domain is on the executor, not the fold
 
-Fold and Treeish are parameter-free: `Fold<N, H, R>` and `Treeish<N>`.
-No domain parameter. This keeps the types simple throughout the
-codebase.
-
-The domain marker lives on the executor: `FusedIn<D>(PhantomData<D>)`.
-Each const value fixes D: `exec::FUSED` is `FusedIn<Shared>`,
-`exec::FUSED_OWNED` is `FusedIn<Owned>`.
+Fold and Treeish have no domain parameter: `Fold<N, H, R>` and
+`Treeish<N>`. This keeps types simple. The domain marker lives on
+the executor: `FusedIn<D>(PhantomData<D>)`.
 
 This solves a type inference problem: if the domain were on the fold,
 the compiler couldn't determine D from the argument types when multiple
 `Executor` impls exist (GATs are not injective — the compiler can't
 reason "this fold type came from Shared, therefore D = Shared"). With
-D on the executor, each const has exactly one `Executor` impl.
-
-See [GAT injectivity](../../KB/.plans/exec-refactor/GAT-injective-problem/problem.md)
-for the full technical details.
+D on the executor, each const has exactly one impl.
 
 ## Constructing folds in different domains
 
-The same closures work in any domain — closures are domain-independent:
+Same closures, different constructor:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:domain_switching}}
 ```
 
-The constructor selects the domain. The closures are the source of
-truth. To switch domains, use the same closures with a different
-constructor — no conversion functions needed.
-
-The type system enforces compatibility: `exec::RAYON` only accepts
-Shared-domain folds. Passing an `owned::Fold` to `exec::RAYON`
-is a compile error — Rayon doesn't implement `Executor<N, R, Owned>`.
+The closures are domain-independent. The constructor selects the
+boxing strategy. To switch domains, change the import — the code
+stays the same.
 
 ## When to use which domain
 
@@ -126,15 +131,15 @@ is a compile error — Rayon doesn't implement `Executor<N, R, Owned>`.
 - You use GraphWithFold pipelines (they need Clone)
 - You need to share folds across threads
 
-**Local** — for single-threaded work with lighter refcounting:
-- Rc is ~1ns per clone vs Arc's ~5ns
-- Meaningful only in very hot loops on tiny trees
-- Not compatible with Rayon or Lifts
+**Local** — lighter refcount, still parallel-capable:
+- Rc clone is ~1ns vs Arc's ~5ns
+- Works with Pool executor (via SyncRef)
+- Works with Lifts (ParLazy, ParEager — domain-generic via ConstructFold)
 
-**Owned** — for maximum performance:
-- Zero refcount — Box is the cheapest storage
+**Owned** — zero refcount:
+- Box is the cheapest storage
 - The fold can't be cloned, so no Lifts, no pipelines
-- Use with Fused for the absolute fastest sequential path
+- Works with Fused, Sequential, and Pool
 - Good for benchmarking: shows the framework's raw overhead
 
 Most users should use Shared and never think about domains.

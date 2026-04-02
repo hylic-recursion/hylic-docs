@@ -37,6 +37,8 @@ digraph {
 
 ### map_init — add side effects to initialization
 
+<!-- -->
+
 ```rust
 {{#include ../../../src/docs_examples.rs:fold_map_init}}
 ```
@@ -65,6 +67,8 @@ digraph {
 
 ### zipmap — augment with extra data
 
+<!-- -->
+
 ```rust
 {{#include ../../../src/docs_examples.rs:fold_zipmap}}
 ```
@@ -75,6 +79,8 @@ without changing the fold's core logic.
 ## Node-type transformations
 
 ### contramap — change the input type
+
+<!-- -->
 
 ```rust
 {{#include ../../../src/docs_examples.rs:fold_contramap}}
@@ -87,6 +93,8 @@ Accumulate and finalize are unchanged.
 
 ### product — two folds in one traversal
 
+<!-- -->
+
 ```rust
 {{#include ../../../src/docs_examples.rs:fold_product}}
 ```
@@ -96,6 +104,8 @@ own child results, produces its own output. One traversal, two results.
 No double-visiting.
 
 ## Working example
+
+<!-- -->
 
 ```rust
 {{#include ../../../src/cookbook/transformations.rs}}

@@ -1,14 +1,14 @@
-workload                           hand-seq       hylic-fused hylic-fused-local hylic-fused-owned  hylic-sequential          real-seq
--------------------------------------------------------------------------------------------------------------------------------------
-aggr_sm                       49.7ms (+13%)    43.8ms  (best)    43.8ms  (best)      44.8ms (+2%)     48.2ms (+10%)     50.9ms (+16%)
-bal_sm                         81.7ms (+4%)    78.4ms  (best)      80.2ms (+2%)     87.6ms (+12%)     96.8ms (+23%)      81.2ms (+4%)
-deep_sm                       34.2ms (+15%)      30.8ms (+3%)     34.4ms (+15%)     33.6ms (+13%)     35.2ms (+18%)    29.8ms  (best)
-fin_sm                         39.1ms (+1%)     51.4ms (+33%)     44.0ms (+14%)     42.9ms (+11%)     42.7ms (+11%)    38.6ms  (best)
-hash_sm                         4.1ms (+1%)       4.0ms (+1%)       4.1ms (+2%)       4.2ms (+4%)      4.5ms (+12%)     4.0ms  (best)
-io_sm                        42.2ms  (best)    42.0ms  (best)    42.1ms  (best)    42.1ms  (best)      42.3ms (+1%)    42.2ms  (best)
-lg-dense_sm                   89.5ms (+18%)      77.7ms (+2%)    75.8ms  (best)     88.2ms (+16%)     92.4ms (+22%)     89.8ms (+18%)
-noop_sm                         0.0ms (+2%)     0.0ms (+178%)     0.0ms (+170%)     0.0ms (+158%)     0.0ms (+427%)     0.0ms  (best)
-parse-hv_sm                  117.8ms (+16%)   101.7ms  (best)     102.9ms (+1%)     102.9ms (+1%)   101.5ms  (best)     102.1ms (+1%)
-parse-lt_sm                    26.3ms (+1%)    26.0ms  (best)      28.2ms (+8%)      26.4ms (+2%)      26.8ms (+3%)     29.8ms (+15%)
-wide_sm                      30.7ms  (best)     34.6ms (+13%)      33.2ms (+8%)     37.3ms (+21%)     34.2ms (+11%)    30.8ms  (best)
-xform_sm                       44.6ms (+5%)     50.9ms (+20%)    42.3ms  (best)    42.4ms  (best)      44.1ms (+4%)     50.1ms (+18%)
+workload                           hand.seq hylic.fused.local hylic.fused.ownedhylic.fused.sharedhylic.sequential.shared          real.seq
+------------------------------------------------------------------------------------------------------------------------------------------
+aggr_sm                       51.9ms (+19%)      44.0ms (+1%)      47.0ms (+8%)     54.9ms (+26%)     51.3ms (+18%)    43.5ms  (best)
+bal_sm                         82.8ms (+6%)     92.7ms (+19%)     96.7ms (+24%)     91.5ms (+18%)    77.8ms  (best)     98.2ms (+26%)
+deep_sm                       37.7ms (+23%)     35.9ms (+17%)    30.8ms  (best)     35.7ms (+16%)     34.4ms (+12%)    30.9ms  (best)
+fin_sm                        42.1ms (+11%)      39.5ms (+4%)     47.7ms (+26%)    38.0ms  (best)      38.5ms (+1%)     45.8ms (+20%)
+hash_sm                         4.4ms (+3%)      5.0ms (+17%)      5.1ms (+21%)       4.3ms (+1%)     4.2ms  (best)      5.0ms (+18%)
+io_sm                          42.8ms (+2%)    42.1ms  (best)    42.2ms  (best)      42.5ms (+1%)      42.4ms (+1%)      42.4ms (+1%)
+lg-dense_sm                  76.3ms  (best)     90.9ms (+19%)     92.0ms (+21%)     89.4ms (+17%)     91.9ms (+20%)      80.7ms (+6%)
+noop_sm                        0.0ms (+27%)     0.0ms (+179%)     0.0ms (+137%)     0.0ms (+176%)     0.0ms (+459%)     0.0ms  (best)
+parse-hv_sm                  113.4ms (+10%)    114.3ms (+10%)    126.8ms (+23%)   103.5ms  (best)     104.4ms (+1%)    126.3ms (+22%)
+parse-lt_sm                   33.5ms (+24%)     32.5ms (+20%)    27.1ms  (best)     32.1ms (+19%)     30.8ms (+14%)     33.2ms (+23%)
+wide_sm                       35.8ms (+17%)     34.4ms (+12%)     36.1ms (+17%)    30.8ms  (best)     35.9ms (+17%)     36.1ms (+17%)
+xform_sm                       51.0ms (+2%)      51.6ms (+3%)      52.8ms (+6%)    49.9ms  (best)      51.4ms (+3%)      52.3ms (+5%)

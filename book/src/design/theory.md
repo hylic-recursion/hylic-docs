@@ -79,6 +79,101 @@ representations. The `Domain` trait with GATs maps the marker type
 (Shared, Local, Owned) to the concrete types — a type-level function
 from boxing strategy to implementation.
 
+## Domain as functor
+
+The `Domain` trait is a type-level functor: it maps a node type `N` to
+a family of concrete types (`Fold<H, R>`, `Treeish`). In category
+theory terms, each domain is a functor from the category of node types
+to the category of fold/graph implementations:
+
+```
+Domain<N> : N ↦ (Fold<H, R>, Treeish)
+```
+
+The GAT formulation makes this explicit:
+
+```rust
+trait Domain<N> {
+    type Fold<H, R>: FoldOps<N, H, R>;
+    type Treeish: TreeOps<N>;
+}
+```
+
+`Shared`, `Local`, and `Owned` are three different functors with the
+same signature — they agree on the interface (FoldOps, TreeOps) but
+disagree on the representation (Arc, Rc, Box). Code that is generic
+over `D: Domain<N>` is a natural transformation: it works uniformly
+across all three functors.
+
+The executor's domain parameter (`FusedIn<D>`) selects which functor
+to apply. The inherent method trick exploits this: D is fixed by the
+executor const's type, so the compiler resolves the GATs statically.
+No runtime dispatch over the domain — the functor application is fully
+monomorphized.
+
+## SyncRef as proof witness
+
+`SyncRef<'a, T>` is an unsafe wrapper that asserts `Send + Sync` for
+a borrowed reference. It serves as a proof witness for a specific
+safety argument: data borrowed within a scoped thread pool outlives all
+workers, so shared access is safe even for types that are normally
+`!Sync`.
+
+The formal structure:
+
+1. **Premise**: `WorkPool::with(spec, |pool| { ... })` guarantees all
+   worker threads join before the closure returns (via
+   `std::thread::scope`).
+2. **Invariant**: Within the scope, any `&T` with lifetime `'scope`
+   outlives all tasks submitted to the pool.
+3. **Obligation**: Workers must not mutate the borrowed data or clone
+   the inner wrapper (e.g., no `Rc::clone` through the reference).
+4. **Witness**: `SyncRef(&data)` encodes that the caller has verified
+   premises 1–3. The `unsafe impl Send + Sync` is the proof
+   discharge.
+
+This pattern makes `PoolIn<Local>` and `PoolIn<Owned>` possible.
+Without SyncRef, `&Rc<dyn Fn>` is `!Send` (because `Rc` is `!Sync`),
+blocking any cross-thread sharing. SyncRef bypasses this by asserting
+that the specific usage pattern (read-only borrows within a scoped
+pool) is safe — the Rc refcount is never touched by workers.
+
+The safety argument is local to the pool boundary: SyncRef is created
+inside the recursion engine and never escapes it. Outside the pool,
+normal Rust lifetime and Send/Sync rules apply unchanged.
+
+## ConstructFold: domain-generic fold construction
+
+`ConstructFold<N>` is a type-level function from a domain marker to a
+fold constructor. Given three closures (init, accumulate, finalize),
+it produces a `D::Fold<H, R>` — wrapping in Arc for Shared, Rc for
+Local. This enables lifts to construct domain-appropriate folds without
+knowing the concrete domain at the generic code level.
+
+The challenge: Shared's fold requires `Send + Sync` closures, Local's
+does not. A single trait method can't express varying bounds per impl.
+The solution: `make_fold` is `unsafe fn` with a documented contract —
+the Shared impl uses `AssertSend` (an unsafe Send+Sync wrapper) to
+bridge the gap. The safety of this bridge rests on the observation
+that closures passed to `ConstructFold<Shared>` capture Shared-domain
+data (Arc-based), which IS Send+Sync.
+
+## Data tree decoupling
+
+The parallel lifts (ParLazy, ParEager) decouple the computation's
+*data* from the fold's *operations*. Phase 1 builds a tree of pure
+data nodes (heap values + child handles). Phase 2 applies the fold's
+accumulate and finalize through an external reference — SyncRef for
+ParLazy (scoped borrow), FoldPtr for ParEager (lifetime-erased raw
+pointer).
+
+This decoupling is what makes domain-generic parallel lifts possible.
+Without it, each node would capture domain-specific closures (Arc for
+Shared, Rc for Local), and Rc closures can't cross thread boundaries.
+By separating data from operations, the data nodes are domain-agnostic
+and the fold reference is provided at evaluation time through an
+appropriate unsafe primitive.
+
 ## Further reading
 
 - Meijer, Fokkinga, Paterson. *Functional Programming with Bananas, Lenses, Envelopes and Barbed Wire.* (1991) — the original recursion schemes paper.

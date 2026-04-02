@@ -10,6 +10,8 @@
 
 # Guides
 
+- [Import patterns](./guides/imports.md)
+- [Concept map](./guides/concept_map.md)
 - [Fold: shaping the computation](./guides/fold.md)
 - [Graph: controlling traversal](./guides/graph.md)
 - [Execution: choosing the strategy](./guides/execution.md)
@@ -23,6 +25,7 @@
 - [Cycle detection](./cookbook/cycle_detection.md)
 - [Configuration inheritance](./cookbook/config_inheritance.md)
 - [Parallel execution](./cookbook/parallel_execution.md)
+- [Zero-cost performance](./cookbook/zero_cost_performance.md)
 - [Transformations](./cookbook/transformations.md)
 - [Module resolution](./cookbook/module_resolution.md)
 - [Benchmarks](./cookbook/benchmarks.md)

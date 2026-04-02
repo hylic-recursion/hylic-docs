@@ -161,7 +161,7 @@ mod tests {
     // ANCHOR: pareager_usage
     #[test]
     fn pareager_usage() {
-        use hylic::prelude::{ParEager, WorkPool, WorkPoolSpec};
+        use hylic::prelude::{ParEager, EagerSpec, WorkPool, WorkPoolSpec};
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
@@ -173,7 +173,7 @@ mod tests {
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         WorkPool::with(WorkPoolSpec::threads(2), |pool| {
-            let r = dom::FUSED.run_lifted(&ParEager::lift(pool), &fold, &graph, &root);
+            let r = dom::FUSED.run_lifted(&ParEager::lift(pool, EagerSpec::default_for(3)), &fold, &graph, &root);
             assert_eq!(r, 3);
         });
     }

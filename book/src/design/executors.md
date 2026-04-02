@@ -6,18 +6,22 @@ decides the traversal order, parallelism strategy, and boxing domain.
 
 ## Import pattern
 
-```rust
-use hylic::cata::exec::{self, Executor};
+<!-- -->
 
-exec::FUSED.run(&fold, &graph, &root);        // sequential
-exec::RAYON.run(&fold, &graph, &root);         // parallel via rayon
-exec::FUSED_OWNED.run(&fold, &graph, &root);   // zero-boxing domain
+```rust
+use hylic::domain::shared as dom;
+
+dom::FUSED.run(&fold, &graph, &root);         // sequential
+dom::RAYON.run(&fold, &graph, &root);          // parallel via rayon
 ```
 
-The `exec` module is the single namespace for all executor concerns.
-`Executor` is the trait — imported to call `.run()` on the const values.
+No trait import. The `.run()` method is **inherent** on each executor
+const. The domain module is the single entry point for all executor
+concerns.
 
 ## The `Executor` trait
+
+<!-- -->
 
 ```rust
 {{#include ../../../../hylic/src/cata/exec/mod.rs:executor_trait}}
@@ -28,30 +32,45 @@ the boxing domain `D`. The domain determines which concrete Fold and
 Treeish types the executor accepts — via GATs on the `Domain` trait
 (see [Domain system](./domains.md)).
 
-`run` is the only required method. Two more are provided automatically
-via `ExecutorExt` (Shared domain only):
+The trait exists for **generic code only** (e.g., pipeline.rs). Users
+never import it — inherent methods handle everything at call sites.
+
+## The inherent method trick
+
+Each executor provides inherent `run`, `run_lifted`, `run_lifted_zipped`:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/mod.rs:executor_ext_trait}}
+impl<D> FusedIn<D> {
+    pub fn run<N, H, R>(
+        &self,
+        fold: &<D as Domain<N>>::Fold<H, R>,
+        graph: &<D as Domain<N>>::Treeish,
+        root: &N,
+    ) -> R
+    where D: Domain<N>
+    { ... }
+}
 ```
 
-Any executor supporting the Shared domain automatically gets Lift
-integration — all parallel strategies and the Explainer work through
-`run_lifted`.
+**D is constrained by the self type.** When you write `dom::FUSED.run(...)`,
+D is `Shared` (known from the const's type). N, H, R are inferred from
+the arguments. No trait import needed — the method is on the struct
+itself.
+
+This is why the domain lives on the executor type, not the fold.
+`FusedIn<Shared>` has one impl block with D = Shared. The compiler
+resolves everything from the type of the const.
 
 ## Domain-parameterized executors
 
-Each executor is a zero-sized struct parameterized by a domain marker:
+Each executor is a zero-sized struct with a domain marker:
 
 ```rust
 pub struct FusedIn<D>(PhantomData<D>);
 pub struct SequentialIn<D>(PhantomData<D>);
 pub struct RayonIn<D>(PhantomData<D>);
+pub struct PoolIn<D> { pool: Arc<WorkPool>, spec: PoolSpec, _domain: PhantomData<D> }
 ```
-
-The domain is part of the executor's TYPE, not the fold's or the
-treeish's. This means `FusedIn<Shared>` has exactly one `Executor`
-impl — no ambiguity for the compiler.
 
 ```dot process
 digraph {
@@ -63,7 +82,7 @@ digraph {
         label="Executor type fixes domain";
         style=solid; color="#333333"; fontname="sans-serif";
 
-        fused [label="FusedIn<Shared>\n= exec::FUSED"];
+        fused [label="FusedIn<Shared>\n= dom::FUSED"];
         fold [label="shared::Fold<N, H, R>"];
         tree [label="shared::Treeish<N>"];
         R [label="R", shape=ellipse, style=filled, fillcolor="#d4edda"];
@@ -75,7 +94,7 @@ digraph {
 }
 ```
 
-## The four built-in variants
+## The five built-in variants
 
 Each lives in its own module under `cata/exec/variant/` with its
 own recursion engine. All pass fold and graph by `&` reference —
@@ -87,80 +106,64 @@ Callback-based traversal via `graph.visit()`. Recursion and
 accumulation interleave inside the callback — zero collection,
 zero allocation. The fastest single-threaded path.
 
-```rust
-exec::FUSED.run(&fold, &graph, &root);         // Shared domain
-exec::FUSED_LOCAL.run(&fold, &graph, &root);    // Local domain
-exec::FUSED_OWNED.run(&fold, &graph, &root);    // Owned domain
-```
-
 ### Sequential — all domains
 
 Collects children to a `Vec` via `graph.apply()`, then iterates.
-Requires `N: Clone`. Exists as a reference for the unfused path.
-Prefer Fused for production sequential work.
-
-```rust
-exec::SEQUENTIAL.run(&fold, &graph, &root);
-```
+Requires `N: Clone`. Reference implementation for the unfused path.
 
 ### Rayon — Shared domain only
 
 Collects children to `Vec`, `par_iter()` for parallel recursion.
-Requires `N: Clone + Send + Sync, R: Send + Sync`. These bounds
-are on Rayon's module, not on the Executor trait.
+Requires `N: Clone + Send + Sync, R: Send + Sync`.
 
-```rust
-exec::RAYON.run(&fold, &graph, &root);
-```
+### Pool — all domains
+
+Binary-split fork-join via our own `WorkPool`. Requires
+`N: Clone + Send, R: Send` — no `Sync` thanks to `SyncRef`.
+Tree-aware sequential cutoff via `PoolSpec`. Competitive with
+rayon, works with Local and Owned domains.
 
 ### Custom — Shared domain only
 
 User-defined child visitor via `ChildVisitorFn`. The escape hatch
-for parallelism strategies that don't fit the built-in executors.
-Pays 5 Arc clones per node (the recurse closure captures cloned
-fold/graph/visitor). For other domains, implement `Executor` directly.
+for strategies that don't fit the built-in executors.
 
 ## Domain support matrix
 
-```dot process
-digraph {
-    rankdir=LR;
-    node [shape=record, style=filled, fontname="monospace", fontsize=10];
+| | Shared | Local | Owned |
+|---|:---:|:---:|:---:|
+| **Fused** | yes | yes | yes |
+| **Sequential** | yes | yes | yes |
+| **Rayon** | yes | - | - |
+| **Pool** | yes | yes | yes |
+| **Custom** | yes | - | - |
 
-    domains [label="{ Domain | Shared (Arc) | Local (Rc) | Owned (Box) }", fillcolor="#e8e8e8"];
-    fused [label="{ Fused | FUSED | FUSED_LOCAL | FUSED_OWNED }", fillcolor="#d4edda"];
-    seq [label="{ Sequential | SEQUENTIAL | SEQ_LOCAL | SEQ_OWNED }", fillcolor="#d4edda"];
-    rayon [label="{ Rayon | RAYON | - | - }", fillcolor="#fff3cd"];
-    custom [label="{ Custom | Custom::new() | - | - }", fillcolor="#fff3cd"];
+Fused, Sequential, and Pool support all domains (they borrow, never
+clone the fold). Rayon needs `Sync` (which `Arc`-based Shared types
+provide). Pool bypasses this via `SyncRef` — a scoped-thread safety
+wrapper (see [Implementation notes](./implementation_notes.md)).
 
-    domains -> fused [style=invis];
-    fused -> seq [style=invis];
-    seq -> rayon [style=invis];
-    rayon -> custom [style=invis];
-}
-```
+## `DynExec` — runtime dispatch
 
-Fused and Sequential support all domains (they never clone the fold
-or graph). Rayon needs `Sync` (which `Arc`-based Shared types provide).
-Custom needs `Clone + Send + Sync` (for the recurse closure captures).
-
-## The `Exec` enum — runtime dispatch
-
-When the executor is chosen at runtime, wrap variants in `Exec`:
+When the executor is chosen at runtime:
 
 ```rust
-let executors = vec![exec::Exec::fused(), exec::Exec::rayon()];
+use hylic::domain::shared as dom;
+
+let executors: Vec<dom::DynExec<N, u64>> = vec![
+    dom::DynExec::fused(),
+    dom::DynExec::rayon(),
+];
 for e in &executors {
     let result = e.run(&fold, &graph, &root);
 }
 ```
 
-`Exec<N, R>` operates in the Shared domain. Its `run()` is an
-inherent method — no trait import needed. Bounds: `N: Clone + Send +
-Sync, R: Send + Sync` (the union of all variants).
+`DynExec<N, R>` operates in the Shared domain. Its `run()` is
+inherent — no trait import. Bounds: `N: Clone + Send + Sync,
+R: Send + Sync` (the union of all variants).
 
-For static dispatch (zero overhead), use the const values directly:
-`exec::FUSED.run(...)`.
+For static dispatch (zero overhead), use the const values directly.
 
 ## Recursion engines and FoldOps/TreeOps
 
@@ -175,14 +178,9 @@ fn recurse(
 ```
 
 `FoldOps` and `TreeOps` are the universal interface — any type
-implementing `init/accumulate/finalize` or `visit` works. The
-standard `Fold<N, H, R>` and `Treeish<N>` implement these traits.
-A user-defined struct can too — for zero-boxing, fully-monomorphized
-execution.
-
-When `recurse` is called with `&Fold<N, H, R>`, it dispatches through
-`Arc<dyn Fn>` (vtable call). When called with a concrete user struct,
-the compiler inlines the methods completely — zero indirection.
+implementing `init/accumulate/finalize` or `visit` works. When
+called with a concrete user struct, the compiler monomorphizes and
+inlines — zero vtable, zero boxing.
 
 ## Adding a new executor
 
@@ -190,22 +188,6 @@ the compiler inlines the methods completely — zero indirection.
 2. Define `pub struct MyExecIn<D>(PhantomData<D>)`
 3. Implement `Executor<N, R, D>` — blanket over `D: Domain<N>` if
    domain-universal, or for specific domains
-4. Write the recursion engine as a private function taking
-   `&impl FoldOps + &impl TreeOps`
-5. Add const values and type aliases in `exec/mod.rs`
-6. Add to the `Exec` enum if Shared-domain
-
-The `ExecutorExt` blanket provides `run_lifted` automatically for
-any executor supporting the Shared domain.
-
-## Adding a new domain
-
-1. Define a marker struct (e.g. `pub struct Arena`)
-2. Implement `Domain<N>` with GATs pointing to your Fold/Treeish types
-3. Create the domain module with Fold and Treeish implementing
-   `FoldOps` and `TreeOps`
-4. Add const values for each compatible executor:
-   `pub const FUSED_ARENA: FusedIn<Arena> = FusedIn(PhantomData);`
-
-Existing executors with blanket impls (Fused, Sequential) work
-immediately. No changes to any executor code.
+4. Add inherent `run`, `run_lifted`, `run_lifted_zipped` methods
+5. Write the recursion engine taking `&impl FoldOps + &impl TreeOps`
+6. Add const values in domain modules and type aliases in `exec/mod.rs`
