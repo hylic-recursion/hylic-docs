@@ -2,9 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use hylic::fold::simple_fold;
-    use hylic::graph::treeish;
-    use hylic::cata::exec::{self, Executor};
+    use hylic::domain::shared as dom;
     use insta::assert_snapshot;
 
 
@@ -17,7 +15,7 @@ mod tests {
     fn fibonacci() {
         // treeish: given a node, return its children.
         // Leaves (n <= 1) have no children — empty vec stops recursion.
-        let graph = treeish(|n: &FibNode| {
+        let graph = dom::treeish(|n: &FibNode| {
             if n.0 <= 1 { vec![] }
             else { vec![FibNode(n.0 - 1), FibNode(n.0 - 2)] }
         });
@@ -27,9 +25,9 @@ mod tests {
         // accumulate: called once per child result, folds it into the heap.
         let init = |n: &FibNode| if n.0 <= 1 { n.0 } else { 0 };
         let acc = |heap: &mut u64, child: &u64| *heap += child;
-        let fib = simple_fold(init, acc);
+        let fib = dom::simple_fold(init, acc);
 
-        let result = exec::FUSED.run(&fib, &graph, &FibNode(10));
+        let result = dom::FUSED.run(&fib, &graph, &FibNode(10));
         assert_eq!(result, 55);
 
         assert_snapshot!("fib10", format!("fib(10) = {result}"));

@@ -6,12 +6,10 @@
 mod tests {
     use std::collections::HashMap;
     use either::Either;
-    use hylic::fold::simple_fold;
-    use hylic::graph::edgy;
-    use hylic::graph::SeedGraph;
-    use hylic::pipeline::GraphWithFold;
+
+    use hylic::domain::shared::GraphWithFold;
     use hylic::prelude::seeds_for_fallible;
-    use hylic::cata::exec::{self, Executor};
+    use hylic::domain::shared as dom;
     use insta::assert_snapshot;
 
 
@@ -65,9 +63,9 @@ mod tests {
         // seeds_for_fallible lifts Edgy<Module, String> to Edgy<Either<..>, String>:
         // valid modules produce seeds, errors produce none.
         let seeds_from_node = seeds_for_fallible(
-            edgy(move |module: &Module| module.deps.clone()),
+            dom::edgy(move |module: &Module| module.deps.clone()),
         );
-        let seed_graph = SeedGraph::new(
+        let seed_graph = dom::SeedGraph::new(
             seeds_from_node,
             {
                 let reg = registry;
@@ -78,7 +76,7 @@ mod tests {
                     }
                 }
             },
-            edgy(|top: &Vec<String>| top.clone()),
+            dom::edgy(|top: &Vec<String>| top.clone()),
         );
 
         // The fold operates on Either<Error, Module> — both cases in one algebra.
@@ -98,7 +96,7 @@ mod tests {
             heap.modules.extend(child.modules.iter().cloned());
             heap.errors.extend(child.errors.iter().cloned());
         };
-        let collect = simple_fold(init, acc);
+        let collect = dom::simple_fold(init, acc);
 
         // GraphWithFold wires graph + fold + a top-level heap initializer.
         // heap_of_top initializes the heap for the entry point (which isn't
@@ -111,7 +109,7 @@ mod tests {
         );
 
         let top_deps = vec!["app".to_string()];
-        let result = pipeline.run(&exec::FUSED, &top_deps);
+        let result = pipeline.run(&dom::FUSED, &top_deps);
 
         // Bottom-up order: utils resolved first, then logging, config, app
         // ghost produces an error

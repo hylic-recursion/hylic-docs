@@ -5,9 +5,7 @@
 #[cfg(test)]
 mod tests {
     use std::collections::{HashMap, HashSet};
-    use hylic::fold::simple_fold;
-    use hylic::graph::treeish;
-    use hylic::cata::exec::{self, Executor};
+    use hylic::domain::shared as dom;
     use insta::assert_snapshot;
 
 
@@ -70,7 +68,7 @@ mod tests {
         // not in the fold. The treeish decides what to traverse: cycles become
         // leaves (empty children), stopping recursion. The fold just collects.
         // This is the hylic pattern: structure decisions in Treeish, computation in Fold.
-        let graph = treeish(move |node: &DepNode| {
+        let graph = dom::treeish(move |node: &DepNode| {
             if node.is_cycle() { return vec![]; }
             graph_data.edges.get(&node.id)
                 .map(|deps| deps.iter().map(|d| node.child(d)).collect())
@@ -86,9 +84,9 @@ mod tests {
             heap.cycles.extend(child.cycles.iter().cloned());
             heap.visited += child.visited;
         };
-        let detect = simple_fold(init, acc);
+        let detect = dom::simple_fold(init, acc);
 
-        let result = exec::FUSED.run(&detect, &graph, &DepNode::root("A"));
+        let result = dom::FUSED.run(&detect, &graph, &DepNode::root("A"));
 
         assert_eq!(result.cycles, vec!["A"]);  // C → A cycle detected
         assert_eq!(result.visited, 6);          // A, B, C, D, D, A(cycle)

@@ -2,9 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use hylic::fold::simple_fold;
-    use hylic::graph::treeish_visit;
-    use hylic::cata::exec::{self, Executor};
+    use hylic::domain::shared as dom;
     use insta::assert_snapshot;
 
 
@@ -49,7 +47,7 @@ mod tests {
 
         // treeish_visit: callback avoids allocating empty Vecs for files.
         // Only directories produce children; files are implicit leaves.
-        let graph = treeish_visit(|entry: &FsEntry, cb: &mut dyn FnMut(&FsEntry)| {
+        let graph = dom::treeish_visit(|entry: &FsEntry, cb: &mut dyn FnMut(&FsEntry)| {
             if let FsEntry::Dir { children, .. } = entry {
                 for child in children { cb(child); }
             }
@@ -68,9 +66,9 @@ mod tests {
             heap.file_count += child.file_count;
             heap.dir_count += child.dir_count;
         };
-        let summarize = simple_fold(init, acc);
+        let summarize = dom::simple_fold(init, acc);
 
-        let result = exec::FUSED.run(&summarize, &graph, &tree);
+        let result = dom::FUSED.run(&summarize, &graph, &tree);
         assert_eq!(result, Summary {
             total_size: 10400, file_count: 5, dir_count: 3,
         });

@@ -6,17 +6,19 @@
 
 #[cfg(test)]
 mod tests {
+    use hylic::domain::shared as dom;
+    use hylic::domain::local;
+    use hylic::domain::owned;
     // ── concepts/separation.md examples ────────────────
 
     // ANCHOR: treeish_constructor
     #[test]
     fn treeish_constructor() {
-        use hylic::graph::treeish;
 
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
 
-        let graph = treeish(|d: &Dir| d.children.clone());
+        let graph = dom::treeish(|d: &Dir| d.children.clone());
         let root = Dir { name: "root".into(), size: 10, children: vec![] };
         assert_eq!(graph.apply(&root).len(), 0);
     }
@@ -25,17 +27,14 @@ mod tests {
     // ANCHOR: simple_fold_example
     #[test]
     fn simple_fold_example() {
-        use hylic::fold::simple_fold;
-        use hylic::graph::treeish;
-        use hylic::cata::exec::{self, Executor};
 
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
 
-        let graph = treeish(|d: &Dir| d.children.clone());
+        let graph = dom::treeish(|d: &Dir| d.children.clone());
         let init = |d: &Dir| d.size;
         let acc = |heap: &mut u64, child: &u64| *heap += child;
-        let sum = simple_fold(init, acc);
+        let sum = dom::simple_fold(init, acc);
 
         let tree = Dir {
             name: "root".into(), size: 10,
@@ -44,28 +43,25 @@ mod tests {
                 Dir { name: "b".into(), size: 3, children: vec![] },
             ],
         };
-        assert_eq!(exec::FUSED.run(&sum, &graph, &tree), 18);
+        assert_eq!(dom::FUSED.run(&sum, &graph, &tree), 18);
     }
     // ANCHOR_END: simple_fold_example
 
     // ANCHOR: exec_usage
     #[test]
     fn exec_usage() {
-        use hylic::fold::simple_fold;
-        use hylic::graph::treeish;
-        use hylic::cata::exec::{self, Executor};
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
-        let graph = treeish(|n: &N| n.children.clone());
+        let graph = dom::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = simple_fold(init, acc);
+        let fold = dom::simple_fold(init, acc);
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
-        let r = exec::FUSED.run(&fold, &graph, &root);  // sequential
-        let r2 = exec::RAYON.run(&fold, &graph, &root);  // parallel
+        let r = dom::FUSED.run(&fold, &graph, &root);  // sequential
+        let r2 = dom::RAYON.run(&fold, &graph, &root);  // parallel
         assert_eq!(r, r2);
     }
     // ANCHOR_END: exec_usage
@@ -75,17 +71,14 @@ mod tests {
     // ANCHOR: fold_map_init
     #[test]
     fn fold_map_init() {
-        use hylic::fold::simple_fold;
-        use hylic::graph::treeish;
-        use hylic::cata::exec::{self, Executor};
 
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
 
-        let graph = treeish(|d: &Dir| d.children.clone());
+        let graph = dom::treeish(|d: &Dir| d.children.clone());
         let init = |d: &Dir| d.size;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = simple_fold(init, acc);
+        let fold = dom::simple_fold(init, acc);
 
         let logged = fold.map_init(|orig| Box::new(move |d: &Dir| {
             // side effect: could log here
@@ -93,32 +86,29 @@ mod tests {
         }));
 
         let tree = Dir { name: "r".into(), size: 10, children: vec![] };
-        assert_eq!(exec::FUSED.run(&logged, &graph, &tree), 10);
+        assert_eq!(dom::FUSED.run(&logged, &graph, &tree), 10);
     }
     // ANCHOR_END: fold_map_init
 
     // ANCHOR: fold_product
     #[test]
     fn fold_product() {
-        use hylic::fold::simple_fold;
-        use hylic::graph::treeish;
-        use hylic::cata::exec::{self, Executor};
         use hylic::prelude::depth_fold;
 
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
 
-        let graph = treeish(|d: &Dir| d.children.clone());
+        let graph = dom::treeish(|d: &Dir| d.children.clone());
         let init = |d: &Dir| d.size;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let size_fold = simple_fold(init, acc);
+        let size_fold = dom::simple_fold(init, acc);
 
         let both = size_fold.product(&depth_fold());
         let tree = Dir {
             name: "r".into(), size: 10,
             children: vec![Dir { name: "a".into(), size: 5, children: vec![] }],
         };
-        let (total_size, max_depth) = exec::FUSED.run(&both, &graph, &tree);
+        let (total_size, max_depth) = dom::FUSED.run(&both, &graph, &tree);
         assert_eq!(total_size, 15);
         assert_eq!(max_depth, 2);
     }
@@ -127,27 +117,22 @@ mod tests {
     // ANCHOR: explainer_usage
     #[test]
     fn explainer_usage() {
-        use hylic::fold::simple_fold;
-        use hylic::graph::treeish;
-        use hylic::cata::exec::{self, Executor, ExecutorExt};
         use hylic::prelude::Explainer;
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
-        let graph = treeish(|n: &N| n.children.clone());
+        let graph = dom::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = simple_fold(init, acc);
+        let fold = dom::simple_fold(init, acc);
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         // Transparent: get R, trace discarded
-        let r = exec::FUSED.run_lifted(&Explainer::lift(), &fold, &graph, &root);
-        assert_eq!(r, 3);
+        let r = dom::FUSED.run_lifted(&Explainer::lift(), &fold, &graph, &root);
 
         // Zipped: get both R and the full ExplainerResult
-        let (r, trace) = exec::FUSED.run_lifted_zipped(&Explainer::lift(), &fold, &graph, &root);
-        assert_eq!(r, 3);
+        let (r, trace) = dom::FUSED.run_lifted_zipped(&Explainer::lift(), &fold, &graph, &root);
         assert_eq!(trace.orig_result, 3);
     }
     // ANCHOR_END: explainer_usage
@@ -155,44 +140,40 @@ mod tests {
     // ANCHOR: parlazy_usage
     #[test]
     fn parlazy_usage() {
-        use hylic::fold::simple_fold;
-        use hylic::graph::treeish;
-        use hylic::cata::exec::{self, Executor, ExecutorExt};
-        use hylic::prelude::ParLazy;
+        use hylic::prelude::{ParLazy, WorkPool, WorkPoolSpec};
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
-        let graph = treeish(|n: &N| n.children.clone());
+        let graph = dom::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = simple_fold(init, acc);
+        let fold = dom::simple_fold(init, acc);
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
-        let r = exec::FUSED.run_lifted(&ParLazy::lift(), &fold, &graph, &root);
-        assert_eq!(r, 3);
+        WorkPool::with(WorkPoolSpec::threads(2), |pool| {
+            let r = dom::FUSED.run_lifted(&ParLazy::lift(pool), &fold, &graph, &root);
+            assert_eq!(r, 3);
+        });
     }
     // ANCHOR_END: parlazy_usage
 
     // ANCHOR: pareager_usage
     #[test]
     fn pareager_usage() {
-        use hylic::fold::simple_fold;
-        use hylic::graph::treeish;
-        use hylic::cata::exec::{self, Executor, ExecutorExt};
         use hylic::prelude::{ParEager, WorkPool, WorkPoolSpec};
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
-        let graph = treeish(|n: &N| n.children.clone());
+        let graph = dom::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = simple_fold(init, acc);
+        let fold = dom::simple_fold(init, acc);
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         WorkPool::with(WorkPoolSpec::threads(2), |pool| {
-            let r = exec::FUSED.run_lifted(&ParEager::lift(pool), &fold, &graph, &root);
+            let r = dom::FUSED.run_lifted(&ParEager::lift(pool), &fold, &graph, &root);
             assert_eq!(r, 3);
         });
     }
@@ -203,7 +184,6 @@ mod tests {
     // ANCHOR: domain_switching
     #[test]
     fn domain_switching() {
-        use hylic::cata::exec::{self, Executor};
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
@@ -218,19 +198,19 @@ mod tests {
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         // Shared domain (standard):
-        let fold = hylic::fold::fold(init, acc, fin);
-        let graph = hylic::graph::treeish_visit(children);
-        let r1 = exec::FUSED.run(&fold, &graph, &root);
+        let fold = dom::fold(init, acc, fin);
+        let graph = dom::treeish_visit(children);
+        let r1 = dom::FUSED.run(&fold, &graph, &root);
 
         // Local domain (Rc, lighter):
         let fold = hylic::domain::local::fold(init, acc, fin);
-        let graph = hylic::domain::local::treeish_visit(children);
-        let r2 = exec::FUSED_LOCAL.run(&fold, &graph, &root);
+        let graph = local::treeish_visit(children);
+        let r2 = hylic::domain::local::FUSED.run(&fold, &graph, &root);
 
         // Owned domain (Box, zero refcount):
         let fold = hylic::domain::owned::fold(init, acc, fin);
-        let graph = hylic::domain::owned::treeish_visit(children);
-        let r3 = exec::FUSED_OWNED.run(&fold, &graph, &root);
+        let graph = owned::treeish_visit(children);
+        let r3 = hylic::domain::owned::FUSED.run(&fold, &graph, &root);
 
         assert_eq!(r1, r2);
         assert_eq!(r2, r3);
@@ -240,20 +220,16 @@ mod tests {
     // ANCHOR: runtime_dispatch
     #[test]
     fn runtime_dispatch() {
-        use hylic::fold::simple_fold;
-        use hylic::graph::treeish;
-        use hylic::cata::exec;
-
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
-        let graph = treeish(|n: &N| n.children.clone());
+        let graph = dom::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = simple_fold(init, acc);
+        let fold = dom::simple_fold(init, acc);
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
-        let executors = vec![exec::Exec::fused(), exec::Exec::rayon()];
+        let executors: Vec<dom::DynExec<N, u64>> = vec![dom::DynExec::fused(), dom::DynExec::rayon()];
         for e in &executors {
             assert_eq!(e.run(&fold, &graph, &root), 3);
         }
@@ -265,7 +241,6 @@ mod tests {
     // ANCHOR: treeish_constructors
     #[test]
     fn treeish_constructors() {
-        use hylic::graph::{treeish, treeish_visit, treeish_from};
 
         #[derive(Clone)]
         struct Node { value: u64, children: Vec<Node> }
@@ -273,15 +248,15 @@ mod tests {
         let root = Node { value: 1, children: vec![Node { value: 2, children: vec![] }] };
 
         // Callback-based (zero allocation per visit):
-        let g1 = treeish_visit(|n: &Node, cb: &mut dyn FnMut(&Node)| {
+        let g1 = dom::treeish_visit(|n: &Node, cb: &mut dyn FnMut(&Node)| {
             for child in &n.children { cb(child); }
         });
 
         // Vec-returning (allocates per visit):
-        let g2 = treeish(|n: &Node| n.children.clone());
+        let g2 = dom::treeish(|n: &Node| n.children.clone());
 
         // Slice accessor (borrows, zero allocation):
-        let g3 = treeish_from(|n: &Node| n.children.as_slice());
+        let g3 = dom::treeish_from(|n: &Node| n.children.as_slice());
 
         assert_eq!(g1.apply(&root).len(), 1);
         assert_eq!(g2.apply(&root).len(), 1);
@@ -292,17 +267,14 @@ mod tests {
     // ANCHOR: graph_filter
     #[test]
     fn graph_filter() {
-        use hylic::graph::treeish;
-        use hylic::fold::simple_fold;
-        use hylic::cata::exec::{self, Executor};
 
         #[derive(Clone)]
         struct Node { value: u64, children: Vec<Node> }
 
-        let graph = treeish(|n: &Node| n.children.clone());
+        let graph = dom::treeish(|n: &Node| n.children.clone());
         let init = |n: &Node| n.value;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = simple_fold(init, acc);
+        let fold = dom::simple_fold(init, acc);
 
         let root = Node { value: 1, children: vec![
             Node { value: 10, children: vec![] },
@@ -311,7 +283,7 @@ mod tests {
 
         // Only visit children with value > 5
         let pruned = graph.filter(|child: &Node| child.value > 5);
-        let result = exec::FUSED.run(&fold, &pruned, &root);
+        let result = dom::FUSED.run(&fold, &pruned, &root);
         assert_eq!(result, 11); // 1 + 10 (skipped 2)
     }
     // ANCHOR_END: graph_filter
@@ -319,9 +291,6 @@ mod tests {
     // ANCHOR: memoize_example
     #[test]
     fn memoize_example() {
-        use hylic::graph::treeish;
-        use hylic::fold::simple_fold;
-        use hylic::cata::exec::{self, Executor};
         use hylic::prelude::memoize_treeish;
         use std::sync::atomic::{AtomicUsize, Ordering};
         use std::sync::Arc;
@@ -329,21 +298,21 @@ mod tests {
         let call_count = Arc::new(AtomicUsize::new(0));
         let cc = call_count.clone();
 
-        let graph = treeish(move |n: &u64| -> Vec<u64> {
+        let graph = dom::treeish(move |n: &u64| -> Vec<u64> {
             cc.fetch_add(1, Ordering::Relaxed);
             if *n == 0 { vec![] } else { vec![n - 1] }
         });
 
         let init = |n: &u64| *n;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = simple_fold(init, acc);
+        let fold = dom::simple_fold(init, acc);
 
         let cached = memoize_treeish(&graph);
-        let _ = exec::FUSED.run(&fold, &cached, &3u64);
+        let _ = dom::FUSED.run(&fold, &cached, &3u64);
         let first_count = call_count.load(Ordering::Relaxed);
 
         // Second run uses cache
-        let _ = exec::FUSED.run(&fold, &cached, &3u64);
+        let _ = dom::FUSED.run(&fold, &cached, &3u64);
         let second_count = call_count.load(Ordering::Relaxed);
         assert_eq!(first_count, second_count); // no new calls
     }
@@ -354,7 +323,6 @@ mod tests {
     // ANCHOR: named_closures_pattern
     #[test]
     fn named_closures_pattern() {
-        use hylic::cata::exec::{self, Executor};
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
@@ -368,35 +336,32 @@ mod tests {
         }
 
         // Shared domain
-        let fold = hylic::fold::fold(init, acc, fin);
-        let graph = hylic::graph::treeish_visit(children);
+        let fold = dom::fold(init, acc, fin);
+        let graph = dom::treeish_visit(children);
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
-        assert_eq!(exec::FUSED.run(&fold, &graph, &root), 3);
+        assert_eq!(dom::FUSED.run(&fold, &graph, &root), 3);
     }
     // ANCHOR_END: named_closures_pattern
 
     // ANCHOR: fold_zipmap
     #[test]
     fn fold_zipmap() {
-        use hylic::fold::simple_fold;
-        use hylic::graph::treeish;
-        use hylic::cata::exec::{self, Executor};
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
-        let graph = treeish(|n: &N| n.children.clone());
+        let graph = dom::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = simple_fold(init, acc);
+        let fold = dom::simple_fold(init, acc);
 
         let with_flag = fold.zipmap(|r: &u64| *r > 5);
         let root = N { val: 1, children: vec![
             N { val: 3, children: vec![] },
             N { val: 4, children: vec![] },
         ]};
-        let (total, over_five) = exec::FUSED.run(&with_flag, &graph, &root);
+        let (total, over_five) = dom::FUSED.run(&with_flag, &graph, &root);
         assert_eq!(total, 8);
         assert!(over_five);
     }
@@ -405,22 +370,19 @@ mod tests {
     // ANCHOR: fold_contramap
     #[test]
     fn fold_contramap() {
-        use hylic::fold::simple_fold;
-        use hylic::graph::treeish_visit;
-        use hylic::cata::exec::{self, Executor};
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = simple_fold(init, acc);
+        let fold = dom::simple_fold(init, acc);
 
         // Change node type: String → N
         let by_name = fold.contramap(|s: &String| N { val: s.len() as u64, children: vec![] });
-        let graph = treeish_visit(|_: &String, _cb: &mut dyn FnMut(&String)| {});
+        let graph = dom::treeish_visit(|_: &String, _cb: &mut dyn FnMut(&String)| {});
 
-        let result = exec::FUSED.run(&by_name, &graph, &"hello".to_string());
+        let result = dom::FUSED.run(&by_name, &graph, &"hello".to_string());
         assert_eq!(result, 5);
     }
     // ANCHOR_END: fold_contramap
@@ -429,13 +391,12 @@ mod tests {
 
     #[test]
     fn intro_example() {
-        use hylic::cata::exec::{self, Executor};
 
         let init = |n: &i32| *n as u64;
         let acc  = |h: &mut u64, c: &u64| *h += c;
-        let fold = hylic::fold::simple_fold(init, acc);
-        let graph = hylic::graph::treeish(|n: &i32| if *n > 1 { vec![n - 1, n - 2] } else { vec![] });
-        let result = exec::FUSED.run(&fold, &graph, &5);
+        let fold = dom::simple_fold(init, acc);
+        let graph = dom::treeish(|n: &i32| if *n > 1 { vec![n - 1, n - 2] } else { vec![] });
+        let result = dom::FUSED.run(&fold, &graph, &5);
         assert!(result > 0);
     }
 }

@@ -5,9 +5,7 @@
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
-    use hylic::fold::simple_fold;
-    use hylic::graph::treeish_from;
-    use hylic::cata::exec::{self, Executor};
+    use hylic::domain::shared as dom;
     use insta::assert_snapshot;
 
 
@@ -64,7 +62,7 @@ mod tests {
         ]);
 
         // treeish_from: for structs with a children field — zero-clone slice access.
-        let graph = treeish_from(|scope: &ConfigScope| scope.children.as_slice());
+        let graph = dom::treeish_from(|scope: &ConfigScope| scope.children.as_slice());
 
         // init seeds the heap with the parent's own overrides.
         // accumulate merges each child's resolved config upward.
@@ -80,9 +78,9 @@ mod tests {
                 heap.merged.entry(k.clone()).or_insert_with(|| v.clone());
             }
         };
-        let resolve = simple_fold(init, acc);
+        let resolve = dom::simple_fold(init, acc);
 
-        let result = exec::FUSED.run(&resolve, &graph, &root);
+        let result = dom::FUSED.run(&resolve, &graph, &root);
 
         // Global scope sees all keys from all descendants,
         // but its own values win for "color", "font_size", "theme".
