@@ -1,10 +1,10 @@
-workload                        hylic-eager hylic-eager+fused hylic-eager+rayon       hylic-fused      hylic-parrefhylic-parref+fusedhylic-parref+rayon       hylic-rayon     vanilla-rayon       vanilla-seq
--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-large-dense_fast              4.8ms (+305%)     5.0ms (+321%)      1.7ms (+45%)     6.3ms (+436%)       1.3ms (+7%)     5.0ms (+323%)      1.6ms (+38%)     1.2ms  (best)      2.2ms (+85%)     7.0ms (+498%)
-large-dense_slow            118.4ms (+450%)   110.3ms (+413%)     23.8ms (+10%)   118.6ms (+451%)     23.9ms (+11%)   116.7ms (+443%)     24.4ms (+14%)     24.0ms (+11%)    21.5ms  (best)   100.6ms (+367%)
-large-sparse_fast             5.0ms (+312%)     5.8ms (+384%)     2.6ms (+117%)     5.4ms (+349%)      1.6ms (+33%)     5.0ms (+310%)      1.8ms (+46%)     1.2ms  (best)      1.7ms (+39%)     5.6ms (+364%)
-large-sparse_slow           110.5ms (+466%)   115.6ms (+493%)     26.9ms (+38%)   114.1ms (+485%)    19.5ms  (best)   116.5ms (+497%)     27.1ms (+39%)     24.5ms (+26%)     26.5ms (+36%)   116.8ms (+498%)
-small-dense_fast              1.2ms (+182%)     1.1ms (+162%)     0.4ms  (best)     1.3ms (+207%)      0.5ms (+10%)     1.6ms (+275%)      0.6ms (+40%)      0.5ms (+17%)      0.5ms (+18%)     1.3ms (+214%)
-small-dense_slow             28.9ms (+347%)    31.4ms (+386%)      8.8ms (+36%)    25.0ms (+287%)       6.7ms (+4%)    29.6ms (+358%)      7.9ms (+23%)     6.5ms  (best)      7.3ms (+13%)    31.0ms (+380%)
-small-sparse_fast             1.2ms (+215%)     1.1ms (+185%)      0.6ms (+52%)     1.4ms (+257%)      0.5ms (+31%)     1.4ms (+277%)     0.4ms  (best)      0.5ms (+30%)      0.5ms (+37%)     1.2ms (+226%)
-small-sparse_slow            28.4ms (+347%)    27.9ms (+340%)     6.4ms  (best)    31.8ms (+401%)      7.0ms (+10%)    29.1ms (+358%)      7.8ms (+23%)       6.4ms (+1%)      8.6ms (+35%)    30.7ms (+383%)
+workload                  hylic-eager+fused hylic-eager+rayon       hylic-fusedhylic-parref+fusedhylic-parref+rayon       hylic-rayon     vanilla-rayon       vanilla-seq
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+large-dense_fast              4.6ms (+243%)      1.6ms (+15%)     4.8ms (+257%)     5.1ms (+274%)      1.6ms (+21%)     1.4ms  (best)      1.5ms (+10%)     5.3ms (+294%)
+large-dense_slow            108.8ms (+473%)     25.2ms (+33%)    99.3ms (+422%)   108.4ms (+470%)     23.4ms (+23%)     22.8ms (+20%)    19.0ms  (best)   100.0ms (+426%)
+large-sparse_fast             5.1ms (+375%)      1.5ms (+43%)     5.2ms (+385%)     4.9ms (+358%)      1.8ms (+67%)      1.2ms (+15%)     1.1ms  (best)     4.4ms (+309%)
+large-sparse_slow           106.0ms (+485%)    18.1ms  (best)   108.6ms (+499%)   107.8ms (+495%)     22.4ms (+24%)     22.9ms (+26%)     23.2ms (+28%)   116.0ms (+540%)
+small-dense_fast              1.2ms (+206%)     0.4ms  (best)     1.2ms (+214%)     1.4ms (+265%)      0.6ms (+56%)      0.5ms (+16%)      0.5ms (+17%)     1.5ms (+272%)
+small-dense_slow             27.4ms (+341%)     6.2ms  (best)    27.9ms (+350%)    27.4ms (+341%)       6.6ms (+7%)      8.2ms (+33%)       6.6ms (+6%)    27.9ms (+349%)
+small-sparse_fast             1.2ms (+199%)      0.5ms (+34%)     1.1ms (+168%)     1.3ms (+221%)      0.5ms (+15%)     0.4ms  (best)       0.4ms (+1%)     1.1ms (+165%)
+small-sparse_slow            28.4ms (+293%)      8.0ms (+10%)    28.8ms (+300%)    35.9ms (+398%)      8.2ms (+14%)      8.0ms (+11%)     7.2ms  (best)    25.0ms (+247%)

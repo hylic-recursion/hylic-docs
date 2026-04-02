@@ -105,9 +105,9 @@ domain-parameterized:
 
 | Executor | Traversal | Domains | Arc/node |
 |---|---|---|---|
-| `exec::FUSED` | Callback | all | 0 |
-| `exec::SEQUENTIAL` | Vec collect | all | 0 |
-| `exec::RAYON` | `par_iter` | Shared | 0 |
+| `dom::FUSED` | Callback | all | 0 |
+| `dom::SEQUENTIAL` | Vec collect | all | 0 |
+| `dom::RAYON` | `par_iter` | Shared | 0 |
 | `Custom` | User-defined | Shared | 5 |
 
 Each implements the `Executor<N, R, D>` trait — parameterized by
@@ -125,7 +125,7 @@ digraph {
 
     Treeish [label="Treeish<N>\nstructure"];
     Fold [label="Fold<N, H, R>\ncomputation"];
-    Exec [label="exec::FUSED\nstrategy"];
+    Exec [label="dom::FUSED\nstrategy"];
     Domain [label="Domain\n(Shared / Local / Owned)", fillcolor="#fff3cd"];
     R [label="R", shape=ellipse, style=filled, fillcolor="#d4edda"];
 
@@ -141,9 +141,9 @@ the fold. The executor connects them. The domain determines how
 closures are stored — but the fold and treeish don't carry it;
 the executor does.
 
-Everything in hylic reduces to `exec::FUSED.run(&fold, &treeish, &root)`.
+Everything in hylic reduces to `dom::FUSED.run(&fold, &treeish, &root)`.
 Even `GraphWithFold::run` (the pipeline for lazy tree discovery)
-is just one manual fold step for the entry point, then `exec.run`
+is just one manual fold step for the entry point, then `executor.run`
 for each child tree — see [Entry points](./entry.md).
 
 ## Under the hood: operations traits
