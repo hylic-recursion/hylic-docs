@@ -102,9 +102,10 @@ a scoped lifecycle that guarantees all workers are joined on return
 (using `std::thread::scope`). No public constructor; the pool
 cannot escape the closure.
 
-Internally: `Mutex<Vec<Box<dyn FnOnce>>>` work queue + `Condvar` for
-worker sleep/wake + `AtomicBool` shutdown flag. A `ShutdownGuard`
-(Drop impl) ensures workers wake even if the user closure panics.
+Internally: crossbeam-deque's lock-free `Injector` for task
+distribution + `Condvar` for worker sleep/wake + `AtomicBool`
+shutdown flag. A `ShutdownGuard` (Drop impl) ensures workers wake
+even if the user closure panics.
 
 ### pool.join(f1, f2) -> (A, B)
 
@@ -133,19 +134,16 @@ one item remains. Preserves order.
 
 No `T: Sync` bound — the slice is wrapped in SyncRef internally.
 
-## ParRef: lazy memoized computation (rayon-free)
+## ParLazy: two-pass parallel evaluation
 
-`ParRef<T>` wraps a `FnOnce() -> T` with `OnceLock` — computed at most
-once, subsequent calls return the cached value.
+ParLazy builds a data tree of `LazyNode<H, R>` (Phase 1), then
+evaluates bottom-up via `fork_join_map` (Phase 2). Each LazyNode
+stores its heap value, child handles (`Arc<LazyNode>`), and an
+`OnceLock<R>` for memoized results.
 
-`ParRef::join_par(parrefs, &pool)` evaluates a `Vec<ParRef<T>>` in
-parallel via `fork_join_map` on our WorkPool — no rayon dependency.
-This is the mechanism behind `ParLazy` — each node's result is a
-`ParRef` that, when evaluated, evaluates its children in parallel first.
-
-`ParLazy::lift(pool)` takes an `&Arc<WorkPool>` and threads the pool
-through to all `ParRef::join_par` calls. rayon appears only in the
-Rayon executor — nowhere else in the codebase.
+Phase 2 borrows the fold through `SyncRef` — no fold closures are
+captured in the tree nodes. This data-tree decoupling is what makes
+ParLazy domain-generic (Shared and Local).
 
 ## Continuation-passing in ParEager
 
@@ -168,6 +166,40 @@ the duration of Phase 2, allocated once per non-leaf child.
 
 No task ever blocks. The chain propagates upward: leaf completes,
 notifies parent, parent completes, notifies grandparent, up to root.
+
+### Collector's manual Send+Sync
+
+`Collector<N, H, R>` holds `FoldPtr<N, H, R>` + `Mutex<H>` +
+`Mutex<Vec<Option<R>>>` + `Completion<R>` + `AtomicUsize`. The
+auto-derived Send would require `N: Send` (from FoldPtr's phantom
+type in the trait-object pointer). But N is never accessed as a
+value — it's only in the fat pointer's vtable type. So we write:
+
+```rust
+unsafe impl<N, H: Send, R: Send> Send for Collector<N, H, R> {}
+unsafe impl<N, H: Send, R: Send> Sync for Collector<N, H, R> {}
+```
+
+H: Send and R: Send are required (actual data crossing threads).
+N: Send is not (phantom in the vtable pointer).
+
+### Height-based cutoff in EagerSpec
+
+`EagerSpec.min_height_to_fork` controls when to create a Collector
+vs accumulate inline. Height = distance from leaves, computed
+naturally: each `EagerResult` carries its subtree height, parent
+computes `max(child_heights) + 1`.
+
+Height is better than depth for parallelism cutoff. A height-2
+cutoff means "sequential for subtrees with ≤ b² nodes" regardless
+of position in the tree. Depth-based cutoff requires knowing total
+tree size to set a useful threshold — a fixed depth that works for
+200-node trees is wrong for 5000-node trees.
+
+Note: this is different from `PoolSpec.fork_depth_limit` which IS
+depth-based. PoolSpec tracks depth in the recursion engine (passed
+as a parameter), not in the fold. The two cutoffs are independent
+and complementary when combining `PoolIn + ParEager`.
 
 ## Lift: domain-generic, Box storage
 
@@ -210,7 +242,7 @@ Box<dyn Fn> in the Lift doesn't require Send, so Rc is fine.
 ## Data tree decoupling in parallel lifts
 
 ParLazy and ParEager build data trees (Node<H, R>) during Phase 1
-rather than closure trees (ParRef/Completion). Nodes store only the
+rather than closure trees. Nodes store only the
 heap value and child handles — no fold closures captured. Phase 2
 receives the fold externally via SyncRef (for lazy evaluation) or
 FoldPtr (for eager pipelining).

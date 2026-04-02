@@ -49,8 +49,8 @@ recovers the original algebra's result from the lifted computation.
 
 hylic uses Lifts for:
 - **Explainer**: lift into a trace-recording domain (histomorphism)
-- **ParLazy**: lift into a deferred-evaluation domain (`ParRef<R>`)
-- **ParEager**: lift into an extracted-heap domain (`EagerNode<H>`)
+- **ParLazy**: lift into a data tree domain (`LazyResult<H, R>`)
+- **ParEager**: lift into a continuation-passing domain (`EagerResult<R>`)
 
 The key property: `exec.run_lifted(&lift, &fold, &graph, &root)` produces
 the same `R` as `exec.run(&fold, &graph, &root)` — the Lift is transparent.

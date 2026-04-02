@@ -1,8 +1,9 @@
 # Transformations and Lifts
 
-Because Fold and Treeish are data — closures behind Arc — you
-transform them by producing new values with modified closures.
-No subclassing, no wrapping, no runtime dispatch.
+Because Fold and Treeish are data — closures behind reference-counted
+pointers (Arc for Shared, Rc for Local) — you transform them by
+producing new values with modified closures. No subclassing, no
+wrapping, no runtime dispatch.
 
 ## Fold transformations
 
@@ -139,22 +140,21 @@ transitions, working state). The result becomes `ExplainerResult`
 In recursion-scheme terms, this is a histomorphism — each node
 sees its subtree's full computation history.
 
-### ParLazy — lazy parallel evaluation
+### ParLazy — two-pass parallel evaluation
 
-`ParLazy::lift()` transforms the fold so each node's result is a
-`ParRef<R>` — a deferred computation. The executor builds a tree
-of `ParRef` values (Phase 1). Unwrap calls `eval()` on the root,
-which triggers bottom-up parallel evaluation via rayon (Phase 2).
+`ParLazy::lift(pool)` builds a data tree of `LazyNode` values
+(Phase 1). Unwrap evaluates bottom-up via `fork_join_map` on the
+`WorkPool`, borrowing the fold through `SyncRef` (Phase 2).
 
 ```rust
 {{#include ../../../src/docs_examples.rs:parlazy_usage}}
 ```
 
-### ParEager — fork-join parallelism
+### ParEager — pipelined continuation-passing
 
-`ParEager::lift(pool)` extracts heaps into an `EagerNode` tree
-(Phase 1), then executes bottom-up with a hand-rolled fork-join
-scheduler backed by a `WorkPool` (Phase 2).
+`ParEager::lift(pool, spec)` wires a continuation chain during the
+fused traversal — leaves submit work immediately, results propagate
+upward via `Completion` + `Collector`. Phase 2 starts during Phase 1.
 
 ```rust
 {{#include ../../../src/docs_examples.rs:pareager_usage}}

@@ -7,18 +7,18 @@ structure** (Treeish) and **how to execute** (Executor). Each piece
 is independently definable, transformable, and composable.
 
 ```rust
-use hylic::cata::exec::{self, Executor};
+use hylic::domain::shared as dom;
 
 // Define the computation: three closures
 let init = |n: &i32| *n as u64;
 let acc  = |h: &mut u64, c: &u64| *h += c;
-let fold = hylic::fold::simple_fold(init, acc);
+let fold = dom::simple_fold(init, acc);
 
 // Define the tree structure
-let graph = hylic::graph::treeish(|n: &i32| if *n > 1 { vec![n - 1, n - 2] } else { vec![] });
+let graph = dom::treeish(|n: &i32| if *n > 1 { vec![n - 1, n - 2] } else { vec![] });
 
 // Execute: fold + graph + root → result
-let result = exec::FUSED.run(&fold, &graph, &5);
+let result = dom::FUSED.run(&fold, &graph, &5);
 ```
 
 Three [boxing domains](./design/domains.md) (Shared, Local, Owned)

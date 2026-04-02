@@ -61,9 +61,9 @@ WorkPool::with(WorkPoolSpec::threads(4), |pool| {
 ```
 
 At each node, PoolIn collects children, then binary-splits them
-across pool workers via `fork_join_map`. A depth-based cutoff
-(`PoolSpec`) falls back to sequential below a threshold — avoids
-fork overhead on small subtrees.
+across pool workers via `fork_join_map`. `PoolSpec`'s
+`fork_depth_limit` falls back to sequential past a depth threshold
+— avoids fork overhead on small subtrees deep in the tree.
 
 **Tradeoff**: requires `N: Clone + Send, R: Send` — no `Sync`
 needed (SyncRef handles it). Works with Local and Owned domains.
@@ -72,24 +72,23 @@ especially on init-heavy workloads.
 
 ## Approach 3: ParLazy — deferred parallel evaluation
 
-A [Lift](../design/lifts.md) that transforms the fold's result type
-to `ParRef<R>` — a lazy, memoized computation. The executor builds a
-tree of `ParRef` values (Phase 1). Calling `eval()` on the root
-triggers bottom-up parallel evaluation (Phase 2).
+A [Lift](../design/lifts.md) that builds a data tree of `LazyNode`
+values (Phase 1). Phase 2 evaluates bottom-up via `fork_join_map`
+on a `WorkPool`, borrowing the fold through `SyncRef`.
 
 ```rust
 use hylic::domain::shared as dom;
 use hylic::prelude::{ParLazy, WorkPool, WorkPoolSpec};
 
 WorkPool::with(WorkPoolSpec::threads(3), |pool| {
-    let lift = ParLazy::lift::<NodeType, u64, u64>(pool);
+    let lift = ParLazy::lift(pool);
     let result = dom::FUSED.run_lifted(&lift, &fold, &graph, &root);
 });
 ```
 
-Phase 1 builds a tree of ParRef closures (sequential, via the Phase 1
-executor). Phase 2 evaluates bottom-up with parallel sibling
-evaluation via `fork_join_map` on our WorkPool.
+Phase 1 builds a data tree (heap + child handles, no fold closures
+captured). Phase 2 evaluates bottom-up with parallel sibling
+processing via `fork_join_map`.
 
 <!-- -->
 
@@ -100,22 +99,21 @@ digraph {
     edge [fontname="sans-serif", fontsize=10];
 
     subgraph cluster_p1 {
-        label="Phase 1: build ParRef tree\n(sequential, via dom::FUSED)";
+        label="Phase 1: build data tree\n(sequential, via dom::FUSED)";
         style=dashed; color="#999999"; fontname="sans-serif";
-        init1 [label="init(node) → (H, [])"];
-        acc1  [label="accumulate:\npush child ParRef"];
-        fin1  [label="finalize:\ncreate ParRef closure\ncapturing H + children"];
+        init1 [label="init(node) → LazyNode{heap, []}"];
+        acc1  [label="accumulate:\npush child handle"];
+        fin1  [label="finalize:\nwrap in Arc<LazyNode>"];
         init1 -> acc1 -> fin1;
     }
 
     subgraph cluster_p2 {
-        label="Phase 2: evaluate\n(parallel, via WorkPool)";
+        label="Phase 2: evaluate\n(parallel, via fork_join_map)";
         style=solid; color="#333333"; fontname="sans-serif";
-        eval [label="root.eval()"];
-        join [label="ParRef::join_par(children)\nfork_join_map on siblings"];
-        accf [label="accumulate child results"];
-        finf [label="finalize → R"];
-        eval -> join -> accf -> finf;
+        eval [label="eval_node(root)"];
+        join [label="fork_join_map on children\nfold.accumulate via SyncRef"];
+        finf [label="fold.finalize → R"];
+        eval -> join -> finf;
     }
 
     fin1 -> eval [style=dashed, label="unwrap"];
@@ -123,22 +121,24 @@ digraph {
 ```
 
 **Tradeoff**: Two traversals (build + eval). The allocation cost of
-building ParRef nodes can overwhelm parallelism gains on light
+building data nodes can overwhelm parallelism gains on light
 workloads. Best when Phase 2 work is substantial. Works with any
 Phase 1 executor (FUSED or RAYON).
 
 ## Approach 4: ParEager — continuation-passing on a heap tree
 
-A [Lift](../design/lifts.md) that extracts heaps into an `EagerNode`
-tree (Phase 1), then executes bottom-up with continuation-passing
-(Completion + Collector + FoldPtr) backed by a `WorkPool` (Phase 2).
+A [Lift](../design/lifts.md) that wires a continuation chain during
+the fused traversal (Phase 1). Leaves submit work immediately —
+Phase 2 starts during Phase 1. Results propagate upward via
+Completion + Collector + FoldPtr.
 
 ```rust
 use hylic::domain::shared as dom;
-use hylic::prelude::{ParEager, WorkPool, WorkPoolSpec};
+use hylic::prelude::{ParEager, EagerSpec, WorkPool, WorkPoolSpec};
 
 WorkPool::with(WorkPoolSpec::threads(3), |pool| {
-    let lift = ParEager::lift::<NodeType, u64, u64>(pool);
+    let spec = EagerSpec::default_for(3);
+    let lift = ParEager::lift(pool, spec);
     dom::FUSED.run_lifted(&lift, &fold, &graph, &root)
 });
 ```
@@ -154,9 +154,9 @@ digraph {
     subgraph cluster_p1 {
         label="Phase 1: build heap tree\n(sequential, via dom::FUSED)";
         style=dashed; color="#999999"; fontname="sans-serif";
-        init1 [label="init(node) → EagerNode{heap, []}"];
-        acc1  [label="accumulate:\npush child Arc<EagerNode>"];
-        fin1  [label="finalize:\nwrap into Arc<EagerNode>"];
+        init1 [label="init(node) → EagerHeap{heap, []}"];
+        acc1  [label="accumulate:\npush child Completion"];
+        fin1  [label="finalize:\nwire Collector + submit leaves"];
         init1 -> acc1 -> fin1;
     }
 
@@ -190,10 +190,10 @@ fork-join (Phase 1):
 ```rust
 use hylic::domain::shared as dom;
 use hylic::cata::exec::{PoolIn, PoolSpec};
-use hylic::prelude::{ParEager, WorkPool, WorkPoolSpec};
+use hylic::prelude::{ParEager, EagerSpec, WorkPool, WorkPoolSpec};
 
 WorkPool::with(WorkPoolSpec::threads(4), |pool| {
-    let lift = ParEager::lift::<NodeType, u64, u64>(pool);
+    let lift = ParEager::lift(pool, EagerSpec::default_for(4));
     let exec = PoolIn::<hylic::domain::Shared>::new(pool, PoolSpec::default_for(4));
     exec.run_lifted(&lift, &fold, &graph, &root)
 });
@@ -207,7 +207,7 @@ default when both phases have significant work.
 
 | | `dom::RAYON` | `PoolIn` | `ParLazy` | `ParEager` | Eager+Pool |
 |---|---|---|---|---|---|
-| Mechanism | rayon `par_iter` | binary fork-join | ParRef tree + eval | heap tree + continuation-passing (FoldPtr) | Pool Phase 1 + continuation-passing Phase 2 |
+| Mechanism | rayon `par_iter` | binary fork-join | data tree + fork_join_map | continuation-passing (FoldPtr) | Pool Phase 1 + continuation-passing Phase 2 |
 | Requires `N: Clone` | yes | yes | yes | yes | yes |
 | Requires `Sync` | yes | no (SyncRef) | no | no | no |
 | Domains | Shared | all | all | all | all |

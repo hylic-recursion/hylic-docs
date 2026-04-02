@@ -130,11 +130,11 @@ collected results.
 - `bal`: pool 34ms vs rayon 18ms — rayon's work-stealing shines (1.9x)
 - `lg-dense`: pool 26ms vs rayon 20ms — gap narrows on larger trees (1.3x)
 
-Our pool uses `Mutex<Vec>` for the task queue. Rayon uses lock-free
-crossbeam-deque. The 1.2–1.9x gap is entirely queue contention — the
-pool's fork-join logic (SyncRef, binary split, depth cutoff) is sound.
-Upgrading to crossbeam-deque is the next performance step
-(see [pool executor plan](../../KB/.plans/pool-executor/plan.md)).
+Our pool uses crossbeam-deque's lock-free `Injector` for task
+distribution. The remaining 1.2–1.9x gap vs rayon reflects rayon's
+mature work-stealing scheduler (per-thread deques + randomized
+stealing) vs our simpler single-queue model. The pool's fork-join
+logic (SyncRef, binary split, height-based cutoff) is sound.
 
 Notably, `hylic.pool.shared` tracks `hand.pool` closely (both use the
 same WorkPool), confirming that hylic's framework adds negligible
@@ -177,12 +177,12 @@ This combination matters when BOTH init (Phase 1) and accumulate/finalize
 workloads while providing domain-generic execution (works with Local
 and Owned domains too).
 
-### ParLazy (ParRef) underperforms expectations
+### ParLazy underperforms expectations
 
 `hylic.parref.fused.shared` is consistently slower than sequential
 `hylic.fused.shared` on all workloads. The allocation cost of building
-a tree of `ParRef` nodes (each requiring Arc + Mutex + OnceLock) during
-Phase 1 overwhelms any parallelism gained during evaluation.
+data tree nodes (each requiring Arc + OnceLock) during Phase 1
+overwhelms any parallelism gained during evaluation.
 
 However, `hylic.parref.rayon.shared` (ParLazy with Rayon executor)
 performs significantly better — on `hash` it's actually the fastest
@@ -249,10 +249,9 @@ impossible:
   it works correctly (pool tracks hand.pool within noise, confirming
   zero framework overhead on the parallel path).
 
-- **Rayon-free ParRef.** `join_par` and `zip_par` now take
-  `&Arc<WorkPool>` instead of calling rayon. The rayon dependency is
-  confined to `cata/exec/variant/rayon/` — the rest of hylic is
-  rayon-free.
+- **Rayon-free parallel lifts.** ParLazy and ParEager use our own
+  WorkPool, not rayon. The rayon dependency is confined to
+  `cata/exec/variant/rayon/` — the rest of hylic is rayon-free.
 
 - **ParEager + Pool is the all-rounder.** `eager.pool.shared` handles
   both init-heavy and finalize-heavy workloads (33ms on parse-hv, 20ms

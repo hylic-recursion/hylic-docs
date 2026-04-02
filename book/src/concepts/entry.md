@@ -6,7 +6,7 @@ config file to find its imports, resolve each import to find more
 imports, and so on. The tree materializes during traversal.
 
 hylic handles this with SeedGraph, Graph, and GraphWithFold.
-All three reduce to `exec::FUSED.run(...)` — they just add one
+All three reduce to `dom::FUSED.run(...)` — they just add one
 level of indirection for the entry point.
 
 ## The two-function pattern
