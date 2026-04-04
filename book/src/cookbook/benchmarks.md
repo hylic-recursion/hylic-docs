@@ -28,6 +28,21 @@ functions with `HashMap` lookup and `Vec::collect`.
 
 <div id="bench-module-sim">Loading...</div>
 
+## Executor comparison
+
+Pool (apply-based fork) vs FusedParallel (visit-based on-demand fork)
+vs Rayon, plus hand-rolled baselines. Shared domain only.
+
+<div id="bench-executor-compare">Loading...</div>
+
+## Hylomorphic vs Rayon (focused)
+
+Three modes head-to-head: our CPS hylomorphic executor (`hylic.hylo`),
+hylic's rayon backend (`hylic.rayon`), and hand-rolled rayon (`hand.rayon`).
+Subset of representative scenarios for fast iteration.
+
+<div id="bench-hylo-compare">Loading...</div>
+
 <script>
 async function loadBenchFragment(id, file) {
     try {
@@ -44,6 +59,8 @@ async function loadBenchFragment(id, file) {
 loadBenchFragment('bench-sequential', 'sequential.html');
 loadBenchFragment('bench-parallel', 'parallel.html');
 loadBenchFragment('bench-module-sim', 'module-sim.html');
+loadBenchFragment('bench-executor-compare', 'executor-compare.html');
+loadBenchFragment('bench-hylo-compare', 'hylo-compare.html');
 </script>
 
 ## Workload scenarios
