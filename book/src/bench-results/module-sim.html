@@ -7,89 +7,188 @@
 <th>hylic-parref+fused</th>
 <th>hylic-parref+rayon</th>
 <th>hylic-rayon</th>
+<th>hylic.eager.fused.shared</th>
+<th>hylic.eager.pool.shared</th>
+<th>hylic.eager.rayon.shared</th>
+<th>hylic.fused.shared</th>
+<th>hylic.parref.fused.shared</th>
+<th>hylic.parref.pool.shared</th>
+<th>hylic.parref.rayon.shared</th>
+<th>hylic.pool.shared</th>
+<th>hylic.rayon.shared</th>
 <th>vanilla-rayon</th>
 <th>vanilla-seq</th>
+<th>vanilla.rayon</th>
+<th>vanilla.seq</th>
 </tr>
 <tr><td class="wl">large-dense_fast</td>
-<td class="cell" style="background:hsl(0, 70%, 38%)">5.3ms <span class='delta'>+362%</span></td>
-<td class="cell" style="background:hsl(102, 57%, 38%)">1.8ms <span class='delta'>+54%</span></td>
-<td class="cell" style="background:hsl(2, 70%, 38%)">5.2ms <span class='delta'>+355%</span></td>
-<td class="cell" style="background:hsl(27, 67%, 38%)">4.4ms <span class='delta'>+281%</span></td>
-<td class="cell" style="background:hsl(104, 57%, 38%)">1.7ms <span class='delta'>+47%</span></td>
+<td class="cell" style="background:hsl(47, 64%, 38%)">5.3ms <span class='delta'>+362%</span></td>
+<td class="cell" style="background:hsl(109, 56%, 38%)">1.8ms <span class='delta'>+54%</span></td>
+<td class="cell" style="background:hsl(48, 64%, 38%)">5.2ms <span class='delta'>+355%</span></td>
+<td class="cell" style="background:hsl(63, 62%, 38%)">4.4ms <span class='delta'>+281%</span></td>
+<td class="cell" style="background:hsl(111, 56%, 38%)">1.7ms <span class='delta'>+47%</span></td>
 <td class="cell best" style="background:hsl(120, 55%, 38%)">★ 1.2ms</td>
-<td class="cell" style="background:hsl(115, 56%, 38%)">1.3ms <span class='delta'>+16%</span></td>
-<td class="cell" style="background:hsl(11, 69%, 38%)">5.0ms <span class='delta'>+330%</span></td>
+<td class="cell" style="background:hsl(0, 70%, 38%)">8.0ms <span class='delta'>+594%</span></td>
+<td class="cell" style="background:hsl(94, 58%, 38%)">2.6ms <span class='delta'>+128%</span></td>
+<td class="cell" style="background:hsl(76, 60%, 38%)">3.7ms <span class='delta'>+217%</span></td>
+<td class="cell" style="background:hsl(9, 69%, 38%)">7.5ms <span class='delta'>+550%</span></td>
+<td class="cell" style="background:hsl(13, 68%, 38%)">7.2ms <span class='delta'>+528%</span></td>
+<td class="cell" style="background:hsl(98, 58%, 38%)">2.4ms <span class='delta'>+111%</span></td>
+<td class="cell" style="background:hsl(94, 58%, 38%)">2.6ms <span class='delta'>+128%</span></td>
+<td class="cell" style="background:hsl(99, 58%, 38%)">2.3ms <span class='delta'>+103%</span></td>
+<td class="cell" style="background:hsl(96, 58%, 38%)">2.5ms <span class='delta'>+117%</span></td>
+<td class="cell" style="background:hsl(117, 55%, 38%)">1.3ms <span class='delta'>+16%</span></td>
+<td class="cell" style="background:hsl(53, 63%, 38%)">5.0ms <span class='delta'>+330%</span></td>
+<td class="cell" style="background:hsl(101, 57%, 38%)">2.3ms <span class='delta'>+96%</span></td>
+<td class="cell" style="background:hsl(7, 69%, 38%)">7.6ms <span class='delta'>+560%</span></td>
 </tr>
 <tr><td class="wl">large-dense_slow</td>
-<td class="cell" style="background:hsl(0, 70%, 38%)">112.5ms <span class='delta'>+523%</span></td>
-<td class="cell" style="background:hsl(118, 55%, 38%)">19.7ms <span class='delta'>+9%</span></td>
-<td class="cell" style="background:hsl(15, 68%, 38%)">100.7ms <span class='delta'>+457%</span></td>
-<td class="cell" style="background:hsl(4, 70%, 38%)">109.7ms <span class='delta'>+507%</span></td>
-<td class="cell" style="background:hsl(110, 56%, 38%)">25.7ms <span class='delta'>+42%</span></td>
-<td class="cell" style="background:hsl(116, 55%, 38%)">21.0ms <span class='delta'>+16%</span></td>
+<td class="cell" style="background:hsl(40, 65%, 38%)">112.5ms <span class='delta'>+523%</span></td>
+<td class="cell" style="background:hsl(119, 55%, 38%)">19.7ms <span class='delta'>+9%</span></td>
+<td class="cell" style="background:hsl(50, 64%, 38%)">100.7ms <span class='delta'>+457%</span></td>
+<td class="cell" style="background:hsl(42, 65%, 38%)">109.7ms <span class='delta'>+507%</span></td>
+<td class="cell" style="background:hsl(114, 56%, 38%)">25.7ms <span class='delta'>+42%</span></td>
+<td class="cell" style="background:hsl(118, 55%, 38%)">21.0ms <span class='delta'>+16%</span></td>
+<td class="cell" style="background:hsl(0, 70%, 38%)">159.7ms <span class='delta'>+784%</span></td>
+<td class="cell" style="background:hsl(96, 58%, 38%)">46.1ms <span class='delta'>+155%</span></td>
+<td class="cell" style="background:hsl(104, 57%, 38%)">37.4ms <span class='delta'>+107%</span></td>
+<td class="cell" style="background:hsl(0, 70%, 38%)">159.2ms <span class='delta'>+781%</span></td>
+<td class="cell" style="background:hsl(1, 70%, 38%)">158.8ms <span class='delta'>+779%</span></td>
+<td class="cell" style="background:hsl(99, 58%, 38%)">42.4ms <span class='delta'>+135%</span></td>
+<td class="cell" style="background:hsl(103, 57%, 38%)">37.8ms <span class='delta'>+109%</span></td>
+<td class="cell" style="background:hsl(99, 58%, 38%)">43.2ms <span class='delta'>+139%</span></td>
+<td class="cell" style="background:hsl(105, 57%, 38%)">35.6ms <span class='delta'>+97%</span></td>
 <td class="cell best" style="background:hsl(120, 55%, 38%)">★ 18.1ms</td>
-<td class="cell" style="background:hsl(0, 70%, 38%)">112.7ms <span class='delta'>+524%</span></td>
+<td class="cell" style="background:hsl(40, 65%, 38%)">112.7ms <span class='delta'>+524%</span></td>
+<td class="cell" style="background:hsl(105, 57%, 38%)">36.3ms <span class='delta'>+101%</span></td>
+<td class="cell" style="background:hsl(0, 70%, 38%)">159.6ms <span class='delta'>+783%</span></td>
 </tr>
 <tr><td class="wl">large-sparse_fast</td>
-<td class="cell" style="background:hsl(1, 70%, 38%)">5.1ms <span class='delta'>+400%</span></td>
-<td class="cell" style="background:hsl(102, 57%, 38%)">1.7ms <span class='delta'>+62%</span></td>
-<td class="cell" style="background:hsl(26, 67%, 38%)">4.3ms <span class='delta'>+317%</span></td>
-<td class="cell" style="background:hsl(7, 69%, 38%)">4.9ms <span class='delta'>+379%</span></td>
-<td class="cell" style="background:hsl(101, 57%, 38%)">1.7ms <span class='delta'>+63%</span></td>
-<td class="cell" style="background:hsl(115, 56%, 38%)">1.2ms <span class='delta'>+16%</span></td>
+<td class="cell" style="background:hsl(49, 64%, 38%)">5.1ms <span class='delta'>+400%</span></td>
+<td class="cell" style="background:hsl(109, 56%, 38%)">1.7ms <span class='delta'>+62%</span></td>
+<td class="cell" style="background:hsl(64, 62%, 38%)">4.3ms <span class='delta'>+317%</span></td>
+<td class="cell" style="background:hsl(53, 63%, 38%)">4.9ms <span class='delta'>+379%</span></td>
+<td class="cell" style="background:hsl(109, 56%, 38%)">1.7ms <span class='delta'>+63%</span></td>
+<td class="cell" style="background:hsl(117, 55%, 38%)">1.2ms <span class='delta'>+16%</span></td>
+<td class="cell" style="background:hsl(0, 70%, 38%)">7.9ms <span class='delta'>+674%</span></td>
+<td class="cell" style="background:hsl(96, 58%, 38%)">2.4ms <span class='delta'>+134%</span></td>
+<td class="cell" style="background:hsl(80, 60%, 38%)">3.3ms <span class='delta'>+222%</span></td>
+<td class="cell" style="background:hsl(7, 69%, 38%)">7.5ms <span class='delta'>+633%</span></td>
+<td class="cell" style="background:hsl(12, 69%, 38%)">7.2ms <span class='delta'>+609%</span></td>
+<td class="cell" style="background:hsl(78, 60%, 38%)">3.4ms <span class='delta'>+236%</span></td>
+<td class="cell" style="background:hsl(91, 59%, 38%)">2.7ms <span class='delta'>+160%</span></td>
+<td class="cell" style="background:hsl(96, 58%, 38%)">2.4ms <span class='delta'>+137%</span></td>
+<td class="cell" style="background:hsl(98, 58%, 38%)">2.3ms <span class='delta'>+125%</span></td>
 <td class="cell best" style="background:hsl(120, 55%, 38%)">★ 1.0ms</td>
-<td class="cell" style="background:hsl(0, 70%, 38%)">5.1ms <span class='delta'>+403%</span></td>
+<td class="cell" style="background:hsl(48, 64%, 38%)">5.1ms <span class='delta'>+403%</span></td>
+<td class="cell" style="background:hsl(97, 58%, 38%)">2.4ms <span class='delta'>+130%</span></td>
+<td class="cell" style="background:hsl(5, 69%, 38%)">7.6ms <span class='delta'>+646%</span></td>
 </tr>
 <tr><td class="wl">large-sparse_slow</td>
-<td class="cell" style="background:hsl(0, 70%, 38%)">112.3ms <span class='delta'>+428%</span></td>
-<td class="cell" style="background:hsl(113, 56%, 38%)">26.5ms <span class='delta'>+25%</span></td>
-<td class="cell" style="background:hsl(5, 69%, 38%)">108.4ms <span class='delta'>+410%</span></td>
-<td class="cell" style="background:hsl(17, 68%, 38%)">99.3ms <span class='delta'>+367%</span></td>
+<td class="cell" style="background:hsl(41, 65%, 38%)">112.3ms <span class='delta'>+428%</span></td>
+<td class="cell" style="background:hsl(115, 56%, 38%)">26.5ms <span class='delta'>+25%</span></td>
+<td class="cell" style="background:hsl(44, 64%, 38%)">108.4ms <span class='delta'>+410%</span></td>
+<td class="cell" style="background:hsl(52, 63%, 38%)">99.3ms <span class='delta'>+367%</span></td>
 <td class="cell best" style="background:hsl(120, 55%, 38%)">★ 21.3ms</td>
-<td class="cell" style="background:hsl(117, 55%, 38%)">23.2ms <span class='delta'>+9%</span></td>
-<td class="cell" style="background:hsl(117, 55%, 38%)">23.9ms <span class='delta'>+12%</span></td>
-<td class="cell" style="background:hsl(2, 70%, 38%)">110.6ms <span class='delta'>+420%</span></td>
+<td class="cell" style="background:hsl(118, 55%, 38%)">23.2ms <span class='delta'>+9%</span></td>
+<td class="cell" style="background:hsl(0, 70%, 38%)">159.8ms <span class='delta'>+651%</span></td>
+<td class="cell" style="background:hsl(100, 58%, 38%)">44.5ms <span class='delta'>+109%</span></td>
+<td class="cell" style="background:hsl(107, 57%, 38%)">35.9ms <span class='delta'>+69%</span></td>
+<td class="cell" style="background:hsl(1, 70%, 38%)">159.0ms <span class='delta'>+648%</span></td>
+<td class="cell" style="background:hsl(2, 70%, 38%)">157.0ms <span class='delta'>+638%</span></td>
+<td class="cell" style="background:hsl(100, 58%, 38%)">44.6ms <span class='delta'>+110%</span></td>
+<td class="cell" style="background:hsl(106, 57%, 38%)">36.9ms <span class='delta'>+73%</span></td>
+<td class="cell" style="background:hsl(98, 58%, 38%)">47.2ms <span class='delta'>+122%</span></td>
+<td class="cell" style="background:hsl(109, 56%, 38%)">33.7ms <span class='delta'>+58%</span></td>
+<td class="cell" style="background:hsl(118, 55%, 38%)">23.9ms <span class='delta'>+12%</span></td>
+<td class="cell" style="background:hsl(43, 65%, 38%)">110.6ms <span class='delta'>+420%</span></td>
+<td class="cell" style="background:hsl(106, 57%, 38%)">37.4ms <span class='delta'>+76%</span></td>
+<td class="cell" style="background:hsl(0, 70%, 38%)">159.5ms <span class='delta'>+650%</span></td>
 </tr>
 <tr><td class="wl">small-dense_fast</td>
-<td class="cell" style="background:hsl(0, 70%, 38%)">1.3ms <span class='delta'>+291%</span></td>
-<td class="cell" style="background:hsl(96, 58%, 38%)">0.5ms <span class='delta'>+59%</span></td>
-<td class="cell" style="background:hsl(3, 70%, 38%)">1.3ms <span class='delta'>+283%</span></td>
-<td class="cell" style="background:hsl(25, 67%, 38%)">1.1ms <span class='delta'>+230%</span></td>
-<td class="cell" style="background:hsl(99, 58%, 38%)">0.5ms <span class='delta'>+51%</span></td>
+<td class="cell" style="background:hsl(50, 64%, 38%)">1.3ms <span class='delta'>+291%</span></td>
+<td class="cell" style="background:hsl(106, 57%, 38%)">0.5ms <span class='delta'>+59%</span></td>
+<td class="cell" style="background:hsl(52, 64%, 38%)">1.3ms <span class='delta'>+283%</span></td>
+<td class="cell" style="background:hsl(64, 62%, 38%)">1.1ms <span class='delta'>+230%</span></td>
+<td class="cell" style="background:hsl(108, 57%, 38%)">0.5ms <span class='delta'>+51%</span></td>
 <td class="cell best" style="background:hsl(120, 55%, 38%)">★ 0.3ms</td>
-<td class="cell" style="background:hsl(102, 57%, 38%)">0.5ms <span class='delta'>+42%</span></td>
-<td class="cell" style="background:hsl(9, 69%, 38%)">1.2ms <span class='delta'>+270%</span></td>
+<td class="cell" style="background:hsl(0, 70%, 38%)">2.0ms <span class='delta'>+496%</span></td>
+<td class="cell" style="background:hsl(91, 59%, 38%)">0.7ms <span class='delta'>+120%</span></td>
+<td class="cell" style="background:hsl(65, 62%, 38%)">1.1ms <span class='delta'>+229%</span></td>
+<td class="cell" style="background:hsl(9, 69%, 38%)">1.9ms <span class='delta'>+459%</span></td>
+<td class="cell" style="background:hsl(10, 69%, 38%)">1.9ms <span class='delta'>+456%</span></td>
+<td class="cell" style="background:hsl(93, 58%, 38%)">0.7ms <span class='delta'>+111%</span></td>
+<td class="cell" style="background:hsl(82, 60%, 38%)">0.9ms <span class='delta'>+158%</span></td>
+<td class="cell" style="background:hsl(94, 58%, 38%)">0.7ms <span class='delta'>+108%</span></td>
+<td class="cell" style="background:hsl(90, 59%, 38%)">0.7ms <span class='delta'>+124%</span></td>
+<td class="cell" style="background:hsl(110, 56%, 38%)">0.5ms <span class='delta'>+42%</span></td>
+<td class="cell" style="background:hsl(55, 63%, 38%)">1.2ms <span class='delta'>+270%</span></td>
+<td class="cell" style="background:hsl(91, 59%, 38%)">0.7ms <span class='delta'>+118%</span></td>
+<td class="cell" style="background:hsl(7, 69%, 38%)">1.9ms <span class='delta'>+467%</span></td>
 </tr>
 <tr><td class="wl">small-dense_slow</td>
-<td class="cell" style="background:hsl(7, 69%, 38%)">27.7ms <span class='delta'>+388%</span></td>
-<td class="cell" style="background:hsl(112, 56%, 38%)">7.1ms <span class='delta'>+26%</span></td>
-<td class="cell" style="background:hsl(0, 70%, 38%)">29.0ms <span class='delta'>+412%</span></td>
-<td class="cell" style="background:hsl(19, 68%, 38%)">25.3ms <span class='delta'>+346%</span></td>
-<td class="cell" style="background:hsl(112, 56%, 38%)">7.3ms <span class='delta'>+28%</span></td>
+<td class="cell" style="background:hsl(43, 65%, 38%)">27.7ms <span class='delta'>+388%</span></td>
+<td class="cell" style="background:hsl(115, 56%, 38%)">7.1ms <span class='delta'>+26%</span></td>
+<td class="cell" style="background:hsl(38, 65%, 38%)">29.0ms <span class='delta'>+412%</span></td>
+<td class="cell" style="background:hsl(51, 64%, 38%)">25.3ms <span class='delta'>+346%</span></td>
+<td class="cell" style="background:hsl(114, 56%, 38%)">7.3ms <span class='delta'>+28%</span></td>
 <td class="cell best" style="background:hsl(120, 55%, 38%)">★ 5.7ms</td>
-<td class="cell" style="background:hsl(113, 56%, 38%)">7.0ms <span class='delta'>+23%</span></td>
-<td class="cell" style="background:hsl(18, 68%, 38%)">25.5ms <span class='delta'>+350%</span></td>
+<td class="cell" style="background:hsl(0, 70%, 38%)">40.0ms <span class='delta'>+605%</span></td>
+<td class="cell" style="background:hsl(98, 58%, 38%)">12.0ms <span class='delta'>+111%</span></td>
+<td class="cell" style="background:hsl(101, 57%, 38%)">11.0ms <span class='delta'>+94%</span></td>
+<td class="cell" style="background:hsl(1, 70%, 38%)">39.7ms <span class='delta'>+600%</span></td>
+<td class="cell" style="background:hsl(2, 70%, 38%)">39.4ms <span class='delta'>+595%</span></td>
+<td class="cell" style="background:hsl(96, 58%, 38%)">12.5ms <span class='delta'>+120%</span></td>
+<td class="cell" style="background:hsl(104, 57%, 38%)">10.2ms <span class='delta'>+80%</span></td>
+<td class="cell" style="background:hsl(94, 58%, 38%)">13.0ms <span class='delta'>+129%</span></td>
+<td class="cell" style="background:hsl(105, 57%, 38%)">9.9ms <span class='delta'>+74%</span></td>
+<td class="cell" style="background:hsl(115, 56%, 38%)">7.0ms <span class='delta'>+23%</span></td>
+<td class="cell" style="background:hsl(51, 64%, 38%)">25.5ms <span class='delta'>+350%</span></td>
+<td class="cell" style="background:hsl(105, 57%, 38%)">10.1ms <span class='delta'>+77%</span></td>
+<td class="cell" style="background:hsl(1, 70%, 38%)">39.8ms <span class='delta'>+602%</span></td>
 </tr>
 <tr><td class="wl">small-sparse_fast</td>
-<td class="cell" style="background:hsl(34, 66%, 38%)">1.1ms <span class='delta'>+155%</span></td>
-<td class="cell" style="background:hsl(114, 56%, 38%)">0.5ms <span class='delta'>+10%</span></td>
-<td class="cell" style="background:hsl(4, 69%, 38%)">1.3ms <span class='delta'>+207%</span></td>
-<td class="cell" style="background:hsl(0, 70%, 38%)">1.3ms <span class='delta'>+215%</span></td>
-<td class="cell" style="background:hsl(99, 58%, 38%)">0.6ms <span class='delta'>+37%</span></td>
-<td class="cell" style="background:hsl(109, 56%, 38%)">0.5ms <span class='delta'>+21%</span></td>
+<td class="cell" style="background:hsl(70, 61%, 38%)">1.1ms <span class='delta'>+155%</span></td>
+<td class="cell" style="background:hsl(117, 55%, 38%)">0.5ms <span class='delta'>+10%</span></td>
+<td class="cell" style="background:hsl(52, 63%, 38%)">1.3ms <span class='delta'>+207%</span></td>
+<td class="cell" style="background:hsl(50, 64%, 38%)">1.3ms <span class='delta'>+215%</span></td>
+<td class="cell" style="background:hsl(108, 57%, 38%)">0.6ms <span class='delta'>+37%</span></td>
+<td class="cell" style="background:hsl(113, 56%, 38%)">0.5ms <span class='delta'>+21%</span></td>
+<td class="cell" style="background:hsl(0, 70%, 38%)">2.0ms <span class='delta'>+368%</span></td>
+<td class="cell" style="background:hsl(96, 58%, 38%)">0.7ms <span class='delta'>+74%</span></td>
+<td class="cell" style="background:hsl(70, 61%, 38%)">1.1ms <span class='delta'>+152%</span></td>
+<td class="cell" style="background:hsl(8, 69%, 38%)">1.9ms <span class='delta'>+344%</span></td>
+<td class="cell" style="background:hsl(9, 69%, 38%)">1.8ms <span class='delta'>+340%</span></td>
+<td class="cell" style="background:hsl(97, 58%, 38%)">0.7ms <span class='delta'>+71%</span></td>
+<td class="cell" style="background:hsl(89, 59%, 38%)">0.8ms <span class='delta'>+96%</span></td>
+<td class="cell" style="background:hsl(104, 57%, 38%)">0.6ms <span class='delta'>+48%</span></td>
+<td class="cell" style="background:hsl(97, 58%, 38%)">0.7ms <span class='delta'>+70%</span></td>
 <td class="cell best" style="background:hsl(120, 55%, 38%)">★ 0.4ms</td>
-<td class="cell" style="background:hsl(30, 66%, 38%)">1.1ms <span class='delta'>+161%</span></td>
+<td class="cell" style="background:hsl(67, 62%, 38%)">1.1ms <span class='delta'>+161%</span></td>
+<td class="cell" style="background:hsl(100, 58%, 38%)">0.7ms <span class='delta'>+62%</span></td>
+<td class="cell" style="background:hsl(5, 69%, 38%)">1.9ms <span class='delta'>+351%</span></td>
 </tr>
 <tr><td class="wl">small-sparse_slow</td>
-<td class="cell" style="background:hsl(5, 69%, 38%)">28.3ms <span class='delta'>+374%</span></td>
+<td class="cell" style="background:hsl(41, 65%, 38%)">28.3ms <span class='delta'>+374%</span></td>
 <td class="cell best" style="background:hsl(120, 55%, 38%)">★ 6.0ms</td>
-<td class="cell" style="background:hsl(0, 70%, 38%)">29.3ms <span class='delta'>+391%</span></td>
-<td class="cell" style="background:hsl(18, 68%, 38%)">25.7ms <span class='delta'>+331%</span></td>
-<td class="cell" style="background:hsl(110, 56%, 38%)">7.9ms <span class='delta'>+33%</span></td>
+<td class="cell" style="background:hsl(38, 65%, 38%)">29.3ms <span class='delta'>+391%</span></td>
+<td class="cell" style="background:hsl(50, 64%, 38%)">25.7ms <span class='delta'>+331%</span></td>
+<td class="cell" style="background:hsl(113, 56%, 38%)">7.9ms <span class='delta'>+33%</span></td>
 <td class="cell best" style="background:hsl(120, 55%, 38%)">★ 6.0ms</td>
-<td class="cell" style="background:hsl(112, 56%, 38%)">7.4ms <span class='delta'>+25%</span></td>
-<td class="cell" style="background:hsl(6, 69%, 38%)">28.0ms <span class='delta'>+370%</span></td>
+<td class="cell" style="background:hsl(0, 70%, 38%)">39.9ms <span class='delta'>+569%</span></td>
+<td class="cell" style="background:hsl(99, 58%, 38%)">11.8ms <span class='delta'>+97%</span></td>
+<td class="cell" style="background:hsl(101, 57%, 38%)">11.5ms <span class='delta'>+92%</span></td>
+<td class="cell" style="background:hsl(1, 70%, 38%)">39.7ms <span class='delta'>+566%</span></td>
+<td class="cell" style="background:hsl(2, 70%, 38%)">39.4ms <span class='delta'>+561%</span></td>
+<td class="cell" style="background:hsl(98, 58%, 38%)">12.3ms <span class='delta'>+106%</span></td>
+<td class="cell" style="background:hsl(102, 57%, 38%)">11.0ms <span class='delta'>+84%</span></td>
+<td class="cell" style="background:hsl(99, 58%, 38%)">11.9ms <span class='delta'>+100%</span></td>
+<td class="cell" style="background:hsl(101, 57%, 38%)">11.2ms <span class='delta'>+88%</span></td>
+<td class="cell" style="background:hsl(115, 56%, 38%)">7.4ms <span class='delta'>+25%</span></td>
+<td class="cell" style="background:hsl(42, 65%, 38%)">28.0ms <span class='delta'>+370%</span></td>
+<td class="cell" style="background:hsl(104, 57%, 38%)">10.6ms <span class='delta'>+77%</span></td>
+<td class="cell" style="background:hsl(0, 70%, 38%)">39.8ms <span class='delta'>+568%</span></td>
 </tr>
 </table>
-<p class="bench-timestamp">Generated: 2026-04-02 07:01</p>
+<p class="bench-timestamp">Generated: 2026-04-04 19:36</p>
 </div>
