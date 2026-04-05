@@ -1,9 +1,9 @@
 workload                         hand.rayon      hylic.funnel        hylic.hylo       hylic.rayon
 -------------------------------------------------------------------------------------------------
-bal_sm                       26.5ms  (best)     31.8ms (+20%)     31.6ms (+19%)      27.7ms (+4%)
-deep_sm                        11.1ms (+1%)     12.8ms (+16%)     13.5ms (+23%)    11.0ms  (best)
-graph-hv_sm                    27.6ms (+1%)     34.2ms (+25%)     33.6ms (+22%)    27.4ms  (best)
-lg-dense_sm                  25.1ms  (best)     31.0ms (+23%)     30.7ms (+22%)      25.7ms (+2%)
-noop_sm                       0.0ms  (best)     0.2ms (+587%)     0.2ms (+481%)      0.0ms (+22%)
-parse-hv_sm                  30.2ms  (best)     41.7ms (+38%)     40.9ms (+35%)    30.2ms  (best)
-wide_sm                      10.8ms  (best)     13.1ms (+21%)     12.7ms (+18%)      10.9ms (+1%)
+bal_sm                       16.2ms  (best)     21.0ms (+29%)     25.7ms (+58%)    16.2ms  (best)
+deep_sm                         6.6ms (+4%)     10.4ms (+64%)     10.5ms (+65%)     6.3ms  (best)
+graph-hv_sm                   16.2ms (+10%)     27.4ms (+86%)     28.1ms (+91%)    14.7ms  (best)
+lg-dense_sm                    15.0ms (+2%)     24.6ms (+67%)     25.4ms (+72%)    14.7ms  (best)
+noop_sm                       0.0ms  (best)     0.1ms (+264%)     0.1ms (+622%)      0.0ms (+18%)
+parse-hv_sm                    20.3ms (+7%)     33.2ms (+75%)     34.2ms (+80%)    19.0ms  (best)
+wide_sm                         6.9ms (+1%)     10.2ms (+50%)     10.4ms (+52%)     6.8ms  (best)
