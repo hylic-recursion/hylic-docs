@@ -1,9 +1,9 @@
-workload                         hand.rayon      hylic.funnel        hylic.hylo       hylic.rayon
--------------------------------------------------------------------------------------------------
-bal_sm                         16.9ms (+6%)      17.3ms (+8%)    16.0ms  (best)      17.4ms (+8%)
-deep_sm                       6.9ms  (best)       7.3ms (+5%)     6.9ms  (best)     7.0ms  (best)
-graph-hv_sm                   17.4ms (+23%)     16.4ms (+16%)    14.1ms  (best)     17.6ms (+25%)
-lg-dense_sm                    13.7ms (+6%)     16.7ms (+30%)     16.0ms (+25%)    12.8ms  (best)
-noop_sm                       0.0ms  (best)     0.2ms (+852%)     0.1ms (+645%)      0.0ms (+21%)
-parse-hv_sm                   21.4ms (+17%)     20.6ms (+13%)     20.5ms (+12%)    18.3ms  (best)
-wide_sm                         7.3ms (+9%)       7.3ms (+8%)     6.7ms  (best)      7.4ms (+10%)
+workload                  funnel.on-arrivalfunnel.on-finalize  funnel.pw.arrive   funnel.pw.final        hand.rayon      hylic.funnel        hylic.hylo       hylic.rayon
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+bal_sm                         32.1ms (+5%)      31.3ms (+2%)     34.0ms (+11%)               n/a      32.5ms (+6%)     35.2ms (+15%)    30.6ms  (best)      31.1ms (+2%)
+deep_sm                        14.0ms (+8%)      14.2ms (+9%)               n/a               n/a     14.4ms (+10%)     16.4ms (+26%)    13.0ms  (best)      13.9ms (+7%)
+graph-hv_sm                    32.2ms (+1%)      32.4ms (+2%)               n/a               n/a      33.2ms (+4%)     37.0ms (+16%)    31.8ms  (best)      33.5ms (+5%)
+lg-dense_sm                    30.3ms (+7%)      29.2ms (+3%)               n/a               n/a     31.1ms (+10%)     35.2ms (+25%)    28.2ms  (best)     31.6ms (+12%)
+noop_sm                       0.1ms (+192%)     0.1ms (+187%)     0.1ms (+184%)     0.1ms (+187%)      0.1ms (+19%)     0.1ms (+194%)     0.2ms (+220%)     0.0ms  (best)
+parse-hv_sm                    39.5ms (+2%)      39.2ms (+1%)               n/a               n/a      42.0ms (+8%)     44.2ms (+14%)    38.8ms  (best)      39.9ms (+3%)
+wide_sm                      13.6ms  (best)      14.4ms (+6%)               n/a               n/a      13.9ms (+3%)     15.8ms (+16%)      13.8ms (+1%)      14.2ms (+4%)
