@@ -50,6 +50,7 @@ mod tests {
     // ANCHOR: exec_usage
     #[test]
     fn exec_usage() {
+        use hylic::cata::exec::funnel;
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
@@ -60,17 +61,17 @@ mod tests {
         let fold = dom::simple_fold(init, acc);
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
-        let r = dom::FUSED.run(&fold, &graph, &root);  // sequential
-        let r2 = dom::RAYON.run(&fold, &graph, &root);  // parallel
+        let r = dom::FUSED.run(&fold, &graph, &root);           // sequential
+        let r2 = dom::exec(funnel::Spec::default(4)).run(&fold, &graph, &root); // parallel
         assert_eq!(r, r2);
     }
     // ANCHOR_END: exec_usage
 
     // ── concepts/transforms.md examples ────────────────
 
-    // ANCHOR: fold_map_init
+    // ANCHOR: fold_wrap_init
     #[test]
-    fn fold_map_init() {
+    fn fold_wrap_init() {
 
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
@@ -80,15 +81,15 @@ mod tests {
         let acc = |h: &mut u64, c: &u64| *h += c;
         let fold = dom::simple_fold(init, acc);
 
-        let logged = fold.map_init(|orig| Box::new(move |d: &Dir| {
+        let logged = fold.wrap_init(|d: &Dir, orig: &dyn Fn(&Dir) -> u64| {
             // side effect: could log here
             orig(d)
-        }));
+        });
 
         let tree = Dir { name: "r".into(), size: 10, children: vec![] };
         assert_eq!(dom::FUSED.run(&logged, &graph, &tree), 10);
     }
-    // ANCHOR_END: fold_map_init
+    // ANCHOR_END: fold_wrap_init
 
     // ANCHOR: fold_product
     #[test]
@@ -129,10 +130,10 @@ mod tests {
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         // Transparent: get R, trace discarded
-        let r = dom::FUSED.run_lifted(&Explainer::lift(), &fold, &graph, &root);
+        let _r = dom::FUSED.run_lifted(&Explainer::lift(), &fold, &graph, &root);
 
         // Zipped: get both R and the full ExplainerResult
-        let (r, trace) = dom::FUSED.run_lifted_zipped(&Explainer::lift(), &fold, &graph, &root);
+        let (_r, trace) = dom::FUSED.run_lifted_zipped(&Explainer::lift(), &fold, &graph, &root);
         assert_eq!(trace.orig_result, 3);
     }
     // ANCHOR_END: explainer_usage
@@ -140,7 +141,7 @@ mod tests {
     // ANCHOR: parlazy_usage
     #[test]
     fn parlazy_usage() {
-        use hylic::prelude::{ParLazy, WorkPool, WorkPoolSpec};
+        use hylic_parallel_lifts::{ParLazy, WorkPool, WorkPoolSpec};
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
@@ -161,7 +162,7 @@ mod tests {
     // ANCHOR: pareager_usage
     #[test]
     fn pareager_usage() {
-        use hylic::prelude::{ParEager, EagerSpec, WorkPool, WorkPoolSpec};
+        use hylic_parallel_lifts::{ParEager, EagerSpec, WorkPool, WorkPoolSpec};
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
@@ -220,6 +221,8 @@ mod tests {
     // ANCHOR: runtime_dispatch
     #[test]
     fn runtime_dispatch() {
+        use hylic::cata::exec::funnel;
+
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
@@ -229,10 +232,11 @@ mod tests {
         let fold = dom::simple_fold(init, acc);
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
-        let executors: Vec<dom::DynExec<N, u64>> = vec![dom::DynExec::fused(), dom::DynExec::rayon()];
-        for e in &executors {
-            assert_eq!(e.run(&fold, &graph, &root), 3);
-        }
+        // Same .run() for both — uniform interface
+        let r1 = dom::FUSED.run(&fold, &graph, &root);
+        let r2 = dom::exec(funnel::Spec::default(4)).run(&fold, &graph, &root);
+        assert_eq!(r1, r2);
+        assert_eq!(r1, 3);
     }
     // ANCHOR_END: runtime_dispatch
 

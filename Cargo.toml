@@ -5,5 +5,6 @@ edition = "2024"
 
 [dependencies]
 hylic = { path = "../hylic" }
+hylic-parallel-lifts = { path = "../hylic-parallel-lifts" }
 either = "1.15.0"
 insta = { version = "1.42", features = ["glob"] }

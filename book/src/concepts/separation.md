@@ -80,7 +80,7 @@ zero allocation per visit. The `treeish()` constructor wraps a
 
 Other [domains](../design/domains.md) use Rc (Local) or Box (Owned)
 — same operations, different boxing. The fold type doesn't carry the
-domain; the [executor](../design/executors.md) does.
+domain; the [executor](../executor-design/exec_pattern.md) does.
 
 - `init`: node → heap (initialize working state)
 - `accumulate`: heap × child result → heap (fold in one child)
@@ -100,20 +100,16 @@ without collecting them first. `simple_fold` is a shorthand where
 {{#include ../../../src/docs_examples.rs:exec_usage}}
 ```
 
-Four built-in executors, each in its own module, each
-domain-parameterized:
+Two built-in executors:
 
-| Executor | Traversal | Domains | Arc/node |
-|---|---|---|---|
-| `dom::FUSED` | Callback | all | 0 |
-| `dom::SEQUENTIAL` | Vec collect | all | 0 |
-| `dom::RAYON` | `par_iter` | Shared | 0 |
-| `Custom` | User-defined | Shared | 5 |
+| Executor | Traversal | Domains |
+|---|---|---|
+| `dom::FUSED` | Callback (sequential) | all |
+| [Funnel](../funnel/overview.md) | CPS work-stealing (parallel) | Shared |
 
 Each implements the `Executor<N, R, D>` trait — parameterized by
-a boxing [domain](../design/domains.md). Lift integration is
-provided automatically via `ExecutorExt`.
-See [Executor architecture](../design/executors.md) for details.
+a boxing [domain](../design/domains.md).
+See [Executor architecture](../executor-design/exec_pattern.md) for details.
 
 ## The separation
 

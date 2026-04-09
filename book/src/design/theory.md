@@ -12,7 +12,7 @@ is a monoidal catamorphism — the algebra is decomposed into three phases
 
 The standard formulation is a single function `F<R> → R` where `F` is the
 base functor. hylic's three-phase decomposition enables independent
-transformation of each phase via `map_init`, `map_accumulate`, `map_finalize`.
+transformation of each phase via `wrap_init`, `wrap_accumulate`, `wrap_finalize`.
 
 ## Anamorphism (unfold)
 
@@ -25,7 +25,9 @@ its child seeds). The `grow` function is the coalgebra.
 When a `Treeish` is backed by lazy child discovery (via `SeedGraph`), the
 catamorphism and anamorphism fuse — the tree is never fully materialized.
 This is a hylomorphism, and it's what `Exec::run()` performs when the
-graph is lazy.
+graph is lazy. The [Funnel executor](../funnel/overview.md) parallelizes
+this pattern using [CPS](../funnel/cps_walk.md) (continuation-passing
+style) and [defunctionalized tasks](../funnel/continuations.md).
 
 ## Histomorphism (fold with history)
 
@@ -105,7 +107,7 @@ disagree on the representation (Arc, Rc, Box). Code that is generic
 over `D: Domain<N>` is a natural transformation: it works uniformly
 across all three functors.
 
-The executor's domain parameter (`FusedIn<D>`) selects which functor
+The executor's domain parameter (`Exec<D, S>`) selects which functor
 to apply. The inherent method trick exploits this: D is fixed by the
 executor const's type, so the compiler resolves the GATs statically.
 No runtime dispatch over the domain — the functor application is fully
@@ -132,7 +134,7 @@ The formal structure:
    premises 1–3. The `unsafe impl Send + Sync` is the proof
    discharge.
 
-This pattern makes `PoolIn<Local>` and `PoolIn<Owned>` possible.
+This pattern makes domain-generic parallel execution possible.
 Without SyncRef, `&Rc<dyn Fn>` is `!Send` (because `Rc` is `!Sync`),
 blocking any cross-thread sharing. SyncRef bypasses this by asserting
 that the specific usage pattern (read-only borrows within a scoped

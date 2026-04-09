@@ -25,9 +25,9 @@ digraph {
     edge [fontname="sans-serif", fontsize=10];
 
     orig [label="Fold<N, H, R>"];
-    init [label="map_init(f)\nwrap init phase"];
-    acc [label="map_accumulate(f)\nwrap acc phase"];
-    fin [label="map_finalize(f)\nwrap fin phase"];
+    init [label="wrap_init(f)\nintercept init"];
+    acc [label="wrap_accumulate(f)\nintercept acc"];
+    fin [label="wrap_finalize(f)\nintercept fin"];
 
     orig -> init;
     orig -> acc;
@@ -35,16 +35,17 @@ digraph {
 }
 ```
 
-### map_init — add side effects to initialization
+### wrap_init — add side effects to initialization
 
 <!-- -->
 
 ```rust
-{{#include ../../../src/docs_examples.rs:fold_map_init}}
+{{#include ../../../src/docs_examples.rs:fold_wrap_init}}
 ```
 
-The mapper receives the original init closure and returns a new one.
-Useful for logging, instrumentation, or augmenting the initial heap.
+The wrapper receives the node and the original init as a callable
+reference. Call it, modify the result, add side effects — or skip
+it entirely. Works across all three domains.
 
 ## Result-type transformations
 

@@ -14,20 +14,20 @@ digraph {
     node [shape=box, style="rounded,filled", fontname="monospace", fontsize=11];
     edge [fontname="sans-serif", fontsize=10];
 
-    shared [label="Shared\nArc<dyn Fn + Send + Sync>\nClone, Send, Sync", fillcolor="#d4edda"];
-    local [label="Local\nRc<dyn Fn>\nClone, !Send", fillcolor="#fff3cd"];
-    owned [label="Owned\nBox<dyn Fn>\n!Clone, !Send", fillcolor="#f8d7da"];
+    shared [label="Shared\nArc<dyn Fn + Send + Sync>\nClone, Send, Sync\nborrow transforms", fillcolor="#d4edda"];
+    local [label="Local\nRc<dyn Fn>\nClone, !Send\nborrow transforms", fillcolor="#fff3cd"];
+    owned [label="Owned\nBox<dyn Fn>\n!Clone, !Send\nmove transforms", fillcolor="#f8d7da"];
 
-    shared -> local [label="less capability", style=dashed, dir=back];
-    local -> owned [label="less capability", style=dashed, dir=back];
+    shared -> local [label="lighter refcount", style=dashed, dir=back];
+    local -> owned [label="zero refcount", style=dashed, dir=back];
 }
 ```
 
-| Domain | Storage | Clone | Send+Sync | Executors | Use case |
-|--------|---------|-------|-----------|-----------|----------|
-| **Shared** | `Arc<dyn Fn + Send + Sync>` | yes | yes | all | Rayon, Lifts, pipelines |
-| **Local** | `Rc<dyn Fn>` | yes | no | Fused, Sequential, Pool, Lifts | lighter refcount |
-| **Owned** | `Box<dyn Fn>` | no | no | Fused, Sequential, Pool | zero refcount |
+| Domain | Storage | Clone | Send+Sync | Transforms | Executors |
+|--------|---------|-------|-----------|------------|-----------|
+| **Shared** | `Arc<dyn Fn + Send + Sync>` | yes | yes | borrow (`&self`) | Fused, Funnel |
+| **Local** | `Rc<dyn Fn>` | yes | no | borrow (`&self`) | Fused |
+| **Owned** | `Box<dyn Fn>` | no | no | move (`self`) | Fused |
 
 ## Domain modules as the single entry point
 
@@ -103,13 +103,14 @@ takes `&impl FoldOps + &impl TreeOps` — fully generic.
 
 Fold and Treeish have no domain parameter: `Fold<N, H, R>` and
 `Treeish<N>`. This keeps types simple. The domain marker lives on
-the executor: `FusedIn<D>(PhantomData<D>)`.
+the executor: `Exec<D, S>`.
 
 This solves a type inference problem: if the domain were on the fold,
-the compiler couldn't determine D from the argument types when multiple
-`Executor` impls exist (GATs are not injective — the compiler can't
-reason "this fold type came from Shared, therefore D = Shared"). With
-D on the executor, each const has exactly one impl.
+the compiler couldn't determine D from the argument types (GATs are
+not injective). With D on the executor, each const has exactly one
+`D`, and the compiler resolves everything statically. See
+[Domain integration](../executor-design/domain_integration.md) for
+the full explanation.
 
 ## Constructing folds in different domains
 
@@ -126,20 +127,26 @@ stays the same.
 ## When to use which domain
 
 **Shared** — the default. Use when:
-- You need Rayon (parallel execution)
-- You use Lifts (Explainer, ParLazy, ParEager)
+- You need parallel execution (Funnel requires Send+Sync)
+- You use Lifts (Explainer)
 - You use GraphWithFold pipelines (they need Clone)
-- You need to share folds across threads
+- You need non-destructive fold transformations (original preserved)
 
-**Local** — lighter refcount, still parallel-capable:
+**Local** — lighter refcount:
 - Rc clone is ~1ns vs Arc's ~5ns
-- Works with Pool executor (via SyncRef)
-- Works with Lifts (ParLazy, ParEager — domain-generic via ConstructFold)
+- Full fold and graph transformations (same as Shared, no Send+Sync)
+- Works with Fused
 
 **Owned** — zero refcount:
 - Box is the cheapest storage
-- The fold can't be cloned, so no Lifts, no pipelines
-- Works with Fused, Sequential, and Pool
-- Good for benchmarking: shows the framework's raw overhead
+- Full fold and graph transformations via move semantics (original consumed)
+- Works with Fused
+- Shows the framework's raw overhead in benchmarks
+
+All three domains support the same transformation API surface
+(`wrap_init`, `wrap_accumulate`, `wrap_finalize`, `map`, `zipmap`,
+`contramap`, `product`, `filter`, `treemap`). Shared and Local
+borrow (`&self`) — the original is preserved. Owned consumes
+(`self`) — the original is moved into the result.
 
 Most users should use Shared and never think about domains.

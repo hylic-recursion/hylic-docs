@@ -1,5 +1,5 @@
 ---
 source: hylic-docs/src/cookbook/parallel_execution.rs
-expression: "format!(\"sum = {expected}, verified across {} executors\", executors.len())"
+expression: "format!(\"sum = {expected}, verified: fused, funnel(one-shot), funnel(wide), session, attach\")"
 ---
-sum = 619, verified across 3 executors
+sum = 619, verified: fused, funnel(one-shot), funnel(wide), session, attach

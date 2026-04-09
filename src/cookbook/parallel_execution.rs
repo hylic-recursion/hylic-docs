@@ -1,9 +1,10 @@
-//! Parallel execution: same fold, different executors.
-//! Demonstrates: Exec constructors produce identical results.
+//! Parallel execution: Fused vs Funnel.
+//! Demonstrates: identical results, policy variants, session scope, attach.
 
 #[cfg(test)]
 mod tests {
     use hylic::domain::shared as dom;
+    use hylic::cata::exec::funnel;
     use insta::assert_snapshot;
 
     #[derive(Clone)]
@@ -30,19 +31,33 @@ mod tests {
         let acc = |heap: &mut u64, child: &u64| *heap += child;
         let sum = dom::simple_fold(init, acc);
 
-        // All executors produce identical results.
-        let executors: Vec<dom::DynExec<WorkNode, u64>> = vec![
-            dom::DynExec::fused(),
-            dom::DynExec::sequential(),
-            dom::DynExec::rayon(),
-        ];
-        let expected = executors[0].run(&sum, &graph, &tree);
-        for exec in &executors {
-            assert_eq!(exec.run(&sum, &graph, &tree), expected);
-        }
+        // Sequential baseline
+        let expected = dom::FUSED.run(&sum, &graph, &tree);
+
+        // One-shot: .run() creates + destroys pool internally
+        let r_default = dom::exec(funnel::Spec::default(4)).run(&sum, &graph, &tree);
+        assert_eq!(r_default, expected);
+
+        // Different policy: wide-light
+        let r_wide = dom::exec(funnel::Spec::for_wide_light(4)).run(&sum, &graph, &tree);
+        assert_eq!(r_wide, expected);
+
+        // Session scope: pool shared across folds
+        dom::exec(funnel::Spec::default(4)).session(|s| {
+            assert_eq!(s.run(&sum, &graph, &tree), expected);
+            assert_eq!(s.run(&sum, &graph, &tree), expected);
+        });
+
+        // Explicit attach: manual pool, multiple policies
+        funnel::Pool::with(4, |pool| {
+            let pw = dom::exec(funnel::Spec::default(4)).attach(pool);
+            let sh = dom::exec(funnel::Spec::for_wide_light(4)).attach(pool);
+            assert_eq!(pw.run(&sum, &graph, &tree), expected);
+            assert_eq!(sh.run(&sum, &graph, &tree), expected);
+        });
 
         assert_snapshot!("parallel", format!(
-            "sum = {expected}, verified across {} executors", executors.len()
+            "sum = {expected}, verified: fused, funnel(one-shot), funnel(wide), session, attach"
         ));
     }
 }

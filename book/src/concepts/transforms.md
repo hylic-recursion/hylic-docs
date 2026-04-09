@@ -22,7 +22,7 @@ digraph {
     F4 [label="different node\nFold<N2, H, R>"];
     F5 [label="two folds at once\nFold<N, (H1,H2), (R1,R2)>"];
 
-    F1 -> F2 [label="map_init"];
+    F1 -> F2 [label="wrap_init"];
     F1 -> F3 [label="zipmap"];
     F1 -> F4 [label="contramap"];
     F1 -> F5 [label="product"];
@@ -31,18 +31,19 @@ digraph {
 
 | Combinator | What it does |
 |---|---|
-| `map_init(f)` | Wrap the init phase: `f(orig_init)` → new init |
-| `map_accumulate(f)` | Wrap the accumulate phase |
-| `map_finalize(f)` | Wrap the finalize phase |
+| `wrap_init(f)` | Intercept the init phase: `f(node, orig)` → H |
+| `wrap_accumulate(f)` | Intercept the accumulate phase |
+| `wrap_finalize(f)` | Intercept the finalize phase |
 | `map(fwd, back)` | Change result type: `R → R2` (with back-mapping for accumulate) |
 | `zipmap(f)` | Augment result: `R → (R, Extra)` |
 | `contramap(f)` | Change node type: `Fold<N,...> → Fold<N2,...>` |
 | `product(other)` | Two folds in one traversal: `(R1, R2)` |
 
-Each returns a new `Fold` — the original is unchanged. Examples:
+Each returns a new `Fold` — the original is unchanged (Shared/Local)
+or consumed (Owned). Examples:
 
 ```rust
-{{#include ../../../src/docs_examples.rs:fold_map_init}}
+{{#include ../../../src/docs_examples.rs:fold_wrap_init}}
 ```
 
 ```rust

@@ -1,75 +1,119 @@
 # Execution: choosing the strategy
 
-The executor determines HOW the tree is traversed — sequential,
-parallel, fused, unfused. Changing the executor changes the
-performance characteristics without changing the fold or graph.
+The executor determines HOW the tree is traversed — sequential or
+parallel. Changing the executor changes the performance without
+changing the fold or graph. Every executor has the same interface:
+`.run()`.
 
-## One import, inherent methods
-
-<!-- -->
+## One import, one method
 
 ```rust
 use hylic::domain::shared as dom;
+
+// Sequential:
+dom::FUSED.run(&fold, &graph, &root);
+
+// Parallel:
+dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
 ```
 
-Every executor const has inherent `.run()` — no trait import:
+No trait imports. The `.run()` method is **inherent** on `Exec<D, S>`.
+`D` (domain) is fixed by the const or `exec()` call; `N`, `H`, `R`
+are inferred from the arguments.
 
-```rust
-{{#include ../../../src/docs_examples.rs:exec_usage}}
-```
-
-## When to use which executor
-
-<!-- -->
+## Which executor
 
 ```dot process
 digraph {
     rankdir=TB;
-    node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=11];
+    node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="sans-serif", fontsize=11];
     edge [fontname="sans-serif", fontsize=10];
 
     start [label="Need parallelism?", shape=diamond, fillcolor="#fff3cd"];
     fused [label="dom::FUSED\nzero overhead", fillcolor="#d4edda"];
-    heavy [label="Work per node?", shape=diamond, fillcolor="#fff3cd"];
-    pool [label="PoolIn\nfork-join, all domains", fillcolor="#d4edda"];
-    rayon [label="dom::RAYON\nrayon (Shared only)", fillcolor="#d4edda"];
-    lift [label="Use a Lift\n(ParLazy / ParEager)", fillcolor="#d4edda"];
+    funnel [label="funnel::Spec::default(n)\nCPS work-stealing", fillcolor="#d4edda"];
 
     start -> fused [label="no"];
-    start -> heavy [label="yes"];
-    heavy -> pool [label="heavy\n(>10us/node)"];
-    heavy -> rayon [label="rayon available\n& Shared domain"];
-    heavy -> lift [label="mixed\nor pipelined"];
+    start -> funnel [label="yes"];
 }
 ```
 
-| Executor | Domain | Best for | Overhead |
-|----------|--------|----------|----------|
-| `dom::FUSED` | all | Sequential, any workload | ~4us per 200 nodes |
-| `dom::SEQUENTIAL` | all | Testing unfused path | Vec alloc per node |
-| `dom::RAYON` | Shared | CPU-bound parallel work | rayon scheduling |
-| `PoolIn<D>` | all | CPU-bound parallel, any domain | fork-join scheduling |
-| Lifts | Shared | Mixed or pipelined workloads | Phase 1 + Phase 2 |
+| Executor | Domain | Best for |
+|----------|--------|----------|
+| `dom::FUSED` | all | Sequential, any workload |
+| Funnel | Shared | Parallel, any workload |
 
-## The Pool executor
+## The Funnel executor
 
-Our own parallel executor — no rayon dependency. Works with all
-domains via SyncRef (scoped-thread safety wrapper):
+hylic's built-in parallel executor. CPS work-stealing with
+configurable queue, accumulation, and wake policies. See
+[Funnel](../funnel/overview.md) for the full documentation.
+
+**One-shot** — creates pool, runs, joins:
 
 ```rust
-use hylic::domain::shared as dom;
-use hylic::cata::exec::{PoolIn, PoolSpec};
-use hylic::prelude::{WorkPool, WorkPoolSpec};
+use hylic::cata::exec::funnel;
+dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
+```
 
-WorkPool::with(WorkPoolSpec::threads(4), |pool| {
-    let exec = PoolIn::<hylic::domain::Shared>::new(pool, PoolSpec::default_for(4));
-    exec.run(&fold, &graph, &root);
+**Session scope** — amortizes pool creation across folds:
+
+```rust
+dom::exec(funnel::Spec::default(8)).session(|s| {
+    s.run(&fold, &graph, &root);
+    s.run(&fold, &graph, &root);
 });
 ```
 
-Tree-aware fork-join: binary-split child processing with depth-based
-sequential cutoff. Competitive with rayon, works with Local and
-Owned domains too.
+**Explicit attach** — manual pool management:
+
+```rust
+funnel::Pool::with(8, |pool| {
+    dom::exec(funnel::Spec::default(8)).attach(pool).run(&fold, &graph, &root);
+});
+```
+
+See [Policies](../funnel/policies.md) for named presets and
+workload-specific recommendations.
+
+## Defining a project executor
+
+For projects that use a specific funnel configuration throughout,
+define the executor once and reference it everywhere:
+
+```rust
+use hylic::domain::shared as dom;
+use hylic::cata::exec::funnel;
+
+type MyPolicy = funnel::policy::Policy<
+    funnel::queue::PerWorker,
+    funnel::accumulate::OnArrival,
+    funnel::wake::EveryK<4>,
+>;
+
+pub fn exec() -> hylic::cata::exec::Exec<hylic::domain::Shared, funnel::Spec<MyPolicy>> {
+    let nw = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
+    dom::exec(
+        funnel::Spec::default(nw)
+            .with_accumulate::<funnel::accumulate::OnArrival>(
+                funnel::accumulate::on_arrival::OnArrivalSpec)
+            .with_wake::<funnel::wake::EveryK<4>>(
+                funnel::wake::every_k::EveryKSpec)
+    )
+}
+```
+
+A type alias names the policy axes. The function constructs the
+spec from `default()` via axis transformations. Call sites use
+`.run()` without knowing the policy details:
+
+```rust
+// Anywhere in the project:
+crate::exec().run(&fold, &graph, &root);
+```
+
+The full policy type is inferred at every call site. Only the
+definition site names it.
 
 ## Switching domains
 
@@ -79,34 +123,28 @@ Same closures, different constructor, different executor:
 {{#include ../../../src/docs_examples.rs:domain_switching}}
 ```
 
-The type system enforces compatibility — `dom::RAYON` only accepts
-Shared-domain folds. The Pool executor accepts all domains.
-
-See [Domain system](../design/domains.md) for details.
-
-## Runtime dispatch
-
-When the executor is chosen at runtime, use `DynExec`:
-
-```rust
-{{#include ../../../src/docs_examples.rs:runtime_dispatch}}
-```
-
-`DynExec` operates in the Shared domain. Its `.run()` is an inherent
-method — no trait import needed.
+The type system enforces compatibility. See
+[Domain system](../design/domains.md) for details.
 
 ## Lift integration
 
-Every executor with inherent methods gets `.run_lifted()`:
+Every executor gets `.run_lifted()`:
 
 ```rust
-{{#include ../../../src/docs_examples.rs:parlazy_usage}}
+{{#include ../../../src/docs_examples.rs:explainer_usage}}
 ```
 
 The Lift transforms fold + treeish, the executor runs the result.
-See [Lifts](./lifts.md) for ParLazy, ParEager, and Explainer.
+See [Lifts](./lifts.md) for the Explainer.
 
-## Performance
+## Under the hood
 
-See [Benchmarks](../cookbook/benchmarks.md) for the full comparison
-across all execution modes, domains, and handrolled baselines.
+Every executor is a Spec — a `Copy` value that describes a
+computation strategy. `.run()` on a Spec internally creates any
+needed resources (thread pool for Funnel, nothing for Fused), runs
+the fold, and cleans up. Sessions (`.session()`, `.attach()`)
+let you hold the resource across multiple folds.
+
+See [The Exec pattern](../executor-design/exec_pattern.md) for the
+type-level design and [Policy traits](../executor-design/policy_traits.md)
+for how Funnel's three axes compose.

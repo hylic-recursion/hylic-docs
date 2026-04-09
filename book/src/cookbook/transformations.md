@@ -4,10 +4,11 @@ Features as standalone functions matching the transformation contract.
 One domain, one base fold, one base graph. Each feature is a named
 function — defined separately, plugged in with a single method call.
 
-The fold type aliases used in the contract signatures:
-- `InitFn<N, H>` = `Box<dyn Fn(&N) -> H + Send + Sync>`
-- `AccumulateFn<H, R>` = `Box<dyn Fn(&mut H, &R) + Send + Sync>`
-- `FinalizeFn<H, R>` = `Box<dyn Fn(&H) -> R + Send + Sync>`
+The phase-wrapping contract — each wrapper receives the original
+phase as a callable reference:
+- `wrap_init`: `Fn(&N, &dyn Fn(&N) -> H) -> H`
+- `wrap_accumulate`: `Fn(&mut H, &R, &dyn Fn(&mut H, &R))`
+- `wrap_finalize`: `Fn(&H, &dyn Fn(&H) -> R) -> R`
 
 ```rust
 {{#include ../../../src/cookbook/transformations.rs}}

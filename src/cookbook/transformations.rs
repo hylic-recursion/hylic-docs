@@ -62,45 +62,37 @@ mod tests {
 
     // ── Fold phase wrappers ─────────────────────────────────
     //
-    // Each is a standalone function returning a closure that
-    // matches the transformation contract.
+    // Each is a standalone closure matching the wrap contract:
+    //   wrap_init:       Fn(&N, &dyn Fn(&N) -> H) -> H
+    //   wrap_accumulate: Fn(&mut H, &R, &dyn Fn(&mut H, &R))
+    //   wrap_finalize:   Fn(&H, &dyn Fn(&H) -> R) -> R
 
-    /// Hooks into init: called once per node, before any children are processed.
-    /// Receives the original init and wraps it — original behavior is preserved,
-    /// the side effect (logging) is layered on top.
+    /// Hooks into init: called once per node, before children.
+    /// Logs the task name, then delegates to the original init.
     fn visit_logger(sink: Arc<Mutex<Vec<String>>>)
-        -> impl FnOnce(dom::InitFn<Task, u64>) -> dom::InitFn<Task, u64>
+        -> impl Fn(&Task, &dyn Fn(&Task) -> u64) -> u64
     {
-        move |orig: dom::InitFn<Task, u64>| -> dom::InitFn<Task, u64> {
-            Box::new(move |task: &Task| {
-                sink.lock().unwrap().push(task.name.clone());
-                orig(task) // original init still runs — we add, not replace
-            })
+        move |task: &Task, orig: &dyn Fn(&Task) -> u64| {
+            sink.lock().unwrap().push(task.name.clone());
+            orig(task)
         }
     }
 
-    /// Hooks into accumulate: called once per child result as it's folded in.
-    /// By conditionally calling orig, some children's results are simply
-    /// never folded — the parent doesn't see them.
+    /// Hooks into accumulate: conditionally skips small children.
+    /// By not calling orig, the child result is never folded in.
     fn skip_small_children(threshold: u64)
-        -> impl FnOnce(dom::AccumulateFn<u64, u64>) -> dom::AccumulateFn<u64, u64>
+        -> impl Fn(&mut u64, &u64, &dyn Fn(&mut u64, &u64))
     {
-        move |orig: dom::AccumulateFn<u64, u64>| -> dom::AccumulateFn<u64, u64> {
-            Box::new(move |heap: &mut u64, child: &u64| {
-                if *child >= threshold { orig(heap, child); }
-            })
+        move |heap: &mut u64, child: &u64, orig: &dyn Fn(&mut u64, &u64)| {
+            if *child >= threshold { orig(heap, child); }
         }
     }
 
-    /// Hooks into finalize: called once per node, after all children
-    /// are accumulated. The heap holds the fully-accumulated value;
-    /// the clamp applies to the result seen by this node's parent.
+    /// Hooks into finalize: clamps the result.
     fn clamp_at(max: u64)
-        -> impl FnOnce(dom::FinalizeFn<u64, u64>) -> dom::FinalizeFn<u64, u64>
+        -> impl Fn(&u64, &dyn Fn(&u64) -> u64) -> u64
     {
-        move |orig: dom::FinalizeFn<u64, u64>| -> dom::FinalizeFn<u64, u64> {
-            Box::new(move |heap: &u64| orig(heap).min(max))
-        }
+        move |heap: &u64, orig: &dyn Fn(&u64) -> u64| orig(heap).min(max)
     }
 
     /// zipmap contract: a plain Fn(&R) -> Extra. No wrapping needed —
@@ -116,10 +108,6 @@ mod tests {
 
     // ── Graph transformations ───────────────────────────────
 
-    /// Graph-level transformation: wraps a Treeish, returns a Treeish.
-    /// Same node type, fewer edges — the fold is completely unchanged.
-    /// Uses Edgy::at() which returns a Visit (push-based iterator with
-    /// filter/map/collect — zero-allocation unless collected).
     fn only_costly_deps(graph: &dom::Treeish<Task>, min_cost: u64) -> dom::Treeish<Task> {
         let inner = graph.clone();
         dom::treeish(move |task: &Task| {
@@ -135,7 +123,7 @@ mod tests {
     fn test_visit_logger() {
         let (graph, root) = setup();
         let visited = Arc::new(Mutex::new(Vec::new()));
-        let fold = base_fold().map_init(visit_logger(visited.clone()));
+        let fold = base_fold().wrap_init(visit_logger(visited.clone()));
 
         let total = dom::FUSED.run(&fold, &graph, &root);
         let names: Vec<String> = visited.lock().unwrap().clone();
@@ -148,7 +136,7 @@ mod tests {
     #[test]
     fn test_skip_small_children() {
         let (graph, root) = setup();
-        let fold = base_fold().map_accumulate(skip_small_children(200));
+        let fold = base_fold().wrap_accumulate(skip_small_children(200));
         let total = dom::FUSED.run(&fold, &graph, &root);
         // app(50) + compile(200+typecheck 300) = 550; parse(100) and link(150) skipped
         assert_eq!(total, 550);
@@ -158,7 +146,7 @@ mod tests {
     #[test]
     fn test_clamp_at() {
         let (graph, root) = setup();
-        let fold = base_fold().map_finalize(clamp_at(500));
+        let fold = base_fold().wrap_finalize(clamp_at(500));
         let total = dom::FUSED.run(&fold, &graph, &root);
         // compile=min(600,500)=500, link=150, app=min(50+500+150,500)=500
         assert_eq!(total, 500);
@@ -221,8 +209,8 @@ mod tests {
         let (graph, root) = setup();
         let visited = Arc::new(Mutex::new(Vec::new()));
         let pipeline = base_fold()
-            .map_init(visit_logger(visited.clone()))
-            .map_finalize(clamp_at(500))
+            .wrap_init(visit_logger(visited.clone()))
+            .wrap_finalize(clamp_at(500))
             .zipmap(classify);
 
         let (total, category) = dom::FUSED.run(&pipeline, &graph, &root);

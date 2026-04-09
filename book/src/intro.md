@@ -2,30 +2,67 @@
 
 Composable recursive tree computation for Rust.
 
-hylic separates **what to compute** (Fold) from **the tree
-structure** (Treeish) and **how to execute** (Executor). Each piece
-is independently definable, transformable, and composable.
+You write `init`, `accumulate`, `finalize` once. You can then run the
+fold sequentially, in parallel, with tracing, on filtered trees, on
+lazily-discovered dependency graphs — without changing a line of fold
+logic.
 
 ```rust
 use hylic::domain::shared as dom;
 
-// Define the computation: three closures
-let init = |n: &i32| *n as u64;
-let acc  = |h: &mut u64, c: &u64| *h += c;
-let fold = dom::simple_fold(init, acc);
+#[derive(Clone)]
+struct Dir { name: String, size: u64, children: Vec<Dir> }
 
-// Define the tree structure
-let graph = dom::treeish(|n: &i32| if *n > 1 { vec![n - 1, n - 2] } else { vec![] });
+let graph = dom::treeish(|d: &Dir| d.children.clone());
+let fold = dom::simple_fold(
+    |d: &Dir| d.size,
+    |heap: &mut u64, child: &u64| *heap += child,
+);
 
-// Execute: fold + graph + root → result
-let result = dom::FUSED.run(&fold, &graph, &5);
+let tree = Dir {
+    name: "project".into(), size: 10,
+    children: vec![
+        Dir { name: "src".into(), size: 200, children: vec![] },
+        Dir { name: "docs".into(), size: 50, children: vec![] },
+    ],
+};
+
+// Sequential:
+let total = dom::FUSED.run(&fold, &graph, &tree);
+assert_eq!(total, 260);
+
+// Parallel (same fold, same graph):
+use hylic::cata::exec::funnel;
+let total = dom::exec(funnel::Spec::default(4)).run(&fold, &graph, &tree);
+assert_eq!(total, 260);
 ```
 
-Three [boxing domains](./design/domains.md) (Shared, Local, Owned)
-control how closures are stored — from parallel-ready Arc to
-zero-overhead Box. The domain lives on the executor, not the data
-types.
+The fold defines **what to compute** (sum sizes). The graph defines
+**the tree structure** (children of each Dir). The executor defines
+**how to traverse** (sequential or parallel). Each is independent —
+change one without touching the others.
 
-Start with [The recursive pattern](./concepts/separation.md)
-to understand the core idea, then explore the
-[Cookbook](./cookbook/fibonacci.md) for working examples.
+## Key ideas
+
+- **Three-phase fold**: `init` / `accumulate` / `finalize` through an
+  intermediate heap type `H`. Composable via
+  [transformations](./concepts/transforms.md): map, zipmap, contramap,
+  product.
+- **Push-based traversal**: `graph.visit(&node, |child| ...)` — zero
+  allocation per node. No `Vec<Child>` collected unless you ask.
+- **Uniform execution**: every executor has `.run()`. Sequential,
+  parallel, with-tracing — same call, same interface. See
+  [The Exec pattern](./executor-design/exec_pattern.md).
+- **Boxing domains**: three storage strategies
+  ([Shared, Local, Owned](./design/domains.md)) control how closures
+  are stored. The domain lives on the executor, not the fold.
+- **Funnel**: a CPS work-stealing parallel executor with compile-time
+  policy selection. See [Funnel](./funnel/overview.md).
+
+## Start here
+
+→ [Quick Start](./quickstart.md) — your first fold in 5 minutes
+
+Then: [The recursive pattern](./concepts/separation.md) to understand
+the core design, or the [Cookbook](./cookbook/fibonacci.md) for working
+examples.

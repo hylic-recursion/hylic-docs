@@ -38,9 +38,7 @@ digraph {
         fontname="sans-serif"; fontsize=12;
 
         fused [label="Fused\nzero-overhead callback", fillcolor="#cce5ff"];
-        sequential [label="Sequential\nVec-collect", fillcolor="#cce5ff"];
-        rayon_e [label="Rayon\npar_iter (Shared only)", fillcolor="#cce5ff"];
-        pool_e [label="Pool\nfork-join (all domains)", fillcolor="#cce5ff"];
+        funnel_e [label="Funnel\nCPS work-stealing\n(Shared)", fillcolor="#cce5ff"];
     }
 
     foldops -> shared [style=invis];
@@ -65,7 +63,7 @@ digraph {
 
     subgraph cluster_traits {
         label="Operations traits (ops::)";
-        style=dashed; color="#999";
+        style=dashed; color="#999999";
         fontname="sans-serif";
 
         FoldOps [label="FoldOps<N, H, R>\ninit / accumulate / finalize"];
@@ -75,7 +73,7 @@ digraph {
 
     subgraph cluster_concrete {
         label="Domain types (one per domain)";
-        style=dashed; color="#999";
+        style=dashed; color="#999999";
         fontname="sans-serif";
 
         SharedFold [label="shared::Fold<N,H,R>\nArc closures", fillcolor="#d4edda"];
@@ -87,23 +85,19 @@ digraph {
 
     subgraph cluster_executors {
         label="Executors (cata::exec::)";
-        style=dashed; color="#999";
+        style=dashed; color="#999999";
         fontname="sans-serif";
 
-        FusedIn [label="FusedIn<D>\nall domains"];
-        SeqIn [label="SequentialIn<D>\nall domains"];
-        RayonIn [label="RayonIn<Shared>\nShared only"];
-        PoolIn [label="PoolIn<D>\nall domains (SyncRef)"];
+        ExecDS [label="Exec<D, S>\nsole user-facing type"];
+        FusedSpec [label="fused::Spec\nall domains"];
+        FunnelSpec [label="funnel::Spec<P>\nShared domain\nwork-stealing"];
     }
 
     subgraph cluster_lifts {
         label="Lifts (prelude::)";
-        style=dashed; color="#999";
+        style=dashed; color="#999999";
         fontname="sans-serif";
 
-        Lift [label="Lift<D, N,H,R, N2,H2,R2>\ntransforms fold+treeish"];
-        ParLazy [label="ParLazy\ndeferred parallel"];
-        ParEager [label="ParEager\npipelined parallel"];
         Explainer [label="Explainer\ncomputation trace"];
     }
 
@@ -112,16 +106,13 @@ digraph {
     FoldOps -> OwnedFold [dir=back, style=dashed];
     FoldOps -> UserStruct [dir=back, style=dashed];
     TreeOps -> SharedTree [dir=back, style=dashed];
-    LiftOps -> Lift [dir=back, style=dashed, label="impl"];
 
-    FusedIn -> FoldOps [label="&impl FoldOps", style=dotted];
-    FusedIn -> TreeOps [label="&impl TreeOps", style=dotted];
-    PoolIn -> FoldOps [style=dotted];
-    PoolIn -> TreeOps [style=dotted];
+    ExecDS -> FusedSpec [label="S =", style=dotted];
+    ExecDS -> FunnelSpec [label="S =", style=dotted];
+    ExecDS -> FoldOps [label="&impl FoldOps", style=dotted];
+    ExecDS -> TreeOps [label="&impl TreeOps", style=dotted];
 
-    Lift -> ParLazy [dir=back, label="produces"];
-    Lift -> ParEager [dir=back];
-    Lift -> Explainer [dir=back];
+    LiftOps -> Explainer [dir=back, style=dashed, label="impl"];
 }
 ```
 
@@ -138,10 +129,10 @@ digraph {
     pick [label="1. Pick domain\nuse hylic::domain::shared as dom;", fillcolor="#d4edda"];
     build [label="2. Build fold + graph\ndom::simple_fold(...)\ndom::treeish(...)", fillcolor="#fff3cd"];
     run [label="3. Run\ndom::FUSED.run(&fold, &graph, &root)", fillcolor="#cce5ff"];
-    lift [label="3b. Or lift\ndom::FUSED.run_lifted(\n  &ParLazy::lift(pool), ...)", fillcolor="#cce5ff"];
+    par [label="3b. Or parallel\ndom::exec(funnel::Spec::default(8))\n  .run(...)", fillcolor="#cce5ff"];
 
     pick -> build -> run;
-    build -> lift [style=dashed, label="if parallel\nor tracing"];
+    build -> par [style=dashed, label="if parallel"];
 }
 ```
 
@@ -153,14 +144,13 @@ entire API surface for most programs.
 | | Shared | Local | Owned |
 |---|:---:|:---:|:---:|
 | **Fused** | yes | yes | yes |
-| **Sequential** | yes | yes | yes |
-| **Rayon** | yes | - | - |
-| **Pool** | yes | yes | yes |
-| **Lifts** | yes | yes* | - |
-| **Pipeline** | yes | - | - |
+| **Funnel** | yes | — | — |
+| **Explainer** | yes | yes | — |
+| **Pipeline** | yes | — | — |
 
-*Local Lifts require pool-based parallelism (no rayon).
-Owned folds can't be cloned, so Lifts and Pipelines are excluded.
+Fused supports all domains (borrows, never clones). Funnel requires
+`N: Clone + Send, R: Clone + Send` — the Shared domain provides
+these.
 
 ## Zero-boxing path
 

@@ -1,21 +1,39 @@
 # Summary
 
 [Introduction](./intro.md)
+[Quick Start](./quickstart.md)
 
 # Concepts
 
 - [The recursive pattern](./concepts/separation.md)
 - [Transformations and Lifts](./concepts/transforms.md)
-- [Entry points](./concepts/entry.md)
 
 # Guides
 
-- [Import patterns](./guides/imports.md)
-- [Concept map](./guides/concept_map.md)
 - [Fold: shaping the computation](./guides/fold.md)
 - [Graph: controlling traversal](./guides/graph.md)
-- [Execution: choosing the strategy](./guides/execution.md)
 - [Lifts: cross-cutting concerns](./guides/lifts.md)
+
+# Execution
+
+- [Choosing the strategy](./guides/execution.md)
+- [The Exec pattern](./executor-design/exec_pattern.md)
+- [Domain integration](./executor-design/domain_integration.md)
+- [Policy traits](./executor-design/policy_traits.md)
+
+# Funnel Executor
+
+- [Overview](./funnel/overview.md)
+- [Policies and presets](./funnel/policies.md)
+- [CPS walk](./funnel/cps_walk.md)
+- [Continuations](./funnel/continuations.md)
+- [Cascade](./funnel/cascade.md)
+- [Ticket system](./funnel/ticket_system.md)
+- [Pool and dispatch](./funnel/pool_dispatch.md)
+- [Queue strategies](./funnel/queue_strategies.md)
+- [Accumulation](./funnel/accumulation.md)
+- [Infrastructure](./funnel/infrastructure.md)
+- [Testing](./funnel/testing.md)
 
 # Cookbook
 
@@ -32,7 +50,9 @@
 
 # Reference
 
-- [Executor architecture](./design/executors.md)
+- [Entry points](./concepts/entry.md)
+- [Import patterns](./guides/imports.md)
+- [Concept map](./guides/concept_map.md)
 - [Domain system](./design/domains.md)
 - [Implementation notes](./design/implementation_notes.md)
 - [Theory](./design/theory.md)
