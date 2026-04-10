@@ -83,7 +83,7 @@ Common patterns:
 - **Wrapping heap**: H2 contains the original H plus extra state
 - **Deferred result**: R2 is a handle that produces R on unwrap
 - **Fold stash**: `Rc<RefCell<Option<fold>>>` to pass the fold from
-  lift_fold to unwrap (both run on the same thread during run_lifted)
+  lift_fold to unwrap (both run on the caller's thread)
 
 The Explainer in `prelude/` is the reference implementation.
 See [Implementation notes](../design/implementation_notes.md) for

@@ -1,19 +1,21 @@
 # hylic
 
-Composable recursive tree computation for Rust.
+A Rust library for composable recursive tree computation.
 
-You write `init`, `accumulate`, `finalize` once. You can then run the
-fold sequentially, in parallel, with tracing, on filtered trees, on
-lazily-discovered dependency graphs — without changing a line of fold
-logic.
+hylic separates a recursive computation into three independent
+concerns: a *fold* that defines what to compute at each node, a
+*graph* that describes the tree structure, and an *executor* that
+controls how the recursion is carried out. Each concern can be
+defined, transformed, and composed independently of the others.
 
 ```rust
 use hylic::domain::shared as dom;
+use hylic::graph;
 
 #[derive(Clone)]
 struct Dir { name: String, size: u64, children: Vec<Dir> }
 
-let graph = dom::treeish(|d: &Dir| d.children.clone());
+let graph = graph::treeish(|d: &Dir| d.children.clone());
 let fold = dom::simple_fold(
     |d: &Dir| d.size,
     |heap: &mut u64, child: &u64| *heap += child,
@@ -27,42 +29,50 @@ let tree = Dir {
     ],
 };
 
-// Sequential:
+// Sequential execution:
 let total = dom::FUSED.run(&fold, &graph, &tree);
 assert_eq!(total, 260);
 
-// Parallel (same fold, same graph):
+// Parallel execution — the fold and graph are unchanged:
 use hylic::cata::exec::funnel;
 let total = dom::exec(funnel::Spec::default(4)).run(&fold, &graph, &tree);
 assert_eq!(total, 260);
 ```
 
-The fold defines **what to compute** (sum sizes). The graph defines
-**the tree structure** (children of each Dir). The executor defines
-**how to traverse** (sequential or parallel). Each is independent —
-change one without touching the others.
+The fold defines what to compute (sum the sizes). The graph defines
+the tree structure (children of each `Dir`). The executor determines
+the traversal strategy (sequential or parallel). Replacing one leaves
+the others untouched.
 
-## Key ideas
+## Core concepts
 
-- **Three-phase fold**: `init` / `accumulate` / `finalize` through an
-  intermediate heap type `H`. Composable via
-  [transformations](./concepts/transforms.md): map, zipmap, contramap,
-  product.
-- **Push-based traversal**: `graph.visit(&node, |child| ...)` — zero
-  allocation per node. No `Vec<Child>` collected unless you ask.
-- **Uniform execution**: every executor has `.run()`. Sequential,
-  parallel, with-tracing — same call, same interface. See
-  [The Exec pattern](./executor-design/exec_pattern.md).
-- **Boxing domains**: three storage strategies
-  ([Shared, Local, Owned](./design/domains.md)) control how closures
-  are stored. The domain lives on the executor, not the fold.
-- **Funnel**: a CPS work-stealing parallel executor with compile-time
-  policy selection. See [Funnel](./funnel/overview.md).
+**Three-phase fold.** A fold consists of `init`, `accumulate`, and
+`finalize`, mediated by a heap type `H`. Folds are composable through
+[transformations](./concepts/transforms.md): map, contramap, product,
+and phase-wrapping combinators.
 
-## Start here
+**Push-based traversal.** The graph exposes children through a
+callback: `graph.visit(&node, |child| ...)`. This avoids allocating
+a `Vec` of children per node. Graph types live in `hylic::graph` and
+are domain-independent.
 
-→ [Quick Start](./quickstart.md) — your first fold in 5 minutes
+**Uniform execution.** Every executor — sequential, parallel, or
+user-defined — presents the same `.run()` interface. Resource
+management (thread pools, arenas) is an internal concern of the
+executor. See [The Exec pattern](./executor-design/exec_pattern.md).
 
-Then: [The recursive pattern](./concepts/separation.md) to understand
-the core design, or the [Cookbook](./cookbook/fibonacci.md) for working
-examples.
+**Boxing domains.** Three storage strategies control how fold
+closures are boxed: Shared (Arc), Local (Rc), and Owned (Box). The
+domain is a type parameter on the executor, not on the fold or graph.
+See [Domain system](./design/domains.md).
+
+**Funnel executor.** A parallel CPS work-stealing executor with
+compile-time policy selection across three behavioral axes. See
+[Funnel](./funnel/overview.md).
+
+## Where to start
+
+The [Quick Start](./quickstart.md) walks through constructing and
+running a fold. [The recursive pattern](./concepts/separation.md)
+explains the underlying decomposition. The [Cookbook](./cookbook/fibonacci.md)
+contains worked examples for common patterns.

@@ -1,47 +1,51 @@
 # Executor architecture
 
-The executor controls **how** the tree recursion runs. The fold says
-what to compute; the treeish says where the children are; the executor
-decides the traversal order and parallelism strategy.
+The executor controls how the tree recursion is carried out. The fold
+defines the computation; the graph defines the tree structure; the
+executor decides the traversal order, parallelism strategy, and
+resource lifecycle.
 
-Every executor is a `Copy` Spec — data that describes a strategy.
-Calling `.run()` refunctionalizes it: turns data into computation.
-Resource management (thread pools, arenas) is internal.
+Every executor is a `Copy` Spec — a small value that fully describes
+a computation strategy. Calling `.run()` on a Spec turns the
+description into execution: for Fused this means direct recursion,
+for Funnel it means creating a scoped thread pool and running a CPS
+work-stealing traversal. Resource creation and cleanup are internal
+to the executor.
 
-## The uniform API
+## The uniform interface
 
 ```rust
 use hylic::domain::shared as dom;
+use hylic::cata::exec::funnel;
 
 dom::FUSED.run(&fold, &graph, &root);                              // sequential
 dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);     // parallel
 ```
 
-Same method. Same shape. Resource-needing executors create and
-destroy their resources inside `.run()`. Zero-resource executors
-run directly. The user doesn't know or care.
+The same `.run()` method, the same call shape. The fold and graph
+are borrowed; the executor manages its own resources.
 
-## The two built-in executors
+## Built-in executors
 
-**Fused** — sequential, all domains. Callback-based recursion, zero
-allocation. `Resource = ()`, `Session = Self`.
+**Fused** — sequential callback-based recursion. Supports all
+domains and all graph types (`G: TreeOps<N>`). Uses no resources
+beyond the call stack. Equivalent in cost to hand-written recursion.
 
-**Funnel** — parallel, Shared domain. CPS work-stealing with three
-policy axes. `Resource = &Pool`, `Session = Session<P>`.
-See [Funnel](../funnel/overview.md).
+**Funnel** — parallel CPS work-stealing. Requires `G: Send + Sync`
+on the graph type (shared across a scoped thread pool). Configurable
+through three compile-time policy axes: queue topology, accumulation
+strategy, and wake policy. See [Funnel](../funnel/overview.md).
 
-## Domain support
+## Domain and graph requirements
 
-Fused supports all domains (borrows, never clones). Funnel requires
-`N: Clone + Send, R: Send`. See
-[Domain integration](../executor-design/domain_integration.md).
+The `Executor` trait is parameterized by four type parameters:
+`N` (node), `R` (result), `D` (domain), and `G` (graph). The domain
+controls the fold type (`D::Fold<H, R>`). The graph type `G` is
+constrained per executor implementation — Fused accepts any
+`TreeOps<N>`, Funnel requires `Send + Sync`. This means the fold
+domain and the graph type are independent choices.
 
-## Deep dives
-
-- [The Exec pattern](../executor-design/exec_pattern.md) — `Exec<D, S>`,
-  `ExecutorSpec`, the three usage tiers, defunctionalization
-- [Domain integration](../executor-design/domain_integration.md) —
-  `Domain<N>` GATs, forward resolution
-- [Policy traits](../executor-design/policy_traits.md) —
-  zero-cost configuration via GATs
-- [Funnel executor](../funnel/overview.md) — the parallel executor
+See [Domain integration](../executor-design/domain_integration.md)
+for the type-level details and
+[The Exec pattern](../executor-design/exec_pattern.md) for the
+Spec/Session/Exec lifecycle.

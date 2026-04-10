@@ -54,8 +54,9 @@ hylic uses Lifts for:
 - **ParLazy**: lift into a data tree domain (`LazyResult<H, R>`)
 - **ParEager**: lift into a continuation-passing domain (`EagerResult<R>`)
 
-The key property: `exec.run_lifted(&lift, &fold, &graph, &root)` produces
-the same `R` as `exec.run(&fold, &graph, &root)` — the Lift is transparent.
+The key property: `lift::run_lifted(&exec, &lift, &fold, &graph, &root)`
+produces the same `R` as `exec.run(&fold, &graph, &root)` — the Lift is
+transparent to the result.
 
 ## Externalized tree structure
 

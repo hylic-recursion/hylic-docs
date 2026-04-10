@@ -29,7 +29,7 @@ dom::FUSED.run(&fold, &graph, &root);
 dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
 ```
 
-Same shape. Same method. The resource management is an internal
+The call shape is identical. Resource management is an internal
 concern of each executor.
 
 ## The trait pair

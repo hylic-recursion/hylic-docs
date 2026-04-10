@@ -1,12 +1,14 @@
 # Domain system
 
-A **domain** is a boxing strategy — how closures inside Fold and
-Treeish are stored. Three built-in domains cover the spectrum from
-maximum capability to zero overhead.
+A domain controls how fold closures are stored — the boxing strategy
+that determines the refcount overhead, thread-safety, and
+transformation semantics of a `Fold<N, H, R>`. Graph types are
+domain-independent and live in a separate module (`hylic::graph`).
 
 ## The three domains
 
-<!-- -->
+The three built-in domains form a spectrum from maximum capability
+to minimum overhead:
 
 ```dot process
 digraph {
@@ -14,78 +16,74 @@ digraph {
     node [shape=box, style="rounded,filled", fontname="monospace", fontsize=11];
     edge [fontname="sans-serif", fontsize=10];
 
-    shared [label="Shared\nArc<dyn Fn + Send + Sync>\nClone, Send, Sync\nborrow transforms", fillcolor="#d4edda"];
-    local [label="Local\nRc<dyn Fn>\nClone, !Send\nborrow transforms", fillcolor="#fff3cd"];
-    owned [label="Owned\nBox<dyn Fn>\n!Clone, !Send\nmove transforms", fillcolor="#f8d7da"];
+    shared [label="Shared\nArc<dyn Fn + Send + Sync>\nClone, Send, Sync", fillcolor="#d4edda"];
+    local [label="Local\nRc<dyn Fn>\nClone, !Send", fillcolor="#fff3cd"];
+    owned [label="Owned\nBox<dyn Fn>\n!Clone, !Send", fillcolor="#f8d7da"];
 
-    shared -> local [label="lighter refcount", style=dashed, dir=back];
-    local -> owned [label="zero refcount", style=dashed, dir=back];
+    shared -> local [label="non-atomic\nrefcount", style=dashed, dir=back];
+    local -> owned [label="no refcount", style=dashed, dir=back];
 }
 ```
 
-| Domain | Storage | Clone | Send+Sync | Transforms | Executors |
-|--------|---------|-------|-----------|------------|-----------|
+| Domain | Fold storage | Clone | Send+Sync | Fold transforms | Executors |
+|--------|-------------|-------|-----------|-----------------|-----------|
 | **Shared** | `Arc<dyn Fn + Send + Sync>` | yes | yes | borrow (`&self`) | Fused, Funnel |
 | **Local** | `Rc<dyn Fn>` | yes | no | borrow (`&self`) | Fused |
 | **Owned** | `Box<dyn Fn>` | no | no | move (`self`) | Fused |
 
-## Domain modules as the single entry point
+The domain affects only the fold. Graph types (`Treeish`, `Edgy`,
+`Graph`, `SeedGraph`) are always Arc-based because graph composition
+requires Clone. The executor accepts any graph type that implements
+`TreeOps<N>` — the graph's storage is checked at the call site, not
+through the domain.
 
-Each domain has its own module that re-exports everything needed:
+## Module structure
 
-```rust
-use hylic::domain::shared as dom;   // the standard choice
-use hylic::domain::local as dom;    // lighter refcount
-use hylic::domain::owned as dom;    // zero overhead
-```
-
-Each domain module owns its concrete types. Infrastructure modules
-contain only domain-independent combinator logic, shared by all domains
-but not directly user-facing.
+Each domain module provides fold constructors and executor bindings.
+Graph types are in a separate public module:
 
 ```
 domain/
-  shared/
-    fold.rs         Fold<N,H,R>  (Arc)    + constructors
-    graph.rs        Edgy, Treeish (Arc)   + constructors
-    compose.rs      Graph, SeedGraph, GraphWithFold
-  local/
-    mod.rs          Fold, Treeish (Rc)    + constructors
-  owned/
-    mod.rs          Fold, Treeish (Box)   + constructors
+  shared/fold.rs    Fold (Arc) + fold(), simple_fold(), exec(), FUSED
+  local/mod.rs      Fold (Rc)  + fold(), simple_fold(), exec(), FUSED
+  owned/mod.rs      Fold (Box) + fold(), simple_fold(), exec(), FUSED
 
-fold/
-  combinators.rs    map_fold, contramap_fold, wrap_init, ...  (domain-independent)
 graph/
-  combinators.rs    map_edges, contramap_node, filter_edges, ...  (domain-independent)
-  visit.rs          Visit<T,F>  push iterator
+  edgy.rs           Edgy<N,E>, Treeish<N> (Arc) + combinators
+  compose.rs        Graph, SeedGraph, GraphWithFold
 ```
 
-Users access types and constructors exclusively through domain modules.
-One way in.
+A typical program imports a domain module for folds and the graph
+module for tree structure:
 
-## The `Domain` trait
+```rust
+use hylic::domain::shared as dom;
+use hylic::graph;
+```
 
-<!-- -->
+## The Domain trait
+
+The `Domain` trait provides a single associated type — the concrete
+Fold type for each domain:
 
 ```rust
 {{#include ../../../../hylic/src/domain/mod.rs:domain_trait}}
 ```
 
-Each domain marker implements this trait, providing concrete Fold
-and Treeish types via GATs (Generic Associated Types). The executor
-trait is parameterized by the domain:
+The Executor trait is parameterized by `D: Domain<N>`, so the
+compiler resolves `D::Fold<H, R>` to the concrete fold type at
+monomorphization time. The graph type is a separate type parameter
+`G: TreeOps<N>` on the Executor trait, constrained per executor
+implementation (Fused accepts any G; Funnel requires G: Send+Sync).
 
 ```rust
 {{#include ../../../../hylic/src/cata/exec/mod.rs:executor_trait}}
 ```
 
-The compiler resolves `D::Fold<H, R>` to the concrete type — e.g.,
-`shared::Fold<N, H, R>` when `D = Shared`.
+## FoldOps and TreeOps
 
-## FoldOps and TreeOps — the universal interface
-
-The operations traits sit above all domains:
+The operations traits provide the universal interface that executors
+program against:
 
 ```dot process
 digraph {
@@ -96,78 +94,56 @@ digraph {
     foldops [label="FoldOps<N, H, R>\ninit / accumulate / finalize", fillcolor="#e8e8e8"];
     treeops [label="TreeOps<N>\nvisit / apply", fillcolor="#e8e8e8"];
 
-    sf [label="shared::Fold\n(Arc)"];
-    lf [label="local::Fold\n(Rc)"];
-    of [label="owned::Fold\n(Box)"];
-    uf [label="UserStruct\n(no boxing)"];
+    sf [label="shared::Fold (Arc)"];
+    lf [label="local::Fold (Rc)"];
+    of [label="owned::Fold (Box)"];
+    uf [label="user struct"];
 
-    st [label="shared::Treeish\n(Arc)"];
-    lt [label="local::Treeish\n(Rc)"];
-    ot [label="owned::Treeish\n(Box)"];
+    gt [label="graph::Treeish (Arc)"];
+    ut [label="user struct"];
 
     foldops -> sf [dir=back];
     foldops -> lf [dir=back];
     foldops -> of [dir=back];
     foldops -> uf [dir=back];
 
-    treeops -> st [dir=back];
-    treeops -> lt [dir=back];
-    treeops -> ot [dir=back];
+    treeops -> gt [dir=back];
+    treeops -> ut [dir=back];
 }
 ```
 
 Any type implementing `init`/`accumulate`/`finalize` is a fold. Any
 type implementing `visit` is a graph. The executor's recursion engine
-takes `&impl FoldOps + &impl TreeOps` — fully generic.
+operates on these traits, not on concrete types.
 
-## Why the domain is on the executor, not the fold
+## Why the domain is on the executor
 
-Fold and Treeish have no domain parameter: `Fold<N, H, R>` and
-`Treeish<N>`. This keeps types simple. The domain marker lives on
-the executor: `Exec<D, S>`.
+`Fold<N, H, R>` has no domain parameter — the domain is a type
+parameter on the executor: `Exec<D, S>`. This resolves a type
+inference problem: GATs are not injective (`D::Fold<H, R>` does not
+uniquely identify `D`), so placing the domain on the fold would
+prevent the compiler from inferring the domain from the argument
+types. With `D` on the executor, each constant (`dom::FUSED`) or
+`dom::exec(...)` call fixes `D`, and the compiler resolves everything
+statically. See [Domain integration](../executor-design/domain_integration.md).
 
-This solves a type inference problem: if the domain were on the fold,
-the compiler couldn't determine D from the argument types (GATs are
-not injective). With D on the executor, each const has exactly one
-`D`, and the compiler resolves everything statically. See
-[Domain integration](../executor-design/domain_integration.md) for
-the full explanation.
+## Choosing a domain
 
-## Constructing folds in different domains
+**Shared** is the default choice. It supports parallel execution
+(Funnel requires Send+Sync folds), lift integration (Explainer
+operates on Shared folds), and non-destructive fold transformations
+(the original fold is preserved after map/contramap/product).
 
-Same closures, different constructor:
+**Local** provides the same transformation API with lighter
+refcounting (~1ns per Rc clone vs ~5ns per Arc clone). It works
+with the Fused executor for single-threaded computation.
 
-```rust
-{{#include ../../../src/docs_examples.rs:domain_switching}}
-```
+**Owned** eliminates refcounting entirely. Fold transformations
+consume the original (move semantics). Useful for measuring the
+framework's raw overhead in benchmarks, or for single-use folds
+where the original is not needed after transformation.
 
-The closures are domain-independent. The constructor selects the
-boxing strategy. To switch domains, change the import — the code
-stays the same.
-
-## When to use which domain
-
-**Shared** — the default. Use when:
-- You need parallel execution (Funnel requires Send+Sync)
-- You use Lifts (Explainer)
-- You use GraphWithFold pipelines (they need Clone)
-- You need non-destructive fold transformations (original preserved)
-
-**Local** — lighter refcount:
-- Rc clone is ~1ns vs Arc's ~5ns
-- Full fold and graph transformations (same as Shared, no Send+Sync)
-- Works with Fused
-
-**Owned** — zero refcount:
-- Box is the cheapest storage
-- Full fold and graph transformations via move semantics (original consumed)
-- Works with Fused
-- Shows the framework's raw overhead in benchmarks
-
-All three domains support the same transformation API surface
-(`wrap_init`, `wrap_accumulate`, `wrap_finalize`, `map`, `zipmap`,
-`contramap`, `product`, `filter`, `treemap`). Shared and Local
-borrow (`&self`) — the original is preserved. Owned consumes
-(`self`) — the original is moved into the result.
-
-Most users should use Shared and never think about domains.
+All three domains provide the same fold combinator surface:
+`wrap_init`, `wrap_accumulate`, `wrap_finalize`, `map`, `zipmap`,
+`contramap`, `product`. The difference is in the calling convention
+(borrow vs move) and the auto-traits (Send+Sync vs neither).

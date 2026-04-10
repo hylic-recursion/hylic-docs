@@ -1,96 +1,102 @@
 # Import patterns
 
-One import. Everything works.
+hylic organizes its public surface into a small number of modules.
+A typical program requires two imports: a domain module for fold
+construction, and the graph module for tree structure.
 
-## The single-import pattern
-
-<!-- -->
+## The standard imports
 
 ```rust
-use hylic::domain::shared as dom;
+use hylic::domain::shared as dom;   // fold constructors, exec(), FUSED
+use hylic::graph;                    // graph constructors, composition types
 ```
 
-This gives you fold constructors, treeish constructors, the Fused
-executor, and all the types you need:
+A complete example using both:
 
 ```rust
 use hylic::domain::shared as dom;
+use hylic::graph;
 
 let fold  = dom::simple_fold(|n: &i32| *n as u64, |h: &mut u64, c: &u64| *h += c);
-let graph = dom::treeish(|n: &i32| if *n > 1 { vec![n - 1, n - 2] } else { vec![] });
+let graph = graph::treeish(|n: &i32| if *n > 1 { vec![n - 1, n - 2] } else { vec![] });
 let result = dom::FUSED.run(&fold, &graph, &5);
 ```
 
-No trait imports. No `use Executor`. The `.run()` and `.run_lifted()`
-methods are **inherent** on each executor — they exist on the type
-itself, not via a trait.
+The `.run()` method is inherent on `Exec<D, S>`, so no trait import
+is needed for basic usage.
 
-## What the domain module provides
+## What each module provides
 
-Each domain module (`shared`, `local`, `owned`) exports:
+**Domain modules** (`domain::shared`, `domain::local`, `domain::owned`)
+export the fold type and its constructors, plus executor binding:
 
-| Category | Examples |
-|----------|----------|
-| **Executor consts** | `FUSED` |
-| **Executor factory** | `exec(spec)` — bind any Spec to the domain |
-| **Fold constructors** | `fold()`, `simple_fold()` |
-| **Fold types** | `Fold` |
-| **Graph constructors** | `treeish()`, `treeish_visit()`, `treeish_from()`, `edgy()` |
-| **Graph types** | `Treeish`, `Edgy`, `Graph`, `SeedGraph` |
-| **Pipeline** | `GraphWithFold` (Shared only) |
+| Export | Purpose |
+|--------|---------|
+| `Fold`, `fold()`, `simple_fold()` | Fold type and constructors |
+| `FUSED` | Sequential executor (all domains) |
+| `exec(spec)` | Bind a parallel executor to this domain |
+
+**The graph module** (`hylic::graph`) exports graph types and
+constructors. These are domain-independent — the same `Treeish` works
+with any domain's executor:
+
+| Export | Purpose |
+|--------|---------|
+| `Treeish`, `Edgy` | Arc-based graph types with combinators |
+| `treeish()`, `treeish_visit()`, `treeish_from()` | Treeish constructors |
+| `edgy()`, `edgy_visit()` | General edge function constructors |
+| `Graph`, `SeedGraph`, `GraphWithFold` | Composition types |
 
 ## Switching domains
 
-Change the import, same code:
+To switch the fold domain, change the domain import. The graph import
+and the closure definitions remain the same:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:domain_switching}}
 ```
 
-The closures (`init`, `acc`, `fin`, `children`) are domain-independent.
-Only the constructor and executor const change.
+The closures are domain-independent — only the fold constructor and
+the executor constant change.
 
-## When you need more
+## Additional imports
 
-**Parallel execution** — the Funnel executor:
+For parallel execution, import the Funnel executor:
 
 ```rust
-use hylic::domain::shared as dom;
 use hylic::cata::exec::funnel;
 
-// One-shot:
 dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
 
-// Session scope (amortized pool reuse):
+// Or with a session scope for amortized pool reuse:
 dom::exec(funnel::Spec::default(8)).session(|s| {
     s.run(&fold, &graph, &root);
 });
 ```
 
-**Prelude utilities** — Explainer (trace), formatting, common folds:
+For prelude utilities (Explainer, common folds, formatting):
 
 ```rust
 use hylic::prelude::{Explainer, depth_fold, TreeFormatCfg};
 ```
 
-**Operations traits** — needed only for generic or zero-boxing code:
+For the operations traits (needed in generic code that accepts
+arbitrary folds or graphs as parameters):
 
 ```rust
 use hylic::ops::{FoldOps, TreeOps};
 ```
 
-**The `Executor` trait** — needed only for trait-generic code
-(accepting any executor as a parameter):
+For the Executor trait (needed when writing functions that accept
+any executor):
 
 ```rust
 use hylic::cata::exec::Executor;
 ```
 
-Most code never needs these — the inherent methods handle everything.
+## Import hierarchy
 
-## The hierarchy
-
-<!-- -->
+The typical progression from simple to advanced usage:
 
 ```dot process
 digraph {
@@ -98,17 +104,13 @@ digraph {
     node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="sans-serif", fontsize=11];
     edge [fontname="sans-serif", fontsize=10];
 
-    dom [label="use hylic::domain::shared as dom;\n(or local, owned)", fillcolor="#d4edda"];
-    funnel [label="use hylic::cata::exec::funnel;\nSpec, Pool, Session", fillcolor="#fff3cd"];
-    prelude [label="use hylic::prelude::{...};\nExplainer, depth_fold, ...", fillcolor="#fff3cd"];
-    ops [label="use hylic::ops::{...};\nFoldOps, TreeOps, LiftOps", fillcolor="#f8d7da"];
+    core [label="hylic::domain::shared as dom\nhylic::graph", fillcolor="#d4edda"];
+    funnel [label="hylic::cata::exec::funnel\nfor parallel execution", fillcolor="#fff3cd"];
+    prelude [label="hylic::prelude\nExplainer, common folds", fillcolor="#fff3cd"];
+    ops [label="hylic::ops\nFoldOps, TreeOps traits", fillcolor="#f8d7da"];
 
-    dom -> funnel [label="when you need\nparallel execution", style=dashed];
-    dom -> prelude [label="when you need\nutilities or Explainer", style=dashed];
-    dom -> ops [label="when you write\ngeneric code", style=dashed];
+    core -> funnel [label="parallel", style=dashed];
+    core -> prelude [label="utilities", style=dashed];
+    core -> ops [label="generic code", style=dashed];
 }
 ```
-
-Most users only need the green box. The yellow boxes are for parallel
-execution and utilities. The red box is for advanced generic
-programming.

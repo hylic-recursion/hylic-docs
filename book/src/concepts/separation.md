@@ -52,14 +52,14 @@ gives each a name and a type:
 **Treeish** — the tree structure. Given a node, visit its children:
 
 ```rust
-{{#include ../../../../hylic/src/domain/shared/graph.rs:edgy_struct}}
+{{#include ../../../../hylic/src/graph/edgy.rs:edgy_struct}}
 ```
 
 `Treeish<N>` is an alias for `Edgy<N, N>` — an edge function where
 nodes and edges are the same type:
 
 ```rust
-{{#include ../../../../hylic/src/domain/shared/graph.rs:treeish_alias}}
+{{#include ../../../../hylic/src/graph/edgy.rs:treeish_alias}}
 ```
 
 You construct one by providing a function from node to children:

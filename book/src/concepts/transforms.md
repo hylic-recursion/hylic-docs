@@ -83,14 +83,13 @@ Four functions:
 - `lift_root`: `&N → N2`
 - `unwrap`: `R2 → R`
 
-Execution goes through `Exec::run_lifted`:
+Execution uses the free function `cata::lift::run_lifted`, which
+applies the four transformations and then runs the result through
+a Shared-domain executor:
 
-```rust
-{{#include ../../../../hylic/src/cata/exec/mod.rs:run_lifted}}
-```
-
-The pattern: lift types → run in lifted domain → unwrap back to R.
-The caller gets the same `R` as if no Lift were applied.
+The pattern is: lift the types, run in the lifted type domain,
+unwrap back to the original R. The caller receives the same `R`
+as if no lift were applied.
 
 ```dot process
 digraph {

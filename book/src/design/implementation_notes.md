@@ -41,7 +41,7 @@ impl_visit: Arc<dyn Fn(&NodeT, &mut dyn FnMut(&EdgeT)) + Send + Sync>
 **Why callbacks, not `Vec` return:** The original design used
 `Fn(&N) -> Vec<E>` — every traversal allocated a `Vec`. The callback
 signature `Fn(&N, &mut dyn FnMut(&E))` visits children by reference.
-No allocation, no cloning.
+This avoids allocation and cloning.
 
 **`apply()` as escape hatch:** When a `Vec` is actually needed (e.g.,
 for parallel iteration), `apply()` collects via the callback.
@@ -52,10 +52,10 @@ a zero-allocation push-based iterator with `map`, `filter`, `fold`,
 
 ## Lift: domain-generic, Box storage
 
-`Lift<D, N, H, R, N2, H2, R2>` stores its four transform closures
-in `Box<dyn Fn>` — not Arc. Lift is not Clone, not Send, not Sync.
-Its closures fire once per `run_lifted` call (construction-time
-transforms, not per-node operations). Box is the correct storage.
+`Lift<N, H, R, N2, H2, R2>` stores its four transform closures in
+`Box<dyn Fn>`. Lift is not Clone, not Send, not Sync. Its closures
+fire once per lifted execution (construction-time transforms, not
+per-node operations). Box is the appropriate storage for this.
 
 `LiftOps` is the operations trait parallel to `FoldOps`. The `Lift`
 struct implements it.
@@ -82,17 +82,17 @@ Used by ParLazy and ParEager in the `hylic-parallel-lifts` crate.
 Not called within hylic core. This is a cross-crate API surface for
 one downstream consumer.
 
-## `pub(crate)` on implementation modules
+## Module visibility
 
-Each domain owns its concrete types in submodules (`domain/shared/fold.rs`,
-`domain/shared/graph.rs`, `domain/shared/compose.rs`, etc.). The
-infrastructure modules `fold/` and `graph/` are `pub(crate)` — they
-contain only domain-independent combinators and the Visit iterator,
-shared by all domains but not directly user-facing.
+`graph/` is public — it contains the domain-independent graph types
+(Edgy, Treeish, Graph, SeedGraph, GraphWithFold) that all code
+imports directly. `fold/` is `pub(crate)` — it contains only the
+domain-independent combinator functions used internally by the three
+domain Fold implementations.
 
-`cata/` and `ops/` remain public — `cata` for Lift and executor
-access, `ops` for the FoldOps/TreeOps/LiftOps traits needed by
-generic code.
+Each domain owns its Fold type in `domain/{shared,local,owned}/fold.rs`.
+`cata/` and `ops/` are public — `cata` for executors and lifts,
+`ops` for the FoldOps/TreeOps traits.
 
 ## The `prelude` module
 

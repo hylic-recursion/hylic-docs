@@ -19,7 +19,7 @@ In hylic terms: a `Treeish<N>` exposes `visit(&node, |child| ...)`
 and a `Fold<N, H, R>` provides `init / accumulate / finalize`. The
 executor calls `visit` to discover children, recursively processes
 each, accumulates results into the parent's heap, and finalizes.
-No `Vec<Child>` is allocated. No tree is built.
+The intermediate tree is never materialized as a data structure.
 
 The funnel parallelizes this: children beyond the first are pushed
 to a work-stealing queue. Worker threads steal and process subtrees

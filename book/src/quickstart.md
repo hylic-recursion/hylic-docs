@@ -1,11 +1,17 @@
 # Quick Start
 
-Define a tree type, write a fold, run it. Five minutes.
+This page walks through constructing and running a fold over a
+simple tree, then switching to parallel execution.
 
-## 1. Define your tree
+## Define the tree type
+
+Any Rust type whose nodes have children works. hylic does not
+require a particular trait — only that you can describe the
+parent-child relationship as a function.
 
 ```rust
 use hylic::domain::shared as dom;
+use hylic::graph;
 
 #[derive(Clone)]
 struct Dir {
@@ -15,20 +21,24 @@ struct Dir {
 }
 ```
 
-## 2. Tell hylic how to find children
+## Describe the tree structure
+
+A `Treeish<Dir>` encapsulates how to traverse from a node to its
+children. The `treeish` constructor wraps a function that returns
+a `Vec` of children; `treeish_visit` accepts a callback-based form
+that avoids the intermediate allocation.
 
 ```rust
-let graph = dom::treeish(|d: &Dir| d.children.clone());
+let graph = graph::treeish(|d: &Dir| d.children.clone());
 ```
 
-This creates a `Treeish<Dir>` — a callback-based traversal function.
-No allocation per visit when using `treeish_visit` (the callback
-form); `treeish` wraps a Vec-returning function for convenience.
+## Define the fold
 
-## 3. Define the fold
-
-A fold has three phases: init (node → heap), accumulate (heap × child
-result → heap), finalize (heap → result).
+A fold has three phases: `init` produces a heap value from a node,
+`accumulate` incorporates each child's result into the heap, and
+`finalize` extracts the result from the heap. `simple_fold` is a
+shorthand for the common case where the heap type equals the result
+type and finalize is the identity.
 
 ```rust
 let init = |d: &Dir| d.size;
@@ -36,10 +46,12 @@ let acc = |heap: &mut u64, child: &u64| *heap += child;
 let fold = dom::simple_fold(init, acc);
 ```
 
-`simple_fold` is shorthand for when the heap type equals the result
-type and finalize is identity.
+## Run it
 
-## 4. Run it
+`dom::FUSED` is the sequential executor. It recurses through the
+tree using the fold and graph provided, with no additional
+allocation or indirection beyond what the fold closures themselves
+require.
 
 ```rust
 let tree = Dir {
@@ -56,41 +68,36 @@ let total = dom::FUSED.run(&fold, &graph, &tree);
 assert_eq!(total, 190); // 10 + 100 + 50 + 30
 ```
 
-`dom::FUSED` is the sequential executor — zero overhead, callback-based
-recursion. Same fold, same graph, same result as hand-written recursion.
+## Switch to parallel execution
 
-## 5. Make it parallel
+The Funnel executor uses the same fold and graph. It creates a
+scoped thread pool internally, distributes subtrees across workers
+via CPS work-stealing, and joins before returning.
 
 ```rust
 use hylic::cata::exec::funnel;
 
 let total = dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &tree);
-assert_eq!(total, 190); // same result, concurrent execution
+assert_eq!(total, 190);
 ```
 
-Same `.run()` call. The Funnel executor creates a thread pool
-internally, processes subtrees concurrently via CPS work-stealing,
-and joins. The fold and graph are unchanged.
-
-For repeated folds, amortize pool creation:
+For repeated folds, pool creation can be amortized by entering a
+session scope:
 
 ```rust
 dom::exec(funnel::Spec::default(8)).session(|s| {
     let total1 = s.run(&fold, &graph, &tree);
     let total2 = s.run(&fold, &graph, &tree);
-    // pool shared across both folds
+    // The thread pool is shared across both folds.
 });
 ```
 
-## What next
+## Further reading
 
-- [The recursive pattern](./concepts/separation.md) — why the
-  three-phase separation matters
-- [Fold: shaping the computation](./guides/fold.md) — map, zipmap,
-  contramap, product
-- [Graph: controlling traversal](./guides/graph.md) — filter,
-  contramap, memoize
-- [Funnel executor](./funnel/overview.md) — CPS walk, policies,
-  benchmarks
-- [Cookbook](./cookbook/fibonacci.md) — working examples with
-  snapshot-tested output
+- [The recursive pattern](./concepts/separation.md) — the
+  decomposition that makes this work
+- [Fold guide](./guides/fold.md) — transformations: map, contramap,
+  product, phase wrapping
+- [Graph guide](./guides/graph.md) — filtering, contramap, memoization
+- [Funnel executor](./funnel/overview.md) — the parallel CPS engine
+- [Cookbook](./cookbook/fibonacci.md) — worked examples

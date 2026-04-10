@@ -1,12 +1,14 @@
 # Parallel execution
 
-hylic provides two execution modes. `dom::FUSED` is the sequential
-baseline. Funnel parallelizes the same computation across worker
-threads. Both use `.run()` — same interface, same shape.
+hylic provides two built-in executors. `dom::FUSED` runs the fold
+sequentially through callback-based recursion. The Funnel executor
+parallelizes the same fold across a scoped thread pool. Both are
+invoked through the same `.run()` method.
 
 ## Sequential: `dom::FUSED`
 
-Zero overhead, callback-based recursion on a single thread:
+Callback-based recursion on a single thread, with no overhead beyond
+the fold closures themselves:
 
 ```rust
 use hylic::domain::shared as dom;
@@ -28,9 +30,9 @@ use hylic::domain::shared as dom;
 dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
 ```
 
-`Spec::default(n)` uses the Robust policy. `.run()` internally
-creates a scoped thread pool, runs the fold, and joins threads.
-One line.
+`Spec::default(n)` uses the Robust policy preset. `.run()` creates
+a scoped thread pool internally, runs the fold, and joins before
+returning.
 
 ### Session scope
 

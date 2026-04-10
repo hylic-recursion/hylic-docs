@@ -1,36 +1,48 @@
-# Domain Integration
+# Domain integration
 
-The domain system lets executors accept folds and graphs without
-knowing their concrete storage (Arc, Rc, Box). The `Domain` trait
-maps a marker type to concrete `Fold` and `Treeish` types via GATs.
-The executor is parameterized by the domain — the compiler resolves
-everything statically.
+The domain system lets executors accept folds without knowing their
+concrete storage. The `Domain` trait maps a marker type to a concrete
+`Fold` type via a GAT. The graph type is a separate concern — the
+`Executor` trait accepts any `G: TreeOps<N>`, with per-executor
+bounds checked at the call site.
 
 ## The Domain trait
+
+The Domain trait provides a single associated type — the fold:
 
 ```rust
 {{#include ../../../../hylic/src/domain/mod.rs:domain_trait}}
 ```
 
 Each domain marker (`Shared`, `Local`, `Owned`) implements this
-trait, providing concrete types:
+trait with a different closure boxing strategy:
 
-| Domain | `Fold<H, R>` storage | `Treeish` storage | Send+Sync |
-|---|---|---|---|
-| **Shared** | `Arc<dyn Fn + Send + Sync>` | `Arc<dyn Fn + Send + Sync>` | yes |
-| **Local** | `Rc<dyn Fn>` | `Rc<dyn Fn>` | no |
-| **Owned** | `Box<dyn Fn>` | `Box<dyn Fn>` | no |
+| Domain | `Fold<H, R>` storage | Send+Sync |
+|--------|---------------------|-----------|
+| **Shared** | `Arc<dyn Fn + Send + Sync>` | yes |
+| **Local** | `Rc<dyn Fn>` | no |
+| **Owned** | `Box<dyn Fn>` | no |
 
-## Why D is on the executor, not the fold
+Graph types are domain-independent. `Treeish<N>` and `Edgy<N, E>`
+in `hylic::graph` are always Arc-based (they need Clone for graph
+composition). Any type implementing `TreeOps<N>` can serve as a
+graph, including user-defined structs with no boxing at all.
 
-`Fold<N, H, R>` and `Treeish<N>` have no domain parameter. The
-domain marker lives on the executor: `Exec<D, S>`.
+## The Executor trait
 
-This solves a type inference problem. If the domain were on the fold,
-the compiler couldn't determine `D` from the argument types — GATs
-are not injective (`D::Fold<H, R>` doesn't uniquely identify `D`).
-With `D` on the executor, each const (`dom::FUSED`) has exactly one
-`D`, and the compiler resolves everything from the const's type.
+The executor trait has four type parameters: `N` (node), `R`
+(result), `D` (domain), and `G` (graph):
+
+```rust
+{{#include ../../../../hylic/src/cata/exec/mod.rs:executor_trait}}
+```
+
+The domain `D` determines the fold type (`D::Fold<H, R>`). The graph
+type `G` is constrained per executor implementation. This separation
+means the fold's boxing strategy and the graph's storage are
+independent choices.
+
+The type resolution at a call site proceeds as follows:
 
 ```dot process
 digraph {
@@ -41,33 +53,48 @@ digraph {
   exec [label="Exec<Shared, fused::Spec>\n= dom::FUSED", fillcolor="#d4edda"];
   domain [label="D = Shared\n(fixed by const type)", fillcolor="#fff3cd"];
   fold [label="D::Fold<H, R>\n= shared::Fold<N, H, R>", fillcolor="#cce5ff"];
-  tree [label="D::Treeish\n= shared::Treeish<N>", fillcolor="#cce5ff"];
+  gtype [label="G: TreeOps<N>\n(inferred from argument)", fillcolor="#cce5ff"];
   nhr [label="N, H, R\n(inferred from args)", fillcolor="#f5f5f5"];
 
-  exec -> domain [label="type param"];
+  exec -> domain [label="type param D"];
   domain -> fold [label="GAT resolution"];
-  domain -> tree [label="GAT resolution"];
-  exec -> nhr [label="method params"];
+  exec -> gtype [label="inferred from\ngraph argument"];
+  exec -> nhr [label="inferred from\nfold + root"];
 }
 ```
 
-## Domain modules as entry points
+The compiler checks that `G` satisfies the executor's requirements.
+For Fused, any `TreeOps<N>` suffices. For Funnel, `G` must also be
+`Send + Sync` (the graph reference is shared across a scoped pool).
+If the graph type does not satisfy the executor's bounds, the call
+site produces a compile error.
 
-Each domain has its own module that re-exports constructors:
+## Why D is on the executor, not the fold
 
-```rust
-use hylic::domain::shared as dom;   // the standard choice
-// dom::fold(init, acc, fin)
-// dom::treeish(|n| n.children.clone())
-// dom::FUSED.run(&fold, &graph, &root)
-```
+`Fold<N, H, R>` carries no domain parameter — the domain lives on
+the executor: `Exec<D, S>`. This resolves a type inference problem:
+GATs are not injective (`D::Fold<H, R>` does not uniquely identify
+`D`), so the compiler cannot infer `D` from a fold argument alone.
+With `D` fixed by the executor constant or `exec()` call, everything
+resolves statically.
 
-Implementation modules (`fold/`, `graph/`) are `pub(crate)`. Users
-access types and constructors exclusively through domain modules.
+## Domain compatibility
 
-## FoldOps and TreeOps
+| | Shared | Local | Owned |
+|---|:---:|:---:|:---:|
+| **Fused** | yes | yes | yes |
+| **Funnel** | yes | — | — |
 
-The operations traits sit above all domains:
+Fused supports all domains because it borrows both fold and graph
+on a single thread. Funnel requires `N: Clone + Send` and `R: Send`
+on the fold's types, which the Shared domain satisfies. The graph
+must additionally be `Send + Sync`.
+
+## The FoldOps trait
+
+Executors do not call fold methods through the concrete domain type.
+They operate through the `FoldOps<N, H, R>` trait, which all domain
+Fold types implement:
 
 ```dot process
 digraph {
@@ -77,9 +104,9 @@ digraph {
 
   foldops [label="FoldOps<N, H, R>\ninit / accumulate / finalize", fillcolor="#e8e8e8"];
 
-  sf [label="shared::Fold\n(Arc)", fillcolor="#d4edda"];
-  lf [label="local::Fold\n(Rc)", fillcolor="#fff3cd"];
-  of [label="owned::Fold\n(Box)", fillcolor="#f8d7da"];
+  sf [label="shared::Fold (Arc)", fillcolor="#d4edda"];
+  lf [label="local::Fold (Rc)", fillcolor="#fff3cd"];
+  of [label="owned::Fold (Box)", fillcolor="#f8d7da"];
 
   foldops -> sf [dir=back];
   foldops -> lf [dir=back];
@@ -87,20 +114,6 @@ digraph {
 }
 ```
 
-Any type implementing `init`/`accumulate`/`finalize` is a fold. The
-executor's recursion engine takes `&impl FoldOps<N, H, R>` — fully
-generic, monomorphized to zero overhead for concrete types.
-
-## Domain support
-
-| | Shared | Local | Owned |
-|---|:---:|:---:|:---:|
-| **Fused** | yes | yes | yes |
-| **Funnel** | yes | — | — |
-
-Fused supports all domains (it borrows, never clones). Funnel
-requires `N: Clone + Send, R: Send` — the Shared domain provides
-these. `R: Clone` is NOT required — the funnel uses destructive
-slot reads during accumulation. Supporting Local/Owned for Funnel
-would require the same `SyncRef` pattern used by the Pool executor
-(see [Implementation notes](../design/implementation_notes.md)).
+The executor's recursion engine takes `&impl FoldOps<N, H, R>` —
+fully monomorphized for the concrete fold type, with no runtime
+dispatch beyond the closure's own vtable.
