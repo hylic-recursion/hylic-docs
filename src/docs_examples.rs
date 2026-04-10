@@ -8,8 +8,6 @@
 mod tests {
     use hylic::domain::shared as dom;
 use hylic::graph;
-    use hylic::domain::local;
-    use hylic::domain::owned;
     // ── concepts/separation.md examples ────────────────
 
     // ANCHOR: treeish_constructor
@@ -131,10 +129,10 @@ use hylic::graph;
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         // Transparent: get R, trace discarded
-        let _r = dom::FUSED.run_lifted(&Explainer::lift(), &fold, &graph, &root);
+        let _r = hylic::cata::lift::run_lifted(&dom::FUSED, &Explainer::lift(), &fold, &graph, &root);
 
         // Zipped: get both R and the full ExplainerResult
-        let (_r, trace) = dom::FUSED.run_lifted_zipped(&Explainer::lift(), &fold, &graph, &root);
+        let (_r, trace) = hylic::cata::lift::run_lifted_zipped(&dom::FUSED, &Explainer::lift(), &fold, &graph, &root);
         assert_eq!(trace.orig_result, 3);
     }
     // ANCHOR_END: explainer_usage
@@ -154,7 +152,7 @@ use hylic::graph;
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         WorkPool::with(WorkPoolSpec::threads(2), |pool| {
-            let r = dom::FUSED.run_lifted(&ParLazy::lift(pool), &fold, &graph, &root);
+            let r = hylic::cata::lift::run_lifted(&dom::FUSED, &ParLazy::lift(pool), &fold, &graph, &root);
             assert_eq!(r, 3);
         });
     }
@@ -175,7 +173,7 @@ use hylic::graph;
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         WorkPool::with(WorkPoolSpec::threads(2), |pool| {
-            let r = dom::FUSED.run_lifted(&ParEager::lift(pool, EagerSpec::default_for(3)), &fold, &graph, &root);
+            let r = hylic::cata::lift::run_lifted(&dom::FUSED, &ParEager::lift(pool, EagerSpec::default_for(3)), &fold, &graph, &root);
             assert_eq!(r, 3);
         });
     }
@@ -206,12 +204,12 @@ use hylic::graph;
 
         // Local domain (Rc, lighter):
         let fold = hylic::domain::local::fold(init, acc, fin);
-        let graph = local::treeish_visit(children);
+        let graph = graph::treeish_visit(children);
         let r2 = hylic::domain::local::FUSED.run(&fold, &graph, &root);
 
         // Owned domain (Box, zero refcount):
         let fold = hylic::domain::owned::fold(init, acc, fin);
-        let graph = owned::treeish_visit(children);
+        let graph = graph::treeish_visit(children);
         let r3 = hylic::domain::owned::FUSED.run(&fold, &graph, &root);
 
         assert_eq!(r1, r2);

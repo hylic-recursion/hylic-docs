@@ -7,7 +7,7 @@ mod tests {
     use std::collections::HashMap;
     use either::Either;
 
-    use hylic::domain::shared::GraphWithFold;
+    use hylic::graph::GraphWithFold;
     use hylic::prelude::seeds_for_fallible;
     use hylic::domain::shared as dom;
 use hylic::graph;
