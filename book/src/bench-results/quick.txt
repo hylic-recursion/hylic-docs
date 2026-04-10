@@ -1,0 +1,11 @@
+workload                         real.rayon funnel.pw.arrv.k4 funnel.sh.arrv.k4  funnel.pw.fin.k4  funnel.sh.fin.k4
+-------------------------------------------------------------------------------------------------------------------
+aggr_sm                       16.7ms (+30%)     16.7ms (+30%)      13.1ms (+2%)    12.9ms  (best)     15.8ms (+23%)
+bal_sm                        22.4ms (+11%)     24.1ms (+20%)      21.9ms (+9%)      21.6ms (+7%)    20.2ms  (best)
+graph-hv_sm                  20.2ms  (best)      20.3ms (+1%)      20.7ms (+3%)     22.2ms (+10%)     23.0ms (+14%)
+hash_sm                         1.1ms (+5%)       1.1ms (+1%)       1.2ms (+9%)       1.1ms (+1%)     1.1ms  (best)
+noop_sm                       0.0ms  (best)     0.0ms (+131%)     0.1ms (+251%)     0.0ms (+132%)     0.1ms (+360%)
+parse-hv_sm                  23.3ms  (best)     29.5ms (+27%)     29.2ms (+25%)     30.5ms (+31%)     28.7ms (+23%)
+parse-lt_sm                     6.5ms (+6%)       6.4ms (+5%)     6.1ms  (best)       6.6ms (+8%)       6.4ms (+4%)
+wide_sm                        8.9ms (+15%)     7.8ms  (best)       8.2ms (+5%)      8.8ms (+13%)       8.3ms (+7%)
+xform_sm                       13.2ms (+3%)    12.8ms  (best)      13.3ms (+4%)      13.1ms (+2%)     14.9ms (+16%)

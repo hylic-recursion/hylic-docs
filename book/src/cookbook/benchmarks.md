@@ -1,9 +1,21 @@
 # Benchmark results
 
-Three benchmark suites. All numbers are wall-clock means from
-criterion (40 samples, 20s measurement time).
+Four benchmark suites. All numbers are wall-clock means from
+criterion.
 
 <link rel="stylesheet" href="../bench-results/bench-style.css">
+
+## Quick — WIP improvement tracker
+
+Fast-returning subset: `real.rayon` baseline vs two funnel variants
+(`pw.arrv.k4`, `sh.arrv.k4`) across all workload scenarios.
+40 samples, 10s measurement time.
+
+```
+make bench-quick
+```
+
+<div id="bench-quick">Loading...</div>
 
 ## Overhead — framework cost
 
@@ -26,6 +38,8 @@ make -C hylic-benchmark bench-matrix
 ```
 
 <div id="bench-matrix">Loading...</div>
+
+<div id="bench-matrix-analysis">Loading...</div>
 
 ## Module simulation — realistic workload
 
@@ -50,9 +64,32 @@ async function loadBenchFragment(id, file) {
         document.getElementById(id).textContent = '(failed to load: ' + e.message + ')';
     }
 }
+loadBenchFragment('bench-quick', 'quick.html');
 loadBenchFragment('bench-overhead', 'overhead.html');
 loadBenchFragment('bench-matrix', 'matrix.html');
 loadBenchFragment('bench-modsim', 'modsim.html');
+
+// Analysis fragment needs script execution after innerHTML injection
+(async function() {
+    try {
+        const resp = await fetch('../bench-results/matrix-analysis.html');
+        if (resp.ok) {
+            const html = await resp.text();
+            const el = document.getElementById('bench-matrix-analysis');
+            el.innerHTML = html;
+            // Extract and execute scripts (innerHTML doesn't run them)
+            el.querySelectorAll('script').forEach(old => {
+                const s = document.createElement('script');
+                s.textContent = old.textContent;
+                old.replaceWith(s);
+            });
+        } else {
+            document.getElementById('bench-matrix-analysis').textContent = '';
+        }
+    } catch (e) {
+        document.getElementById('bench-matrix-analysis').textContent = '';
+    }
+})();
 </script>
 
 ## Workload scenarios

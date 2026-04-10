@@ -1,0 +1,509 @@
+{
+  "baseline": "real.rayon",
+  "baseline_values": {
+    "aggr_sm": 11.1315,
+    "bal_sm": 14.8274,
+    "deep_sm": 5.7661,
+    "fin_sm": 6.8418,
+    "graph-hv_sm": 13.8224,
+    "graph-io_sm": 10.0705,
+    "hash_sm": 0.8025,
+    "io_sm": 5.6577,
+    "lg-dense_sm": 13.1421,
+    "noop_sm": 0.0194,
+    "parse-hv_sm": 17.9461,
+    "parse-lt_sm": 4.6236,
+    "wide_sm": 6.1774,
+    "xform_sm": 7.8088
+  },
+  "workloads": [
+    "aggr_sm",
+    "bal_sm",
+    "deep_sm",
+    "fin_sm",
+    "graph-hv_sm",
+    "graph-io_sm",
+    "hash_sm",
+    "io_sm",
+    "lg-dense_sm",
+    "noop_sm",
+    "parse-hv_sm",
+    "parse-lt_sm",
+    "wide_sm",
+    "xform_sm"
+  ],
+  "axis_names": [
+    "queue",
+    "accumulate",
+    "wake"
+  ],
+  "axis_values": {
+    "queue": [
+      "pw",
+      "sh"
+    ],
+    "accumulate": [
+      "arrv",
+      "fin"
+    ],
+    "wake": [
+      "push",
+      "batch",
+      "k4",
+      "k2"
+    ]
+  },
+  "non_funnel": {
+    "hand.rayon": {
+      "aggr_sm": 11.3468,
+      "bal_sm": 14.7614,
+      "deep_sm": 5.8316,
+      "fin_sm": 6.9437,
+      "graph-hv_sm": 14.0014,
+      "graph-io_sm": 10.1981,
+      "hash_sm": 0.8013,
+      "io_sm": 5.6709,
+      "lg-dense_sm": 14.0172,
+      "noop_sm": 0.0194,
+      "parse-hv_sm": 17.3228,
+      "parse-lt_sm": 4.7535,
+      "wide_sm": 6.2203,
+      "xform_sm": 8.0533
+    },
+    "hand.pool": {
+      "aggr_sm": 11.2168,
+      "bal_sm": 15.8889,
+      "deep_sm": 6.3584,
+      "fin_sm": 7.7055,
+      "graph-hv_sm": 16.1628,
+      "graph-io_sm": 10.712,
+      "hash_sm": 0.8952,
+      "io_sm": 5.7443,
+      "lg-dense_sm": 14.6535,
+      "noop_sm": 0.0846,
+      "parse-hv_sm": 19.6611,
+      "parse-lt_sm": 5.2882,
+      "wide_sm": 6.821,
+      "xform_sm": 8.7239
+    },
+    "real.rayon": {
+      "aggr_sm": 11.1315,
+      "bal_sm": 14.8274,
+      "deep_sm": 5.7661,
+      "fin_sm": 6.8418,
+      "graph-hv_sm": 13.8224,
+      "graph-io_sm": 10.0705,
+      "hash_sm": 0.8025,
+      "io_sm": 5.6577,
+      "lg-dense_sm": 13.1421,
+      "noop_sm": 0.0194,
+      "parse-hv_sm": 17.9461,
+      "parse-lt_sm": 4.6236,
+      "wide_sm": 6.1774,
+      "xform_sm": 7.8088
+    },
+    "rayon": {
+      "aggr_sm": 11.5841,
+      "bal_sm": 15.1646,
+      "deep_sm": 6.2797,
+      "fin_sm": 7.7471,
+      "graph-hv_sm": 15.7312,
+      "graph-io_sm": 10.7315,
+      "hash_sm": 0.9136,
+      "io_sm": 5.7384,
+      "lg-dense_sm": 14.5277,
+      "noop_sm": 0.021,
+      "parse-hv_sm": 19.3142,
+      "parse-lt_sm": 5.2936,
+      "wide_sm": 6.7313,
+      "xform_sm": 8.8926
+    },
+    "sheque": {
+      "aggr_sm": 10.8429,
+      "bal_sm": 15.9395,
+      "deep_sm": 5.9226,
+      "fin_sm": 7.446,
+      "graph-hv_sm": 15.8279,
+      "graph-io_sm": 10.6754,
+      "hash_sm": 0.9216,
+      "io_sm": 5.7161,
+      "lg-dense_sm": 14.4276,
+      "noop_sm": 0.0986,
+      "parse-hv_sm": 19.4121,
+      "parse-lt_sm": 5.2385,
+      "wide_sm": 6.416,
+      "xform_sm": 8.5898
+    }
+  },
+  "funnel": {
+    "pw.arrv.push": {
+      "axes": {
+        "queue": "pw",
+        "accumulate": "arrv",
+        "wake": "push"
+      },
+      "values": {
+        "aggr_sm": 12.1757,
+        "bal_sm": 15.8625,
+        "deep_sm": 6.4438,
+        "fin_sm": 7.6257,
+        "graph-hv_sm": 15.7479,
+        "graph-io_sm": 10.6758,
+        "hash_sm": 0.8969,
+        "io_sm": 5.7525,
+        "lg-dense_sm": 14.5907,
+        "noop_sm": 0.0465,
+        "parse-hv_sm": 19.4437,
+        "parse-lt_sm": 5.2828,
+        "wide_sm": 5.9419,
+        "xform_sm": 8.8159
+      }
+    },
+    "pw.arrv.batch": {
+      "axes": {
+        "queue": "pw",
+        "accumulate": "arrv",
+        "wake": "batch"
+      },
+      "values": {
+        "aggr_sm": 12.2802,
+        "bal_sm": 16.3248,
+        "deep_sm": 6.4179,
+        "fin_sm": 7.6257,
+        "graph-hv_sm": 15.5184,
+        "graph-io_sm": 10.9976,
+        "hash_sm": 0.9018,
+        "io_sm": 6.0805,
+        "lg-dense_sm": 14.6914,
+        "noop_sm": 0.0316,
+        "parse-hv_sm": 19.9317,
+        "parse-lt_sm": 5.4277,
+        "wide_sm": 6.9627,
+        "xform_sm": 8.7996
+      }
+    },
+    "pw.arrv.k4": {
+      "axes": {
+        "queue": "pw",
+        "accumulate": "arrv",
+        "wake": "k4"
+      },
+      "values": {
+        "aggr_sm": 12.2337,
+        "bal_sm": 16.1159,
+        "deep_sm": 6.2504,
+        "fin_sm": 7.2414,
+        "graph-hv_sm": 16.0237,
+        "graph-io_sm": 10.7966,
+        "hash_sm": 0.8878,
+        "io_sm": 5.9308,
+        "lg-dense_sm": 14.5756,
+        "noop_sm": 0.0363,
+        "parse-hv_sm": 19.6409,
+        "parse-lt_sm": 5.3491,
+        "wide_sm": 5.9578,
+        "xform_sm": 8.8047
+      }
+    },
+    "pw.arrv.k2": {
+      "axes": {
+        "queue": "pw",
+        "accumulate": "arrv",
+        "wake": "k2"
+      },
+      "values": {
+        "aggr_sm": 12.213,
+        "bal_sm": 15.9923,
+        "deep_sm": 6.4682,
+        "fin_sm": 7.6597,
+        "graph-hv_sm": 15.9514,
+        "graph-io_sm": 10.3074,
+        "hash_sm": 0.887,
+        "io_sm": 5.8895,
+        "lg-dense_sm": 14.5763,
+        "noop_sm": 0.0409,
+        "parse-hv_sm": 19.522,
+        "parse-lt_sm": 5.3064,
+        "wide_sm": 5.967,
+        "xform_sm": 8.8163
+      }
+    },
+    "sh.arrv.push": {
+      "axes": {
+        "queue": "sh",
+        "accumulate": "arrv",
+        "wake": "push"
+      },
+      "values": {
+        "aggr_sm": 13.146,
+        "bal_sm": 15.3612,
+        "deep_sm": 6.2133,
+        "fin_sm": 7.4676,
+        "graph-hv_sm": 15.9606,
+        "graph-io_sm": 10.5348,
+        "hash_sm": 0.8859,
+        "io_sm": 5.7076,
+        "lg-dense_sm": 14.273,
+        "noop_sm": 0.0566,
+        "parse-hv_sm": 19.3685,
+        "parse-lt_sm": 5.1738,
+        "wide_sm": 6.0594,
+        "xform_sm": 8.567
+      }
+    },
+    "sh.arrv.batch": {
+      "axes": {
+        "queue": "sh",
+        "accumulate": "arrv",
+        "wake": "batch"
+      },
+      "values": {
+        "aggr_sm": 13.3621,
+        "bal_sm": 16.2013,
+        "deep_sm": 6.2246,
+        "fin_sm": 7.4482,
+        "graph-hv_sm": 16.0195,
+        "graph-io_sm": 10.7203,
+        "hash_sm": 0.8895,
+        "io_sm": 6.082,
+        "lg-dense_sm": 13.9525,
+        "noop_sm": 0.0541,
+        "parse-hv_sm": 19.8114,
+        "parse-lt_sm": 5.2756,
+        "wide_sm": 5.8423,
+        "xform_sm": 8.5667
+      }
+    },
+    "sh.arrv.k4": {
+      "axes": {
+        "queue": "sh",
+        "accumulate": "arrv",
+        "wake": "k4"
+      },
+      "values": {
+        "aggr_sm": 13.3136,
+        "bal_sm": 15.9012,
+        "deep_sm": 6.2117,
+        "fin_sm": 7.4496,
+        "graph-hv_sm": 15.8465,
+        "graph-io_sm": 10.6951,
+        "hash_sm": 0.8795,
+        "io_sm": 5.9122,
+        "lg-dense_sm": 14.444,
+        "noop_sm": 0.0537,
+        "parse-hv_sm": 19.5646,
+        "parse-lt_sm": 5.2202,
+        "wide_sm": 6.014,
+        "xform_sm": 8.5578
+      }
+    },
+    "sh.arrv.k2": {
+      "axes": {
+        "queue": "sh",
+        "accumulate": "arrv",
+        "wake": "k2"
+      },
+      "values": {
+        "aggr_sm": 13.1606,
+        "bal_sm": 15.2095,
+        "deep_sm": 6.2267,
+        "fin_sm": 7.4603,
+        "graph-hv_sm": 14.868,
+        "graph-io_sm": 10.603,
+        "hash_sm": 0.8819,
+        "io_sm": 5.9135,
+        "lg-dense_sm": 13.5728,
+        "noop_sm": 0.0553,
+        "parse-hv_sm": 19.4293,
+        "parse-lt_sm": 5.1938,
+        "wide_sm": 6.0401,
+        "xform_sm": 8.5375
+      }
+    },
+    "pw.fin.push": {
+      "axes": {
+        "queue": "pw",
+        "accumulate": "fin",
+        "wake": "push"
+      },
+      "values": {
+        "aggr_sm": 11.1327,
+        "bal_sm": 15.9237,
+        "deep_sm": 6.4741,
+        "fin_sm": 7.6192,
+        "graph-hv_sm": 15.8746,
+        "graph-io_sm": 10.5411,
+        "hash_sm": 0.9061,
+        "io_sm": 5.7226,
+        "lg-dense_sm": 14.5975,
+        "noop_sm": 0.0456,
+        "parse-hv_sm": 19.4802,
+        "parse-lt_sm": 5.345,
+        "wide_sm": 6.3359,
+        "xform_sm": 8.8285
+      }
+    },
+    "pw.fin.batch": {
+      "axes": {
+        "queue": "pw",
+        "accumulate": "fin",
+        "wake": "batch"
+      },
+      "values": {
+        "aggr_sm": 11.1048,
+        "bal_sm": 16.2404,
+        "deep_sm": 6.4877,
+        "fin_sm": 7.626,
+        "graph-hv_sm": 16.3847,
+        "graph-io_sm": 11.1368,
+        "hash_sm": 0.9148,
+        "io_sm": 6.0842,
+        "lg-dense_sm": 14.7197,
+        "noop_sm": 0.0313,
+        "parse-hv_sm": 20.0623,
+        "parse-lt_sm": 5.4969,
+        "wide_sm": 7.2509,
+        "xform_sm": 8.5135
+      }
+    },
+    "pw.fin.k4": {
+      "axes": {
+        "queue": "pw",
+        "accumulate": "fin",
+        "wake": "k4"
+      },
+      "values": {
+        "aggr_sm": 11.1014,
+        "bal_sm": 16.1123,
+        "deep_sm": 6.4787,
+        "fin_sm": 7.6156,
+        "graph-hv_sm": 16.1135,
+        "graph-io_sm": 10.9003,
+        "hash_sm": 0.8963,
+        "io_sm": 5.9341,
+        "lg-dense_sm": 14.588,
+        "noop_sm": 0.0354,
+        "parse-hv_sm": 19.7545,
+        "parse-lt_sm": 5.409,
+        "wide_sm": 6.2904,
+        "xform_sm": 8.8281
+      }
+    },
+    "pw.fin.k2": {
+      "axes": {
+        "queue": "pw",
+        "accumulate": "fin",
+        "wake": "k2"
+      },
+      "values": {
+        "aggr_sm": 11.0966,
+        "bal_sm": 15.5659,
+        "deep_sm": 6.4816,
+        "fin_sm": 7.607,
+        "graph-hv_sm": 16.2298,
+        "graph-io_sm": 10.644,
+        "hash_sm": 0.9005,
+        "io_sm": 5.9056,
+        "lg-dense_sm": 14.0088,
+        "noop_sm": 0.04,
+        "parse-hv_sm": 19.7436,
+        "parse-lt_sm": 5.3822,
+        "wide_sm": 6.3031,
+        "xform_sm": 8.8184
+      }
+    },
+    "sh.fin.push": {
+      "axes": {
+        "queue": "sh",
+        "accumulate": "fin",
+        "wake": "push"
+      },
+      "values": {
+        "aggr_sm": 10.8386,
+        "bal_sm": 15.8439,
+        "deep_sm": 6.26,
+        "fin_sm": 7.4683,
+        "graph-hv_sm": 15.6169,
+        "graph-io_sm": 10.7308,
+        "hash_sm": 0.9027,
+        "io_sm": 5.7082,
+        "lg-dense_sm": 13.7601,
+        "noop_sm": 0.0576,
+        "parse-hv_sm": 19.4069,
+        "parse-lt_sm": 5.2649,
+        "wide_sm": 6.4232,
+        "xform_sm": 8.6771
+      }
+    },
+    "sh.fin.batch": {
+      "axes": {
+        "queue": "sh",
+        "accumulate": "fin",
+        "wake": "batch"
+      },
+      "values": {
+        "aggr_sm": 10.8267,
+        "bal_sm": 16.0674,
+        "deep_sm": 6.2638,
+        "fin_sm": 7.4511,
+        "graph-hv_sm": 16.2653,
+        "graph-io_sm": 10.9138,
+        "hash_sm": 0.913,
+        "io_sm": 6.0816,
+        "lg-dense_sm": 14.5297,
+        "noop_sm": 0.0505,
+        "parse-hv_sm": 19.8997,
+        "parse-lt_sm": 5.3774,
+        "wide_sm": 6.4808,
+        "xform_sm": 8.6587
+      }
+    },
+    "sh.fin.k4": {
+      "axes": {
+        "queue": "sh",
+        "accumulate": "fin",
+        "wake": "k4"
+      },
+      "values": {
+        "aggr_sm": 10.8199,
+        "bal_sm": 15.9974,
+        "deep_sm": 6.2705,
+        "fin_sm": 7.4657,
+        "graph-hv_sm": 16.0572,
+        "graph-io_sm": 10.8969,
+        "hash_sm": 0.8945,
+        "io_sm": 5.9125,
+        "lg-dense_sm": 14.4459,
+        "noop_sm": 0.0543,
+        "parse-hv_sm": 18.6217,
+        "parse-lt_sm": 5.3215,
+        "wide_sm": 6.3706,
+        "xform_sm": 8.6766
+      }
+    },
+    "sh.fin.k2": {
+      "axes": {
+        "queue": "sh",
+        "accumulate": "fin",
+        "wake": "k2"
+      },
+      "values": {
+        "aggr_sm": 10.8245,
+        "bal_sm": 15.8905,
+        "deep_sm": 6.2685,
+        "fin_sm": 7.4478,
+        "graph-hv_sm": 15.9204,
+        "graph-io_sm": 10.797,
+        "hash_sm": 0.9044,
+        "io_sm": 5.8971,
+        "lg-dense_sm": 14.4304,
+        "noop_sm": 0.0561,
+        "parse-hv_sm": 19.582,
+        "parse-lt_sm": 5.2922,
+        "wide_sm": 6.3982,
+        "xform_sm": 8.6475
+      }
+    }
+  },
+  "timestamp": "2026-04-10 07:14"
+}
