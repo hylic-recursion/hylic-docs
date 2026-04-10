@@ -1,9 +1,14 @@
 # Module resolution
 
-The seed-based graph pattern. `SeedGraph` is a general anamorphism —
-three functions define how to unfold a tree from seeds. For the
-fallible case (where growing can fail), `seeds_for_fallible` lifts
-a valid-only seed function to handle `Either<Error, Valid>` nodes.
+The seed-based graph pattern for lazy tree discovery. A `grow`
+function resolves dependency references (seeds) into modules (nodes),
+which may themselves have dependencies. Error handling uses
+`Either<Error, Valid>` — error nodes are leaves with no children.
+
+This example uses `SeedGraph` and `GraphWithFold` to build and run
+the resolution pipeline. See [Entry points](../concepts/entry.md)
+for the lift-based `SeedPipeline` alternative, which makes the
+seed layer explicit and composable.
 
 ```rust
 {{#include ../../../src/cookbook/module_resolution.rs}}

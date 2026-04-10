@@ -1,17 +1,14 @@
-# Entry points
+# Entry points and seed-based graphs
 
-So far, the tree exists upfront — your nodes store their children.
-But many real problems discover the tree lazily: you parse a
-config file to find its imports, resolve each import to find more
-imports, and so on. The tree materializes during traversal.
-
-hylic handles this with SeedGraph, Graph, and GraphWithFold.
-All three reduce to `dom::FUSED.run(...)` — they just add one
-level of indirection for the entry point.
+Many recursive computations discover their tree lazily: parsing a
+config file reveals imports, resolving each import reveals more
+imports. The tree materializes during traversal. hylic handles this
+through the seed-based graph pattern, where a `grow` function
+resolves references (seeds) into nodes.
 
 ## The two-function pattern
 
-Most recursive algorithms in practice have two functions:
+Most recursive resolution algorithms have two functions:
 
 ```rust
 fn resolve(spec: &str) -> Resolution {
@@ -29,11 +26,9 @@ fn resolve_recursive(module: &Module) -> Resolution {
 
 The entry point has different inputs (a spec string) than the
 recursive function (a module). They share fold logic but differ
-in how they produce the first node. As the algorithm grows,
-error handling, logging, caching get woven into both — concerns
-tangle.
+in how they produce the first node.
 
-The underlying structure is simpler than it looks:
+The underlying structure separates into three concerns:
 
 ```dot process
 digraph {
@@ -53,79 +48,118 @@ digraph {
 }
 ```
 
-The entry point is just a different edge into the same graph.
-The recursive structure (node → seeds → grow → node) is the
-tree. The entry (spec → seeds → grow → first nodes) is a
-single layer that feeds into it.
+The entry point maps Top → [Seed]. The recursive structure maps
+Node → [Seed] → grow → [Node]. The fold computes the result.
 
-## SeedGraph
+## SeedPipeline — the lift-based approach
 
-`SeedGraph<Node, Seed, Top>` captures this with three functions:
+`SeedPipeline` encapsulates the seed pattern as a proper lift. The
+user provides five things:
 
-- **seeds_from_node**: `Edgy<Node, Seed>` — given a node, what
-  are its dependency seeds?
-- **grow**: `Fn(&Seed) → Node` — given a seed, produce a node
-- **seeds_from_top**: `Edgy<Top, Seed>` — given the entry point,
-  what are the initial seeds?
+- **grow**: `Fn(&Seed) → Node` — resolve a seed into a node
+- **treeish**: `Treeish<Node>` — the Node → [Node] traversal (built from seeds_from_node + grow)
+- **seeds_from_top**: `Edgy<Top, Seed>` — the entry point mapping
+- **fold**: `Fold<Node, H, R>` — the computation
+- **heap_of_top**: `Fn(&Top) → H` — how to initialize the top-level heap
 
-From these, SeedGraph builds the full graph:
+Internally, the pipeline uses `SeedLift` to transform the treeish
+and fold into an `Either<Seed, Node>` domain. Each top seed enters
+the lifted tree as `Left(seed)`, which the lifted treeish grows into
+`Right(node)`. From there, the original treeish takes over for all
+recursive children. The lift is transparent — the user sees only
+Node, H, and R:
 
-```rust
-// make_treeish: Node → seeds → grow each → children (Treeish<Node>)
-// make_top_edgy: Top → seeds → grow each → first nodes (Edgy<Top, Node>)
-// make_graph: both paired into Graph<Top, Node>
-let graph: Graph<Top, Node> = seed_graph.make_graph();
+```dot process
+digraph {
+    rankdir=TB;
+    node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=10];
+    edge [fontname="sans-serif", fontsize=9];
+
+    top [label="Top", fillcolor="#fff3cd"];
+    seed0 [label="Left(seed0)", fillcolor="#f8d7da"];
+    node0 [label="Right(node0)\ngrow(seed0)", fillcolor="#d4edda"];
+    child1 [label="Right(child1)\noriginal treeish", fillcolor="#d4edda"];
+    child2 [label="Right(child2)\noriginal treeish", fillcolor="#d4edda"];
+    gc [label="Right(...)", fillcolor="#d4edda"];
+
+    top -> seed0 [label="seeds_from_top"];
+    seed0 -> node0 [label="grow"];
+    node0 -> child1 [label="treeish"];
+    node0 -> child2 [label="treeish"];
+    child1 -> gc [label="treeish"];
+}
 ```
 
-The tree is never materialized — `make_treeish` returns a
-callback-based `Treeish<Node>` that lazily discovers children
-during traversal. This is a hylomorphism: the anamorphism (unfold
-from seeds) and catamorphism (fold to result) fuse.
-
-## Graph and GraphWithFold
-
-`Graph<Top, Node>` pairs two things:
-- `treeish: Treeish<Node>` — the recursive children
-- `top_edgy: Edgy<Top, Node>` — the entry point edges
-
-`GraphWithFold` wires a Graph with a Fold and a top-level heap
-initializer into a runnable pipeline:
+After the single Seed→Node transition at the root, every subsequent
+level is handled by the original treeish. The lifted computation
+converges to the original.
 
 ```rust
-{{#include ../../../../hylic/src/graph/compose.rs:pipeline_run}}
+use hylic::cata::seed_lift::SeedPipeline;
+use hylic::domain::shared as dom;
+use hylic::graph;
+
+let pipeline = SeedPipeline::new(
+    grow_fn,                   // Fn(&Seed) -> Node
+    treeish,                   // Treeish<Node>
+    seeds_from_top,            // Edgy<Top, Seed>
+    &fold,                     // &Fold<Node, H, R>
+    heap_of_top,               // Fn(&Top) -> H
+);
+
+// Sequential:
+let result = pipeline.run(&dom::FUSED, &top);
+
+// Parallel:
+use hylic::cata::exec::funnel;
+let result = pipeline.run(&dom::exec(funnel::Spec::default(8)), &top);
 ```
 
-This is one manual fold step for `Top`: initialize a heap,
-visit Top's children (via `top_edgy`), call `exec.run` on each
-child tree, accumulate, finalize. The recursive computation
-inside each child is pure `exec.run(&fold, &treeish, &child)`.
+The executor is passed at `.run()` time. Since Fused and Funnel
+implement `Executor` generically, they accept the internal
+`Either<Seed, Node>` type without the user naming it.
 
-The pipeline adds no new execution mechanism. It's wiring.
+## SeedLift — the manual path
+
+For users who want direct access to the lift mechanics, `SeedLift`
+is public and implements `LiftOps`. It carries only the `grow`
+function and provides `lift_treeish` and `lift_fold`:
+
+```rust
+use hylic::cata::seed_lift::SeedLift;
+
+let lift = SeedLift::new(grow_fn);
+let lifted_treeish = lift.lift_treeish(treeish);
+let lifted_fold = lift.lift_fold(fold);
+
+// Enter through a seed:
+let result = exec.run(&lifted_fold, &lifted_treeish, &Either::Left(seed));
+
+// Enter through a node (transparent — same as direct execution):
+let result = exec.run(&lifted_fold, &lifted_treeish, &Either::Right(node));
+```
+
+This is useful for composing the seed lift with other operations,
+or for understanding the lift's internal mechanics.
+
+## SeedGraph and GraphWithFold — the composition approach
+
+`SeedGraph` is an older abstraction that fuses the seed mechanics
+into a single `make_treeish()` call, producing a `Treeish<Node>`
+where the Seed→Node indirection is invisible. `Graph` pairs a
+treeish with a top-level entry edge. `GraphWithFold` wires a Graph
+with a Fold into a runnable pipeline.
+
+These types remain available in `hylic::graph` and are used by
+existing code (including mb_resolver's current implementation).
+The SeedPipeline is the lift-based alternative that makes the seed
+layer explicit and composable with other lifts.
 
 ## When to use what
 
-| Situation | API |
+| Situation | Approach |
 |---|---|
-| Nodes store children | `exec.run(&fold, &treeish, &root)` |
-| Tree discovered lazily, entry type = node type | Build Treeish from SeedGraph, use `exec.run` |
-| Tree discovered lazily, entry type ≠ node type | `GraphWithFold::run(&exec, &top)` |
-
-Most simple examples (Fibonacci, expression eval, filesystem) use
-the first form. Module resolution and dependency analysis use the
-third — the entry is a list of top-level specs, not a module node.
-
-## Transforms on the pipeline
-
-GraphWithFold supports the same transformation pattern as Fold:
-
-| Transform | What it does |
-|---|---|
-| `map(fwd, back)` | Change result type |
-| `zipmap(f)` | Augment result: `R → (R, Extra)` |
-| `map_fold(f)` | Transform the fold |
-| `map_graph(f)` | Transform the graph |
-
-Derived pipelines use these transforms: the base pipeline
-produces `R`, and `zipmap` augments it with extra data.
-One traversal, multiple views — each derived pipeline runs
-the same fold on the same graph.
+| Nodes store children directly | `exec.run(&fold, &treeish, &root)` |
+| Tree discovered lazily, simple case | `SeedPipeline::new(grow, treeish, ...)` |
+| Need to compose with Explainer or other lifts | `SeedLift` manual path |
+| Existing code using SeedGraph/GraphWithFold | Continue using — both approaches produce the same results |
