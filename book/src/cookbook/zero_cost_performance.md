@@ -1,6 +1,6 @@
 # Zero-cost performance
 
-The closure-based API (`dom::Fold`, `dom::Treeish`) is the ergonomic
+The closure-based API (`dom::Fold`, `graph::Treeish`) is the ergonomic
 default. For performance-critical paths, you can eliminate all
 framework overhead by implementing the operations traits directly.
 
@@ -71,7 +71,7 @@ still dynamic dispatch — K indirect calls per node.
 
 | Path | Ergonomics | Per-node overhead | When to use |
 |---|---|---|---|
-| Closure-based (`dom::Fold` + `dom::Treeish`) | Best — closures, combinators, map/zip | 3+2K indirect calls | Always, unless profiling shows overhead |
+| Closure-based (`dom::Fold` + `graph::Treeish`) | Best — closures, combinators, map/zip | 3+2K indirect calls | Always, unless profiling shows overhead |
 | `FoldOps` struct | Good — one impl block | K+1 indirect calls (visit cb only) | Hot inner loops, millions of nodes |
 | `FoldOps` + `TreeOps` | Manual — two impl blocks | K indirect calls (visit cb) | Maximum control, known hot path |
 
