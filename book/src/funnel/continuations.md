@@ -16,8 +16,9 @@ thread and consumed on another.
 The unit of parallelism. Stored inline in deque slots (PerWorker)
 or queue segments (Shared). No heap allocation per task — the enum
 variant IS the data. `N` must be `Clone + Send` (cloned during
-`graph.visit`, sent across threads). `R` must be `Send` (delivered
-across threads). `H` has no bounds — it travels inside `Cont::Direct`.
+`graph.visit`, sent across threads). `R` must be `Send` (results are
+moved across threads via destructive slot reads). `H` has no bounds
+— it travels inside `Cont::Direct`.
 
 ## Cont
 
@@ -32,7 +33,11 @@ what to do with a result:
 
 Terminal. Created once per fold. When `fire_cont` receives it, the
 fold is complete: the result is written to the `RootCell` and
-`fold_done` is signaled. Size: 8 bytes (one `Arc` pointer).
+`fold_done` is signaled. Size: 8 bytes (one raw pointer).
+
+The `RootCell` lives on `run_fold`'s stack — no heap allocation.
+The raw pointer is safe because the scoped pool guarantees all
+workers complete before `run_fold` returns.
 
 ### `Cont::Direct`
 
@@ -76,7 +81,7 @@ For a tree with root R, child A (2 children: C, D), and child B
 digraph {
   rankdir=BT;
   node [fontname="monospace", fontsize=10, style="rounded,filled"];
-  root [label="Cont::Root\nArc<RootCell>", fillcolor="#ffcccc", shape=doubleoctagon];
+  root [label="Cont::Root\n*const RootCell\n(stack-local)", fillcolor="#ffcccc", shape=doubleoctagon];
   chainR [label="ChainNode(R)\nFoldChain\nparent→Root", fillcolor="#cce5ff"];
   slotR0 [label="Slot{R, 0}", fillcolor="#d4edda"];
   slotR1 [label="Slot{R, 1}", fillcolor="#d4edda"];
@@ -101,6 +106,8 @@ Whichever delivery is last (ticket) sweeps ChainNode(R) and fires
 Root.
 
 ## Data ownership
+
+Each CPS type lives in a specific memory region:
 
 ```dot process
 digraph {
@@ -128,29 +135,31 @@ digraph {
     task [label="FunnelTask::Walk\nchild + Cont\n(inline in slot)", fillcolor="#cce5ff"];
   }
 
-  subgraph cluster_heap {
-    label="Heap (Arc)"; style=filled; fillcolor="#fff3cd22"; color="#cca000";
+  subgraph cluster_stack2 {
+    label="run_fold stack (local)"; style=filled; fillcolor="#fff3cd22"; color="#cca000";
     fontname="sans-serif"; fontsize=9;
-    root [label="RootCell\nresult + done flag", fillcolor="#fff3cd"];
+    root [label="RootCell\nresult + done flag\n(stack-allocated)", fillcolor="#fff3cd"];
   }
 
   task -> cn [label="Slot: ArenaIdx", style=dashed];
   task -> ca [label="Direct: ContIdx", style=dashed];
-  task -> root [label="Root: Arc ptr", style=dashed];
+  task -> root [label="Root: raw ptr", style=dashed];
 }
 ```
 
 Deque stores tasks inline. Arena indices are `u32` (Copy, no
-refcount). The only heap allocation in the CPS pipeline is
-`Arc<RootCell>`, created once per fold.
+refcount). The CPS pipeline has **zero heap allocations** on the
+critical path — RootCell is stack-local, arenas grow lazily via
+[segmented allocation](infrastructure.md), and tasks are stored
+inline in deque slots.
 
 ## Size summary
 
 | Type | Size | Notes |
 |---|---|---|
-| `Cont::Root` | 8 bytes | Arc pointer |
+| `Cont::Root` | 8 bytes | raw pointer to stack-local RootCell |
 | `Cont::Direct` | `sizeof(H) + 4` | heap value + `ContIdx(u32)` |
 | `Cont::Slot` | 8 bytes | `ArenaIdx(u32) + SlotRef(u32)` |
 | `FunnelTask::Walk` | `sizeof(N) + sizeof(Cont) + tag` | stored inline in deque |
 | `ChainNode` | `sizeof(FoldChain) + sizeof(Option<Cont>)` | arena-allocated |
-| `RootCell` | `sizeof(Option<R>) + 1` | Arc-allocated, once per fold |
+| `RootCell` | `sizeof(Option<R>) + 1` | stack-local in `run_fold` |

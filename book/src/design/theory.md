@@ -144,6 +144,12 @@ The safety argument is local to the pool boundary: SyncRef is created
 inside the recursion engine and never escapes it. Outside the pool,
 normal Rust lifetime and Send/Sync rules apply unchanged.
 
+The funnel executor applies the same scoped-lifetime argument to its
+`RootCell` — the fold's terminal result cell lives on `run_fold`'s
+stack and is accessed through a raw pointer (`*const RootCell<R>`)
+carried by `Cont::Root`. The scoped pool guarantees the pointer is
+valid for all workers. No Arc, no heap allocation.
+
 ## ConstructFold: domain-generic fold construction
 
 `ConstructFold<N>` is a type-level function from a domain marker to a

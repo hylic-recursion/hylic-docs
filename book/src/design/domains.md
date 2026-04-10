@@ -39,11 +39,30 @@ use hylic::domain::local as dom;    // lighter refcount
 use hylic::domain::owned as dom;    // zero overhead
 ```
 
-Each domain module owns its concrete types (`domain/shared/fold.rs`,
-`domain/shared/graph.rs`, etc.). Infrastructure modules (`fold/combinators`,
-`graph/combinators`, `graph/visit`) are `pub(crate)` — shared by all
-domains but not directly user-facing. Users access types and constructors
-exclusively through domain modules. One way in.
+Each domain module owns its concrete types. Infrastructure modules
+contain only domain-independent combinator logic, shared by all domains
+but not directly user-facing.
+
+```
+domain/
+  shared/
+    fold.rs         Fold<N,H,R>  (Arc)    + constructors
+    graph.rs        Edgy, Treeish (Arc)   + constructors
+    compose.rs      Graph, SeedGraph, GraphWithFold
+  local/
+    mod.rs          Fold, Treeish (Rc)    + constructors
+  owned/
+    mod.rs          Fold, Treeish (Box)   + constructors
+
+fold/
+  combinators.rs    map_fold, contramap_fold, wrap_init, ...  (domain-independent)
+graph/
+  combinators.rs    map_edges, contramap_node, filter_edges, ...  (domain-independent)
+  visit.rs          Visit<T,F>  push iterator
+```
+
+Users access types and constructors exclusively through domain modules.
+One way in.
 
 ## The `Domain` trait
 

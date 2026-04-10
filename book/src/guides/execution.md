@@ -23,6 +23,8 @@ are inferred from the arguments.
 
 ## Which executor
 
+Two built-in executors cover sequential and parallel cases:
+
 ```dot process
 digraph {
     rankdir=TB;

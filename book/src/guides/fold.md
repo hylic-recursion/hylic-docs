@@ -1,8 +1,9 @@
 # Fold: shaping the computation
 
 A `Fold<N, H, R>` defines three phases: init, accumulate, finalize.
-Each phase is a closure behind Arc. Each can be transformed
-independently — producing a new Fold without modifying the original.
+Each phase is a closure stored in the domain's boxing strategy (Arc
+for Shared, Rc for Local, Box for Owned). Each can be transformed
+independently.
 
 ## Named-closures-first pattern
 
@@ -103,6 +104,31 @@ Accumulate and finalize are unchanged.
 The categorical product: each fold maintains its own heap, sees its
 own child results, produces its own output. One traversal, two results.
 No double-visiting.
+
+## Domain parity
+
+All three domains support the same transformation surface:
+
+| Method | Shared | Local | Owned | Effect |
+|--------|--------|-------|-------|--------|
+| `wrap_init` | `&self` | `&self` | `self` | intercept init phase |
+| `wrap_accumulate` | `&self` | `&self` | `self` | intercept accumulate phase |
+| `wrap_finalize` | `&self` | `&self` | `self` | intercept finalize phase |
+| `map` | `&self` | `&self` | `self` | change result type R → R2 |
+| `zipmap` | `&self` | `&self` | `self` | augment result (R, Extra) |
+| `contramap` | `&self` | `&self` | `self` | change node type N → N2 |
+| `product` | `&self` | `&self` | `self` | two folds, one traversal |
+
+Shared and Local borrow `&self` — the original fold is preserved.
+Owned consumes `self` — the original is moved into the result. All
+three call the same domain-independent combinator functions
+(`fold/combinators.rs`); auto-trait propagation ensures Send+Sync
+flows correctly for Shared.
+
+All domains also expose `.init()`, `.accumulate()`, `.finalize()` as
+direct methods, in addition to the `FoldOps` trait implementation.
+
+See [Domain system](../design/domains.md) for when to use which domain.
 
 ## Working example
 

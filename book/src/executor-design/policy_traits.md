@@ -27,6 +27,8 @@ usizes and ZSTs).
 
 ## The Spec → Store → Handle pattern
 
+Each axis follows the same three-phase lifecycle:
+
 ```dot process
 digraph {
   rankdir=TB;
@@ -108,10 +110,11 @@ fn for_wide_light(n: usize) -> Spec<WideLight> {
 
 The axis builders (`with_queue`, `with_accumulate`, `with_wake`)
 are typestate transformations — they change the Policy type parameter,
-producing a new Spec type. Value-level tuning (`with_arena_capacity`)
-preserves the type.
+producing a new Spec type.
 
 ## How monomorphization flows
+
+The type parameter propagates from Spec to every call site:
 
 ```dot process
 digraph {

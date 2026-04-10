@@ -85,3 +85,22 @@ quickly). Cold-cache sweep if slots were written by other cores.
 | Balanced, finalize-heavy | OnFinalize | Minimal per-delivery overhead |
 | Wide trees (bf > 10) | Either | OnArrival if results arrive in order |
 | Deep narrow (bf=2) | OnFinalize | Only 2 slots — sweep trivial |
+
+## Memory footprint
+
+Both strategies use destructive reads — results are moved out of
+their slots during accumulation, then dropped. For result types that
+own heap memory (String, Vec, etc.), this means resources are freed
+progressively as the sweep advances, not held alive until fold
+completion.
+
+With OnArrival, the live memory at any point is bounded by the
+number of delivered-but-not-yet-swept results (typically much
+smaller than total results). With OnFinalize, all results are
+delivered before the bulk sweep, so peak memory equals the node's
+child count × result size — freed in one pass.
+
+This is relevant for folds over large trees where each result carries
+significant heap data (parsed documents, artifact records, aggregated
+datasets). See [Infrastructure](infrastructure.md) for the arena
+allocation model.

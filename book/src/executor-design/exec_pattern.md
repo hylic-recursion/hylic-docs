@@ -105,6 +105,8 @@ surface:
 
 ## The three usage tiers
 
+Executors can be used at three levels of resource control:
+
 ```dot process
 digraph {
   rankdir=TB;
@@ -194,6 +196,8 @@ and `Exec<Shared, funnel::Session<'_, P>>` — all through the same
 bound, the same `.run()`, the same call site.
 
 ## How a new executor fits in
+
+Adding a new executor requires implementing two traits:
 
 ```dot process
 digraph {

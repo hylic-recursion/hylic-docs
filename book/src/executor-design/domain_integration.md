@@ -99,7 +99,8 @@ generic, monomorphized to zero overhead for concrete types.
 | **Funnel** | yes | — | — |
 
 Fused supports all domains (it borrows, never clones). Funnel
-requires `N: Clone + Send, R: Clone + Send` — the Shared domain
-provides these. Supporting Local/Owned for Funnel would require
-the same `SyncRef` pattern used by the Pool executor (see
-[Implementation notes](../design/implementation_notes.md)).
+requires `N: Clone + Send, R: Send` — the Shared domain provides
+these. `R: Clone` is NOT required — the funnel uses destructive
+slot reads during accumulation. Supporting Local/Owned for Funnel
+would require the same `SyncRef` pattern used by the Pool executor
+(see [Implementation notes](../design/implementation_notes.md)).

@@ -48,6 +48,9 @@ to the help loop to steal more work.
 
 ## The cascade as a round-trip
 
+The walk and cascade form a symmetric pair — down through task
+creation, up through result delivery:
+
 ```dot process
 digraph {
   rankdir=BT;

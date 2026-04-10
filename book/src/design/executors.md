@@ -33,7 +33,7 @@ See [Funnel](../funnel/overview.md).
 ## Domain support
 
 Fused supports all domains (borrows, never clones). Funnel requires
-`N: Clone + Send, R: Clone + Send`. See
+`N: Clone + Send, R: Send`. See
 [Domain integration](../executor-design/domain_integration.md).
 
 ## Deep dives

@@ -149,8 +149,7 @@ entire API surface for most programs.
 | **Pipeline** | yes | — | — |
 
 Fused supports all domains (borrows, never clones). Funnel requires
-`N: Clone + Send, R: Clone + Send` — the Shared domain provides
-these.
+`N: Clone + Send, R: Send` — the Shared domain provides these.
 
 ## Zero-boxing path
 

@@ -7,9 +7,29 @@ criterion.
 
 ## Quick — WIP improvement tracker
 
-Fast-returning subset: `real.rayon` baseline vs four funnel variants
-(`pw.arrv.k4`, `sh.arrv.k4`, `pw.fin.k4`, `sh.fin.k4`) across
-9 workload scenarios. 20 samples, 5s measurement time.
+Fast-returning subset for tracking performance across code changes.
+
+**Runners** (5): `real.rayon` handrolled baseline, plus four funnel
+variants covering both queue axes (PerWorker, Shared) and both
+accumulation axes (OnArrival, OnFinalize), all with EveryK\<4\> wake.
+
+**Scenarios** (9): noop, hash, parse-lt, parse-hv, aggr, xform, bal,
+wide, graph-hv — selected for showing meaningful variation between
+funnel and baseline. Near-parity workloads (io, deep, fin, graph-io,
+lg-dense) are excluded for speed.
+
+Two intensity levels and a multi-revision comparison mode:
+
+| Command | Samples | Measure | Time |
+|---|---|---|---|
+| `make bench-quick-light` | 20 | 5s | ~5 min |
+| `make bench-quick-heavy` | 80 | 20s | ~18 min |
+| `make bench-quick-light-ab` | 20 | 5s | ~15 min (3 revisions) |
+| `make bench-quick-heavy-ab` | 80 | 20s | ~54 min (3 revisions) |
+
+The `-ab` variants run the same benchmark across multiple git
+revisions of hylic, archiving results with timestamps. Add revisions
+by appending `label=gitref` in the Makefile target.
 
 ```
 make bench-quick-light

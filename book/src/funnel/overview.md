@@ -30,6 +30,8 @@ upward — without locks, without allocation on the critical path.
 
 ## Design values
 
+Four properties define the funnel's design:
+
 ```dot process
 digraph {
   rankdir=LR;
@@ -82,6 +84,8 @@ pattern for zero-cost executor configuration.
 
 ## Module map
 
+The funnel's code is organized into four clusters:
+
 ```dot process
 digraph {
   rankdir=LR;
@@ -123,10 +127,13 @@ digraph {
 
   subgraph cluster_infra {
     label="infra/"; style=dashed; fillcolor="#fff0f0"; color="#888888";
-    arena [label="arena.rs\nArena<T>", fillcolor="#f8d7da"];
-    cont_arena [label="cont_arena.rs\nContArena<T>", fillcolor="#f8d7da"];
+    slab [label="segmented_slab.rs\nSegmentedSlab<T>", fillcolor="#f8d7da"];
+    arena [label="arena.rs\nArena<T>\n(wraps slab)", fillcolor="#f8d7da"];
+    cont_arena [label="cont_arena.rs\nContArena<T>\n(wraps slab)", fillcolor="#f8d7da"];
     deque [label="deque.rs\nWorkerDeque<T>", fillcolor="#f8d7da"];
     ec [label="eventcount.rs\nEventCount", fillcolor="#f8d7da"];
+    slab -> arena [style=dotted, dir=back];
+    slab -> cont_arena [style=dotted, dir=back];
   }
 
   pool [label="pool.rs\nPool, Job\nPoolState\ndispatch()", fillcolor="#e8e8e8"];

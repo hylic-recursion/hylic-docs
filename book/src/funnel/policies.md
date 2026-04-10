@@ -13,8 +13,9 @@ bundled into `FunnelPolicy`:
 {{#include ../../../../hylic/src/cata/exec/variant/funnel/mod.rs:funnel_spec}}
 ```
 
-Each axis contributes its `Spec` type. `n_workers` sets the thread
-count. Arena capacities control pre-allocation.
+Each axis contributes its `Spec` type. `default_pool_size` sets the
+thread count for one-shot execution. Arenas grow lazily via
+[segmented allocation](infrastructure.md) — no capacity configuration.
 
 ## Named presets
 
@@ -27,7 +28,7 @@ Nine names map to seven distinct monomorphizations:
 | Preset | Queue | Accumulate | Wake | Use case |
 |---|---|---|---|---|
 | `Default` / `Robust` | PerWorker | OnFinalize | EveryPush | All-rounder |
-| `GraphHeavy` | (same as Robust) | | | Large trees (bigger arenas) |
+| `GraphHeavy` | (same as Robust) | | | Large trees (alias for Robust) |
 | `WideLight` | Shared | OnArrival | EveryPush | bf > 10 |
 | `LowOverhead` | PerWorker | OnFinalize | OncePerBatch | Noop-sensitive |
 | `PerWorkerArrival` | PerWorker | OnArrival | EveryPush | Streaming + deques |
@@ -37,6 +38,8 @@ Nine names map to seven distinct monomorphizations:
 | `DeepNarrow` | PerWorker | OnFinalize | EveryK\<2\> | bf=2 chains |
 
 ## Decision guide
+
+Start from the tree shape, then refine by work distribution:
 
 ```dot process
 digraph {
