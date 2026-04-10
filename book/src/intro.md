@@ -65,34 +65,39 @@ assert_eq!(total, 3); // 0 + 1 + 2
 A recursive tree computation decomposes along three orthogonal
 dimensions. Changing one leaves the others untouched:
 
+**Fold** — what to compute:
+
 ```dot process
 digraph {
-    rankdir=TB;
-    node [shape=box, style="rounded,filled", fontname="sans-serif", fontsize=10];
+    rankdir=TB; node [shape=box, style="rounded,filled", fontname="sans-serif", fontsize=10, fillcolor="#d4edda"];
+    f1 [label="map / zipmap — change result type"];
+    f2 [label="contramap — change node type"];
+    f3 [label="product — two folds, one pass"];
+    f4 [label="wrap_init / wrap_acc / wrap_fin — intercept phases"];
+    f1 -> f2 -> f3 -> f4 [style=invis];
+}
+```
 
-    subgraph cluster_fold {
-        label="Fold — what to compute"; style=filled; fillcolor="#d4edda22"; color="#28a745";
-        fontname="sans-serif"; fontsize=9;
-        f1 [label="map / zipmap — change result type", fillcolor="#d4edda"];
-        f2 [label="contramap — change node type", fillcolor="#d4edda"];
-        f3 [label="product — two folds, one pass", fillcolor="#d4edda"];
-        f4 [label="wrap_init / wrap_acc / wrap_fin — intercept phases", fillcolor="#d4edda"];
-    }
+**Graph** — where the children are:
 
-    subgraph cluster_graph {
-        label="Graph — where the children are"; style=filled; fillcolor="#cce5ff22"; color="#004085";
-        fontname="sans-serif"; fontsize=9;
-        g1 [label="filter — prune edges", fillcolor="#cce5ff"];
-        g2 [label="memoize — cache for DAGs", fillcolor="#cce5ff"];
-        g3 [label="SeedPipeline — lazy discovery via grow", fillcolor="#cce5ff"];
-    }
+```dot process
+digraph {
+    rankdir=TB; node [shape=box, style="rounded,filled", fontname="sans-serif", fontsize=10, fillcolor="#cce5ff"];
+    g1 [label="filter — prune edges"];
+    g2 [label="memoize — cache for DAGs"];
+    g3 [label="SeedPipeline — lazy discovery via grow"];
+    g1 -> g2 -> g3 [style=invis];
+}
+```
 
-    subgraph cluster_exec {
-        label="Executor — how to traverse"; style=filled; fillcolor="#fff3cd22"; color="#856404";
-        fontname="sans-serif"; fontsize=9;
-        e1 [label="Fused — sequential, all domains", fillcolor="#fff3cd"];
-        e2 [label="Funnel — parallel CPS work-stealing", fillcolor="#fff3cd"];
-    }
+**Executor** — how to traverse:
+
+```dot process
+digraph {
+    rankdir=TB; node [shape=box, style="rounded,filled", fontname="sans-serif", fontsize=10, fillcolor="#fff3cd"];
+    e1 [label="Fused — sequential, all domains"];
+    e2 [label="Funnel — parallel CPS work-stealing"];
+    e1 -> e2 [style=invis];
 }
 ```
 
