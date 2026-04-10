@@ -84,10 +84,11 @@ one downstream consumer.
 
 ## `pub(crate)` on implementation modules
 
-`fold/`, `graph/`, `pipeline.rs` are `pub(crate)` — internal to the
-hylic crate. Everything is re-exported through domain modules
-(`domain::shared`, `domain::local`, `domain::owned`). One way in
-for users.
+Each domain owns its concrete types in submodules (`domain/shared/fold.rs`,
+`domain/shared/graph.rs`, `domain/shared/compose.rs`, etc.). The
+infrastructure modules `fold/` and `graph/` are `pub(crate)` — they
+contain only domain-independent combinators and the Visit iterator,
+shared by all domains but not directly user-facing.
 
 `cata/` and `ops/` remain public — `cata` for Lift and executor
 access, `ops` for the FoldOps/TreeOps/LiftOps traits needed by

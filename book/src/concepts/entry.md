@@ -92,7 +92,7 @@ from seeds) and catamorphism (fold to result) fuse.
 initializer into a runnable pipeline:
 
 ```rust
-{{#include ../../../../hylic/src/pipeline.rs:pipeline_run}}
+{{#include ../../../../hylic/src/domain/shared/compose.rs:pipeline_run}}
 ```
 
 This is one manual fold step for `Top`: initialize a heap,

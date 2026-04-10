@@ -52,14 +52,14 @@ gives each a name and a type:
 **Treeish** — the tree structure. Given a node, visit its children:
 
 ```rust
-{{#include ../../../../hylic/src/graph/types.rs:edgy_struct}}
+{{#include ../../../../hylic/src/domain/shared/graph.rs:edgy_struct}}
 ```
 
 `Treeish<N>` is an alias for `Edgy<N, N>` — an edge function where
 nodes and edges are the same type:
 
 ```rust
-{{#include ../../../../hylic/src/graph/types.rs:treeish_alias}}
+{{#include ../../../../hylic/src/domain/shared/graph.rs:treeish_alias}}
 ```
 
 You construct one by providing a function from node to children:
@@ -75,7 +75,7 @@ zero allocation per visit. The `treeish()` constructor wraps a
 **Fold** — the computation. In the Shared domain, three closures behind Arc:
 
 ```rust
-{{#include ../../../../hylic/src/fold/algebra.rs:fold_struct}}
+{{#include ../../../../hylic/src/domain/shared/fold.rs:fold_struct}}
 ```
 
 Other [domains](../design/domains.md) use Rc (Local) or Box (Owned)

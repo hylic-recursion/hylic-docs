@@ -39,8 +39,10 @@ use hylic::domain::local as dom;    // lighter refcount
 use hylic::domain::owned as dom;    // zero overhead
 ```
 
-Implementation modules (`fold/`, `graph/`, `pipeline.rs`, `parref.rs`)
-are `pub(crate)` — internal. Users access types and constructors
+Each domain module owns its concrete types (`domain/shared/fold.rs`,
+`domain/shared/graph.rs`, etc.). Infrastructure modules (`fold/combinators`,
+`graph/combinators`, `graph/visit`) are `pub(crate)` — shared by all
+domains but not directly user-facing. Users access types and constructors
 exclusively through domain modules. One way in.
 
 ## The `Domain` trait

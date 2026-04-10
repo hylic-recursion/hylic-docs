@@ -7,12 +7,12 @@ criterion.
 
 ## Quick — WIP improvement tracker
 
-Fast-returning subset: `real.rayon` baseline vs two funnel variants
-(`pw.arrv.k4`, `sh.arrv.k4`) across all workload scenarios.
-40 samples, 10s measurement time.
+Fast-returning subset: `real.rayon` baseline vs four funnel variants
+(`pw.arrv.k4`, `sh.arrv.k4`, `pw.fin.k4`, `sh.fin.k4`) across
+9 workload scenarios. 20 samples, 5s measurement time.
 
 ```
-make bench-quick
+make bench-quick-light
 ```
 
 <div id="bench-quick">Loading...</div>
