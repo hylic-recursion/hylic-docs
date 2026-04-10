@@ -129,10 +129,10 @@ use hylic::graph;
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         // Transparent: get R, trace discarded
-        let _r = hylic::cata::lift::run_lifted(&dom::FUSED, &Explainer::lift(), &fold, &graph, &root);
+        let _r = hylic::cata::lift::run_lifted(&dom::FUSED, &Explainer, &fold, &graph, &root);
 
         // Zipped: get both R and the full ExplainerResult
-        let (_r, trace) = hylic::cata::lift::run_lifted_zipped(&dom::FUSED, &Explainer::lift(), &fold, &graph, &root);
+        let (_r, trace) = hylic::cata::lift::run_lifted_zipped(&dom::FUSED, &Explainer, &fold, &graph, &root);
         assert_eq!(trace.orig_result, 3);
     }
     // ANCHOR_END: explainer_usage
@@ -152,7 +152,7 @@ use hylic::graph;
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         WorkPool::with(WorkPoolSpec::threads(2), |pool| {
-            let r = hylic::cata::lift::run_lifted(&dom::FUSED, &ParLazy::lift(pool), &fold, &graph, &root);
+            let r = hylic::cata::lift::run_lifted(&dom::FUSED, &ParLazy::new(pool), &fold, &graph, &root);
             assert_eq!(r, 3);
         });
     }
@@ -173,7 +173,7 @@ use hylic::graph;
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         WorkPool::with(WorkPoolSpec::threads(2), |pool| {
-            let r = hylic::cata::lift::run_lifted(&dom::FUSED, &ParEager::lift(pool, EagerSpec::default_for(3)), &fold, &graph, &root);
+            let r = ParEager::lift(pool, EagerSpec::default_for(3)).run(&dom::FUSED, &fold, &graph, &root);
             assert_eq!(r, 3);
         });
     }

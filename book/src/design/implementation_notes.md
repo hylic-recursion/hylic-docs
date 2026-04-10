@@ -50,15 +50,18 @@ for parallel iteration), `apply()` collects via the callback.
 a zero-allocation push-based iterator with `map`, `filter`, `fold`,
 `collect_vec`.
 
-## Lift: domain-generic, Box storage
+## LiftOps: GAT-based lift trait
 
-`Lift<N, H, R, N2, H2, R2>` stores its four transform closures in
-`Box<dyn Fn>`. Lift is not Clone, not Send, not Sync. Its closures
-fire once per lifted execution (construction-time transforms, not
-per-node operations). Box is the appropriate storage for this.
+`LiftOps<N, R, N2>` has two GATs: `LiftedH<H>` and `LiftedR<H>`.
+H is a method-level parameter on `lift_fold<H>` and `unwrap<H>`,
+not a trait-level parameter. This allows H to be inferred from the
+fold at each call site, and makes `unwrap` callable without
+spelling out the heap type.
 
-`LiftOps` is the operations trait parallel to `FoldOps`. The `Lift`
-struct implements it.
+Concrete lifts implement `LiftOps` directly as structs (Explainer
+is a unit struct, SeedLift carries a grow function, ParLazy carries
+a pool reference). There is no boxed-closure `Lift` container —
+each lift is a concrete type with generic methods.
 
 ## `ConstructFold`: domain-generic fold construction
 

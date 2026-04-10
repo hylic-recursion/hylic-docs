@@ -44,19 +44,19 @@ original `R`.
 
 ## Natural transformation (Lift)
 
-A `Lift<N, H, R, N2, H2, R2>` is a natural transformation between two
-F-algebras. It maps the carrier types of one algebra to another while
+The `LiftOps<N, R, N2>` trait represents a natural transformation
+between two F-algebras. It maps the carrier types of one algebra
+to another through two GATs (`LiftedH<H>`, `LiftedR<H>`) while
 preserving the fold's computational structure. The `unwrap` function
 recovers the original algebra's result from the lifted computation.
 
-hylic uses Lifts for:
-- **Explainer**: lift into a trace-recording domain (histomorphism)
-- **ParLazy**: lift into a data tree domain (`LazyResult<H, R>`)
-- **ParEager**: lift into a continuation-passing domain (`EagerResult<R>`)
+Concrete lifts implement the trait as structs: the Explainer lifts
+into a trace-recording domain (histomorphism), the SeedLift lifts
+into an `Either<Seed, Node>` domain for seed-based graph construction.
 
 The key property: `lift::run_lifted(&exec, &lift, &fold, &graph, &root)`
-produces the same `R` as `exec.run(&fold, &graph, &root)` — the Lift is
-transparent to the result.
+produces the same `R` as `exec.run(&fold, &graph, &root)` — the lift
+is transparent to the result.
 
 ## Externalized tree structure
 
