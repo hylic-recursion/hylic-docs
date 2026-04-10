@@ -1,4 +1,6 @@
 //! Fibonacci via tree fold — the simplest hylic example.
+//! The node type is `i32` — not a struct with children.
+//! The treeish computes children from the value: fib(n) → [fib(n-1), fib(n-2)].
 
 #[cfg(test)]
 mod tests {

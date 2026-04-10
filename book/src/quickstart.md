@@ -1,13 +1,14 @@
 # Quick Start
 
-This page walks through constructing and running a fold over a
-simple tree, then switching to parallel execution.
+This page walks through constructing and running a fold, first over
+a nested struct, then over a flat adjacency list — same fold, same
+result, different data representation.
 
-## Define the tree type
+## Define a node type
 
-Any Rust type whose nodes have children works. hylic does not
-require a particular trait — only that you can describe the
-parent-child relationship as a function.
+Any Rust type can serve as a node. The tree structure is defined
+externally by a `Treeish` function, not by the data itself. For this
+first example, the node type is a struct with a children field:
 
 ```rust
 use hylic::domain::shared as dom;
@@ -23,10 +24,9 @@ struct Dir {
 
 ## Describe the tree structure
 
-A `Treeish<Dir>` encapsulates how to traverse from a node to its
-children. The `treeish` constructor wraps a function that returns
-a `Vec` of children; `treeish_visit` accepts a callback-based form
-that avoids the intermediate allocation.
+A `Treeish<Dir>` is a function from a node to its children. The
+`treeish` constructor wraps a `Vec`-returning function; `treeish_visit`
+accepts a callback form that avoids the intermediate allocation.
 
 ```rust
 let graph = graph::treeish(|d: &Dir| d.children.clone());
@@ -36,9 +36,9 @@ let graph = graph::treeish(|d: &Dir| d.children.clone());
 
 A fold has three phases: `init` produces a heap value from a node,
 `accumulate` incorporates each child's result into the heap, and
-`finalize` extracts the result from the heap. `simple_fold` is a
-shorthand for the common case where the heap type equals the result
-type and finalize is the identity.
+`finalize` extracts the result. `simple_fold` is a shorthand for
+the common case where the heap type equals the result type and
+finalize is the identity.
 
 ```rust
 let init = |d: &Dir| d.size;
@@ -48,10 +48,8 @@ let fold = dom::simple_fold(init, acc);
 
 ## Run it
 
-`dom::FUSED` is the sequential executor. It recurses through the
-tree using the fold and graph provided, with no additional
-allocation or indirection beyond what the fold closures themselves
-require.
+`dom::FUSED` is the sequential executor — callback-based recursion,
+no overhead beyond the fold closures.
 
 ```rust
 let tree = Dir {
@@ -67,6 +65,30 @@ let tree = Dir {
 let total = dom::FUSED.run(&fold, &graph, &tree);
 assert_eq!(total, 190); // 10 + 100 + 50 + 30
 ```
+
+## The same fold over flat data
+
+The tree need not be nested. Here the same summation fold runs over
+a `Vec<Vec<usize>>` adjacency list, where nodes are integer indices:
+
+```rust
+let children = vec![vec![1, 2], vec![3], vec![], vec![]];
+let sizes = vec![10u64, 100, 50, 30];
+
+let graph = graph::treeish_visit(move |n: &usize, cb: &mut dyn FnMut(&usize)| {
+    for &c in &children[*n] { cb(&c); }
+});
+let fold = dom::simple_fold(
+    move |n: &usize| sizes[*n],
+    |heap: &mut u64, child: &u64| *heap += child,
+);
+
+let total = dom::FUSED.run(&fold, &graph, &0);
+assert_eq!(total, 190); // same tree, same result
+```
+
+The fold logic is identical — only the node type and the treeish
+change. This separation is the foundation of hylic's composability.
 
 ## Switch to parallel execution
 

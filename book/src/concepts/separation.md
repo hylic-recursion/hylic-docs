@@ -72,6 +72,11 @@ The callback-based signature (`Fn(&N, &mut dyn FnMut(&N))`) means
 zero allocation per visit. The `treeish()` constructor wraps a
 `Vec`-returning function into this form.
 
+The node type N can be anything — a nested struct, an integer index
+into an adjacency list, a string key into a map, or a reference
+resolved through I/O. The tree structure lives in the treeish
+function, not in the data.
+
 **Fold** — the computation. In the Shared domain, three closures behind Arc:
 
 ```rust

@@ -87,6 +87,10 @@ Two additional strategies live in sibling crates:
 
 ## Working example
 
+This example uses a flat adjacency list — nodes are integer indices,
+children are looked up by index. The same fold runs sequentially
+(Fused) and in parallel (Funnel) with identical results.
+
 ```rust
 {{#include ../../../src/cookbook/parallel_execution.rs}}
 ```

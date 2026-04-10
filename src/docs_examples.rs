@@ -264,6 +264,13 @@ use hylic::graph;
         assert_eq!(g1.apply(&root).len(), 1);
         assert_eq!(g2.apply(&root).len(), 1);
         assert_eq!(g3.apply(&root).len(), 1);
+
+        // Flat data — nodes are indices, children from adjacency list:
+        let adj: Vec<Vec<usize>> = vec![vec![1, 2], vec![], vec![]];
+        let g4 = graph::treeish_visit(move |n: &usize, cb: &mut dyn FnMut(&usize)| {
+            for &c in &adj[*n] { cb(&c); }
+        });
+        assert_eq!(g4.apply(&0).len(), 2);
     }
     // ANCHOR_END: treeish_constructors
 
