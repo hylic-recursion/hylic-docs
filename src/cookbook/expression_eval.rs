@@ -4,6 +4,7 @@
 mod tests {
     use hylic::prelude::vec_fold::{vec_fold, VecHeap};
     use hylic::domain::shared as dom;
+use hylic::graph;
     use insta::assert_snapshot;
 
 
@@ -29,7 +30,7 @@ mod tests {
 
         // treeish_visit: callback-based traversal — no Vec allocation.
         // Each variant decides which children to visit.
-        let graph = dom::treeish_visit(|e: &Expr, cb: &mut dyn FnMut(&Expr)| {
+        let graph = graph::treeish_visit(|e: &Expr, cb: &mut dyn FnMut(&Expr)| {
             match e {
                 Expr::Num(_) => {}
                 Expr::Add(a, b) | Expr::Mul(a, b) => { cb(a); cb(b); }

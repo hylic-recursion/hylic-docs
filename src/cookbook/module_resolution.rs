@@ -10,6 +10,7 @@ mod tests {
     use hylic::domain::shared::GraphWithFold;
     use hylic::prelude::seeds_for_fallible;
     use hylic::domain::shared as dom;
+use hylic::graph;
     use insta::assert_snapshot;
 
 
@@ -63,9 +64,9 @@ mod tests {
         // seeds_for_fallible lifts Edgy<Module, String> to Edgy<Either<..>, String>:
         // valid modules produce seeds, errors produce none.
         let seeds_from_node = seeds_for_fallible(
-            dom::edgy(move |module: &Module| module.deps.clone()),
+            graph::edgy(move |module: &Module| module.deps.clone()),
         );
-        let seed_graph = dom::SeedGraph::new(
+        let seed_graph = graph::SeedGraph::new(
             seeds_from_node,
             {
                 let reg = registry;
@@ -76,7 +77,7 @@ mod tests {
                     }
                 }
             },
-            dom::edgy(|top: &Vec<String>| top.clone()),
+            graph::edgy(|top: &Vec<String>| top.clone()),
         );
 
         // The fold operates on Either<Error, Module> — both cases in one algebra.

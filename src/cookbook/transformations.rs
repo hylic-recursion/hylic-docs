@@ -10,6 +10,7 @@ mod tests {
     use std::sync::{Arc, Mutex};
     use hylic::prelude::memoize_treeish_by;
     use hylic::domain::shared as dom;
+use hylic::graph;
     use insta::assert_snapshot;
 
     // ── Domain ──────────────────────────────────────────────
@@ -38,7 +39,7 @@ mod tests {
 
     // ── Shared setup ────────────────────────────────────────
 
-    fn setup() -> (dom::Treeish<Task>, Task) {
+    fn setup() -> (graph::Treeish<Task>, Task) {
         let reg = Registry::new(&[
             ("app",       50,  &["compile", "link"]),
             ("compile",   200, &["parse", "typecheck"]),
@@ -47,7 +48,7 @@ mod tests {
             ("link",      150, &[]),
         ]);
         let map = reg.0.clone();
-        let graph = dom::treeish(move |task: &Task| {
+        let graph = graph::treeish(move |task: &Task| {
             task.deps.iter().filter_map(|d| map.get(d).cloned()).collect()
         });
         let root = reg.get("app").unwrap().clone();
@@ -108,9 +109,9 @@ mod tests {
 
     // ── Graph transformations ───────────────────────────────
 
-    fn only_costly_deps(graph: &dom::Treeish<Task>, min_cost: u64) -> dom::Treeish<Task> {
+    fn only_costly_deps(graph: &graph::Treeish<Task>, min_cost: u64) -> graph::Treeish<Task> {
         let inner = graph.clone();
-        dom::treeish(move |task: &Task| {
+        graph::treeish(move |task: &Task| {
             inner.at(task)
                 .filter(|child: &Task| child.cost_ms >= min_cost)
                 .collect_vec()
@@ -183,7 +184,7 @@ mod tests {
         let visit_count = Arc::new(Mutex::new(0u32));
         let vc = visit_count.clone();
         let map = reg.0.clone();
-        let graph = dom::treeish(move |task: &Task| {
+        let graph = graph::treeish(move |task: &Task| {
             *vc.lock().unwrap() += 1;
             task.deps.iter().filter_map(|d| map.get(d).cloned()).collect()
         });

@@ -6,6 +6,7 @@
 mod tests {
     use std::collections::BTreeMap;
     use hylic::domain::shared as dom;
+use hylic::graph;
     use insta::assert_snapshot;
 
 
@@ -62,7 +63,7 @@ mod tests {
         ]);
 
         // treeish_from: for structs with a children field — zero-clone slice access.
-        let graph = dom::treeish_from(|scope: &ConfigScope| scope.children.as_slice());
+        let graph = graph::treeish_from(|scope: &ConfigScope| scope.children.as_slice());
 
         // init seeds the heap with the parent's own overrides.
         // accumulate merges each child's resolved config upward.

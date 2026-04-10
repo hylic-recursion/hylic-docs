@@ -7,6 +7,7 @@
 #[cfg(test)]
 mod tests {
     use hylic::domain::shared as dom;
+use hylic::graph;
     use hylic::domain::local;
     use hylic::domain::owned;
     // ── concepts/separation.md examples ────────────────
@@ -18,7 +19,7 @@ mod tests {
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
 
-        let graph = dom::treeish(|d: &Dir| d.children.clone());
+        let graph = graph::treeish(|d: &Dir| d.children.clone());
         let root = Dir { name: "root".into(), size: 10, children: vec![] };
         assert_eq!(graph.apply(&root).len(), 0);
     }
@@ -31,7 +32,7 @@ mod tests {
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
 
-        let graph = dom::treeish(|d: &Dir| d.children.clone());
+        let graph = graph::treeish(|d: &Dir| d.children.clone());
         let init = |d: &Dir| d.size;
         let acc = |heap: &mut u64, child: &u64| *heap += child;
         let sum = dom::simple_fold(init, acc);
@@ -55,7 +56,7 @@ mod tests {
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
-        let graph = dom::treeish(|n: &N| n.children.clone());
+        let graph = graph::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
         let fold = dom::simple_fold(init, acc);
@@ -76,7 +77,7 @@ mod tests {
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
 
-        let graph = dom::treeish(|d: &Dir| d.children.clone());
+        let graph = graph::treeish(|d: &Dir| d.children.clone());
         let init = |d: &Dir| d.size;
         let acc = |h: &mut u64, c: &u64| *h += c;
         let fold = dom::simple_fold(init, acc);
@@ -99,7 +100,7 @@ mod tests {
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
 
-        let graph = dom::treeish(|d: &Dir| d.children.clone());
+        let graph = graph::treeish(|d: &Dir| d.children.clone());
         let init = |d: &Dir| d.size;
         let acc = |h: &mut u64, c: &u64| *h += c;
         let size_fold = dom::simple_fold(init, acc);
@@ -123,7 +124,7 @@ mod tests {
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
-        let graph = dom::treeish(|n: &N| n.children.clone());
+        let graph = graph::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
         let fold = dom::simple_fold(init, acc);
@@ -146,7 +147,7 @@ mod tests {
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
-        let graph = dom::treeish(|n: &N| n.children.clone());
+        let graph = graph::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
         let fold = dom::simple_fold(init, acc);
@@ -167,7 +168,7 @@ mod tests {
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
-        let graph = dom::treeish(|n: &N| n.children.clone());
+        let graph = graph::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
         let fold = dom::simple_fold(init, acc);
@@ -200,7 +201,7 @@ mod tests {
 
         // Shared domain (standard):
         let fold = dom::fold(init, acc, fin);
-        let graph = dom::treeish_visit(children);
+        let graph = graph::treeish_visit(children);
         let r1 = dom::FUSED.run(&fold, &graph, &root);
 
         // Local domain (Rc, lighter):
@@ -226,7 +227,7 @@ mod tests {
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
-        let graph = dom::treeish(|n: &N| n.children.clone());
+        let graph = graph::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
         let fold = dom::simple_fold(init, acc);
@@ -252,15 +253,15 @@ mod tests {
         let root = Node { value: 1, children: vec![Node { value: 2, children: vec![] }] };
 
         // Callback-based (zero allocation per visit):
-        let g1 = dom::treeish_visit(|n: &Node, cb: &mut dyn FnMut(&Node)| {
+        let g1 = graph::treeish_visit(|n: &Node, cb: &mut dyn FnMut(&Node)| {
             for child in &n.children { cb(child); }
         });
 
         // Vec-returning (allocates per visit):
-        let g2 = dom::treeish(|n: &Node| n.children.clone());
+        let g2 = graph::treeish(|n: &Node| n.children.clone());
 
         // Slice accessor (borrows, zero allocation):
-        let g3 = dom::treeish_from(|n: &Node| n.children.as_slice());
+        let g3 = graph::treeish_from(|n: &Node| n.children.as_slice());
 
         assert_eq!(g1.apply(&root).len(), 1);
         assert_eq!(g2.apply(&root).len(), 1);
@@ -275,7 +276,7 @@ mod tests {
         #[derive(Clone)]
         struct Node { value: u64, children: Vec<Node> }
 
-        let graph = dom::treeish(|n: &Node| n.children.clone());
+        let graph = graph::treeish(|n: &Node| n.children.clone());
         let init = |n: &Node| n.value;
         let acc = |h: &mut u64, c: &u64| *h += c;
         let fold = dom::simple_fold(init, acc);
@@ -302,7 +303,7 @@ mod tests {
         let call_count = Arc::new(AtomicUsize::new(0));
         let cc = call_count.clone();
 
-        let graph = dom::treeish(move |n: &u64| -> Vec<u64> {
+        let graph = graph::treeish(move |n: &u64| -> Vec<u64> {
             cc.fetch_add(1, Ordering::Relaxed);
             if *n == 0 { vec![] } else { vec![n - 1] }
         });
@@ -341,7 +342,7 @@ mod tests {
 
         // Shared domain
         let fold = dom::fold(init, acc, fin);
-        let graph = dom::treeish_visit(children);
+        let graph = graph::treeish_visit(children);
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         assert_eq!(dom::FUSED.run(&fold, &graph, &root), 3);
@@ -355,7 +356,7 @@ mod tests {
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
-        let graph = dom::treeish(|n: &N| n.children.clone());
+        let graph = graph::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
         let fold = dom::simple_fold(init, acc);
@@ -384,7 +385,7 @@ mod tests {
 
         // Change node type: String → N
         let by_name = fold.contramap(|s: &String| N { val: s.len() as u64, children: vec![] });
-        let graph = dom::treeish_visit(|_: &String, _cb: &mut dyn FnMut(&String)| {});
+        let graph = graph::treeish_visit(|_: &String, _cb: &mut dyn FnMut(&String)| {});
 
         let result = dom::FUSED.run(&by_name, &graph, &"hello".to_string());
         assert_eq!(result, 5);
@@ -399,7 +400,7 @@ mod tests {
         let init = |n: &i32| *n as u64;
         let acc  = |h: &mut u64, c: &u64| *h += c;
         let fold = dom::simple_fold(init, acc);
-        let graph = dom::treeish(|n: &i32| if *n > 1 { vec![n - 1, n - 2] } else { vec![] });
+        let graph = graph::treeish(|n: &i32| if *n > 1 { vec![n - 1, n - 2] } else { vec![] });
         let result = dom::FUSED.run(&fold, &graph, &5);
         assert!(result > 0);
     }

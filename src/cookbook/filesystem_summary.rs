@@ -3,6 +3,7 @@
 #[cfg(test)]
 mod tests {
     use hylic::domain::shared as dom;
+use hylic::graph;
     use insta::assert_snapshot;
 
 
@@ -47,7 +48,7 @@ mod tests {
 
         // treeish_visit: callback avoids allocating empty Vecs for files.
         // Only directories produce children; files are implicit leaves.
-        let graph = dom::treeish_visit(|entry: &FsEntry, cb: &mut dyn FnMut(&FsEntry)| {
+        let graph = graph::treeish_visit(|entry: &FsEntry, cb: &mut dyn FnMut(&FsEntry)| {
             if let FsEntry::Dir { children, .. } = entry {
                 for child in children { cb(child); }
             }

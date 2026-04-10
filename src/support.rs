@@ -1,11 +1,12 @@
 //! Shared display helpers for cookbook examples.
 use hylic::domain::shared as dom;
+use hylic::graph;
 
 /// Run a fold and print the result with a label.
 pub fn show<N: 'static, H: 'static, R: std::fmt::Debug + 'static>(
     label: &str,
     fold: &dom::Fold<N, H, R>,
-    graph: &dom::Treeish<N>,
+    graph: &graph::Treeish<N>,
     root: &N,
 ) {
     let result = dom::FUSED.run(fold, graph, root);
@@ -16,7 +17,7 @@ pub fn show<N: 'static, H: 'static, R: std::fmt::Debug + 'static>(
 pub fn show_all_exec<N, H, R: std::fmt::Debug + PartialEq>(
     label: &str,
     fold: &dom::Fold<N, H, R>,
-    graph: &dom::Treeish<N>,
+    graph: &graph::Treeish<N>,
     root: &N,
 ) where
     N: Clone + Send + 'static,

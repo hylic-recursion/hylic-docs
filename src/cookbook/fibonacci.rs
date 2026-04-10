@@ -3,6 +3,7 @@
 #[cfg(test)]
 mod tests {
     use hylic::domain::shared as dom;
+use hylic::graph;
     use insta::assert_snapshot;
 
 
@@ -15,7 +16,7 @@ mod tests {
     fn fibonacci() {
         // treeish: given a node, return its children.
         // Leaves (n <= 1) have no children — empty vec stops recursion.
-        let graph = dom::treeish(|n: &FibNode| {
+        let graph = graph::treeish(|n: &FibNode| {
             if n.0 <= 1 { vec![] }
             else { vec![FibNode(n.0 - 1), FibNode(n.0 - 2)] }
         });

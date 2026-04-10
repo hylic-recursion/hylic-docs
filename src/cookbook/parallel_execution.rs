@@ -4,6 +4,7 @@
 #[cfg(test)]
 mod tests {
     use hylic::domain::shared as dom;
+use hylic::graph;
     use hylic::cata::exec::funnel;
     use insta::assert_snapshot;
 
@@ -26,7 +27,7 @@ mod tests {
             ).collect())
         ).collect());
 
-        let graph = dom::treeish(|n: &WorkNode| n.children.clone());
+        let graph = graph::treeish(|n: &WorkNode| n.children.clone());
         let init = |n: &WorkNode| n.value;
         let acc = |heap: &mut u64, child: &u64| *heap += child;
         let sum = dom::simple_fold(init, acc);
