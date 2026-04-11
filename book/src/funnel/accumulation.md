@@ -1,7 +1,11 @@
 # Accumulation Strategies
 
 Two ways to fold child results into the parent's heap, selected at
-compile time via the `AccumulateStrategy` trait:
+compile time via the `AccumulateStrategy` trait. Both preserve child
+order — accumulate is called in slot order regardless of which worker
+delivered first. This is what allows hylic's
+[non-associative accumulate](../design/milewski.md#the-general-case-h--r)
+to run correctly in parallel:
 
 ```rust
 {{#include ../../../../hylic/src/cata/exec/variant/funnel/policy/accumulate/mod.rs:accumulate_strategy_trait}}

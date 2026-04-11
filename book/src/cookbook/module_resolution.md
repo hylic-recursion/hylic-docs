@@ -1,14 +1,12 @@
 # Module resolution
 
-The seed-based graph pattern for lazy tree discovery. A `grow`
-function resolves dependency references (seeds) into modules (nodes),
-which may themselves have dependencies. Error handling uses
+Lazy dependency resolution via `SeedPipeline`. A `grow` function
+resolves dependency references (seeds) into modules (nodes), which
+may themselves have dependencies. Error handling uses
 `Either<Error, Valid>` — error nodes are leaves with no children.
 
-This example uses `SeedGraph` and `GraphWithFold` to build and run
-the resolution pipeline. See [Entry points](../concepts/entry.md)
-for the lift-based `SeedPipeline` alternative, which makes the
-seed layer explicit and composable.
+See [Seed-based lazy discovery](../guides/seed_pipeline.md) for
+the `SeedPipeline` API and its internal mechanics.
 
 ```rust
 {{#include ../../../src/cookbook/module_resolution.rs}}

@@ -36,16 +36,16 @@ three-phase structure (init/accumulate/finalize) is preserved.
 ## Lifts — type-domain transformations
 
 A lift goes further than fold transformations: it transforms BOTH
-the fold AND the treeish into a different type domain, runs the
-computation there, and maps the result back. The caller receives
-the same R — the lift is transparent.
+the fold AND the treeish into a different type domain. The executor
+runs the lifted computation and returns `LiftedR<H>` — the caller
+extracts the original result as appropriate for the lift (e.g.
+`ExplainerResult::orig_result`, or identity when `LiftedR<H> = R`).
 
-The `LiftOps` trait defines four operations:
+The `LiftOps` trait defines three operations:
 
 - **lift_treeish**: `Treeish<N>` → `Treeish<N2>`
 - **lift_fold\<H\>**: `Fold<N, H, R>` → `Fold<N2, LiftedH<H>, LiftedR<H>>`
 - **lift_root**: `&N` → `N2`
-- **unwrap\<H\>**: `LiftedR<H>` → `R`
 
 The lifted heap and result types are GATs on the trait, determined
 by each lift implementation:
@@ -70,19 +70,17 @@ digraph {
         T2 [label="Treeish<N2>"];
     }
 
-    R2 [label="LiftedR<H>", shape=ellipse];
-    R  [label="R", shape=ellipse, style=filled, fillcolor="#d4edda"];
+    R2 [label="LiftedR<H>", shape=ellipse, style=filled, fillcolor="#fff3cd"];
 
     F -> F2 [label="lift_fold<H>"];
     T -> T2 [label="lift_treeish"];
     F2 -> R2 [label="exec.run"];
-    R2 -> R  [label="unwrap<H>"];
 }
 ```
 
-Execution uses `cata::lift::run_lifted`, which applies the four
-transformations and runs the result through a Shared-domain executor.
-H is inferred from the fold at the call site.
+`cata::lift::run_lifted` applies the three transformations, runs the
+lifted computation through a Shared-domain executor, and returns
+`LiftedR<H>`. H is inferred from the fold at the call site.
 
 ## Explainer — computation tracing
 
@@ -100,12 +98,14 @@ sees its subtree's full computation history.
 
 ## The mathematical picture
 
-A fold is an F-algebra: a function `F<R> → R` that collapses one
-layer of structure. hylic decomposes it into three phases
-(init/accumulate/finalize) through the intermediate heap type H.
+The catamorphism's algebra is `F R → R` — collapse one layer with
+children already folded to R. hylic factors this through a working
+type `H`: init creates `H` from the node, accumulate folds child
+results `R` into `H`, finalize projects `H → R`. The carrier is `R`
+at every subtree. `H` is internal to the bracket. See
+[The N-H-R algebra factorization](../design/milewski.md) for the
+correspondence with Milewski's monoidal decomposition and the
+equivalence conditions.
 
-A lift is a natural transformation between two F-algebras. It maps
-the carrier types through the `LiftedH` and `LiftedR` GATs while
-preserving the fold structure. The `unwrap` function projects back
-to R. The computation produces the same result regardless of which
-algebra it runs in — the lift is transparent.
+A lift is an algebra morphism: it maps the carrier types through
+`LiftedH` and `LiftedR` while preserving the fold structure.

@@ -38,11 +38,15 @@ impl FoldOps<TreeNode, u64, u64> for SumFold {
 }
 ```
 
-The executor takes `&impl FoldOps<N, H, R>`. With a concrete type,
-the compiler monomorphizes the recursion engine. All fold method calls
-become direct, inlineable function calls. Zero `dyn Fn` overhead.
+The fused executor's recursion engine takes `&impl FoldOps<N, H, R>`
+internally. When a concrete `FoldOps` struct is wrapped in a
+domain fold (via `dom::fold()`) or when the executor is used through
+a domain-generic path, the compiler monomorphizes through the trait
+impl. All fold method calls become direct, inlineable function calls.
 
-Works with ALL executors: `dom::FUSED.run(&SumFold, &graph, &root)`.
+The domain fold types (`shared::Fold`, `local::Fold`, `owned::Fold`)
+implement `FoldOps` by delegating to their closures. A user-defined
+`FoldOps` struct eliminates that layer entirely.
 
 ## Eliminating graph dispatch: implement TreeOps
 

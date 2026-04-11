@@ -181,11 +181,13 @@ Spec IS the session.
 
 ## Generic-over-executor code
 
-The `Executor` trait is the single generic bound:
+The `Executor` trait is the single generic bound. The graph type `G`
+is a trait-level parameter — each executor impl declares its own
+bounds on `G`:
 
 ```rust
-fn measure<S: Executor<NodeId, u64, Shared>>(
-    exec: &Exec<Shared, S>, fold: &..., graph: &..., root: &NodeId,
+fn measure<G: TreeOps<NodeId> + 'static, S: Executor<NodeId, u64, Shared, G>>(
+    exec: &Exec<Shared, S>, fold: &shared::Fold<NodeId, u64, u64>, graph: &G, root: &NodeId,
 ) -> u64 {
     exec.run(fold, graph, root)
 }

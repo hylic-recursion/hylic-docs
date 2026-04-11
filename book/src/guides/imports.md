@@ -45,7 +45,7 @@ with any domain's executor:
 | `Treeish`, `Edgy` | Arc-based graph types with combinators |
 | `treeish()`, `treeish_visit()`, `treeish_from()` | Treeish constructors |
 | `edgy()`, `edgy_visit()` | General edge function constructors |
-| `Graph`, `SeedGraph`, `GraphWithFold` | Composition types |
+| `Graph`, `Edgy` combinators | Graph composition |
 
 ## Switching domains
 

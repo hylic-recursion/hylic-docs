@@ -128,11 +128,8 @@ use hylic::graph;
         let fold = dom::simple_fold(init, acc);
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
-        // Transparent: get R, trace discarded
-        let _r = hylic::cata::lift::run_lifted(&dom::FUSED, &Explainer, &fold, &graph, &root);
-
-        // Zipped: get both R and the full ExplainerResult
-        let (_r, trace) = hylic::cata::lift::run_lifted_zipped(&dom::FUSED, &Explainer, &fold, &graph, &root);
+        // run_lifted returns ExplainerResult — the lifted result type
+        let trace = hylic::cata::lift::run_lifted(&dom::FUSED, &Explainer, &fold, &graph, &root);
         assert_eq!(trace.orig_result, 3);
     }
     // ANCHOR_END: explainer_usage
@@ -152,7 +149,9 @@ use hylic::graph;
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         WorkPool::with(WorkPoolSpec::threads(2), |pool| {
-            let r = hylic::cata::lift::run_lifted(&dom::FUSED, &ParLazy::new(pool), &fold, &graph, &root);
+            let parlazy = ParLazy::new(pool);
+            let lazy = hylic::cata::lift::run_lifted(&dom::FUSED, &parlazy, &fold, &graph, &root);
+            let r = parlazy.eval(lazy);
             assert_eq!(r, 3);
         });
     }
@@ -399,14 +398,203 @@ use hylic::graph;
 
     // ── intro.md ───────────────────────────────────────
 
+    // ANCHOR: intro_dir_example
     #[test]
-    fn intro_example() {
+    fn intro_dir_example() {
+        use hylic::cata::exec::funnel;
 
-        let init = |n: &i32| *n as u64;
-        let acc  = |h: &mut u64, c: &u64| *h += c;
-        let fold = dom::simple_fold(init, acc);
-        let graph = graph::treeish(|n: &i32| if *n > 1 { vec![n - 1, n - 2] } else { vec![] });
-        let result = dom::FUSED.run(&fold, &graph, &5);
-        assert!(result > 0);
+        #[derive(Clone)]
+        struct Dir { name: String, size: u64, children: Vec<Dir> }
+
+        let graph = graph::treeish(|d: &Dir| d.children.clone());
+        let fold = dom::simple_fold(
+            |d: &Dir| d.size,
+            |heap: &mut u64, child: &u64| *heap += child,
+        );
+
+        let tree = Dir {
+            name: "project".into(), size: 10,
+            children: vec![
+                Dir { name: "src".into(), size: 200, children: vec![] },
+                Dir { name: "docs".into(), size: 50, children: vec![] },
+            ],
+        };
+
+        // Sequential:
+        let total = dom::FUSED.run(&fold, &graph, &tree);
+        assert_eq!(total, 260);
+
+        // Parallel — same fold, same graph:
+        let total = dom::exec(funnel::Spec::default(4)).run(&fold, &graph, &tree);
+        assert_eq!(total, 260);
     }
+    // ANCHOR_END: intro_dir_example
+
+    // ANCHOR: intro_flat_example
+    #[test]
+    fn intro_flat_example() {
+        // Flat adjacency list — nodes are indices, children are looked up
+        let children: Vec<Vec<usize>> = vec![
+            vec![1, 2],  // node 0 → children 1, 2
+            vec![],      // node 1 → leaf
+            vec![],      // node 2 → leaf
+        ];
+        let graph = graph::treeish_visit(move |n: &usize, cb: &mut dyn FnMut(&usize)| {
+            for &c in &children[*n] { cb(&c); }
+        });
+        let fold = dom::simple_fold(|n: &usize| *n as u64, |h: &mut u64, c: &u64| *h += c);
+
+        let total = dom::FUSED.run(&fold, &graph, &0);
+        assert_eq!(total, 3); // 0 + 1 + 2
+    }
+    // ANCHOR_END: intro_flat_example
+
+    // ── quickstart.md ─────────────────────────────────
+
+    // ANCHOR: quickstart_funnel
+    #[test]
+    fn quickstart_funnel() {
+        use hylic::cata::exec::funnel;
+
+        #[derive(Clone)]
+        struct Dir { name: String, size: u64, children: Vec<Dir> }
+
+        let graph = graph::treeish(|d: &Dir| d.children.clone());
+        let fold = dom::simple_fold(
+            |d: &Dir| d.size,
+            |heap: &mut u64, child: &u64| *heap += child,
+        );
+
+        let tree = Dir {
+            name: "root".into(), size: 10,
+            children: vec![
+                Dir { name: "a".into(), size: 5, children: vec![] },
+                Dir { name: "b".into(), size: 3, children: vec![] },
+            ],
+        };
+
+        let total = dom::exec(funnel::Spec::default(4)).run(&fold, &graph, &tree);
+        assert_eq!(total, 18);
+    }
+    // ANCHOR_END: quickstart_funnel
+
+    // ANCHOR: quickstart_session
+    #[test]
+    fn quickstart_session() {
+        use hylic::cata::exec::funnel;
+
+        #[derive(Clone)]
+        struct Dir { name: String, size: u64, children: Vec<Dir> }
+
+        let graph = graph::treeish(|d: &Dir| d.children.clone());
+        let fold = dom::simple_fold(
+            |d: &Dir| d.size,
+            |heap: &mut u64, child: &u64| *heap += child,
+        );
+
+        let tree = Dir {
+            name: "root".into(), size: 10,
+            children: vec![
+                Dir { name: "a".into(), size: 5, children: vec![] },
+            ],
+        };
+
+        dom::exec(funnel::Spec::default(4)).session(|s| {
+            let r1 = s.run(&fold, &graph, &tree);
+            let r2 = s.run(&fold, &graph, &tree);
+            assert_eq!(r1, r2);
+        });
+    }
+    // ANCHOR_END: quickstart_session
+
+    // ── guides/seed_pipeline.md ───────────────────────
+
+    // ANCHOR: seed_pipeline_example
+    #[test]
+    fn seed_pipeline_example() {
+        use hylic::cata::seed_lift::SeedPipeline;
+        use std::collections::HashMap;
+
+        // The "registry" — flat data, not a tree
+        let mut modules: HashMap<String, Vec<String>> = HashMap::new();
+        modules.insert("app".into(), vec!["db".into(), "auth".into()]);
+        modules.insert("db".into(), vec![]);
+        modules.insert("auth".into(), vec!["db".into()]);
+
+        // The seed edge function: given a module name, produce its dependency seeds
+        let reg = modules.clone();
+        let seeds_from_node = graph::edgy_visit(move |name: &String, cb: &mut dyn FnMut(&String)| {
+            if let Some(deps) = reg.get(name) {
+                for dep in deps { cb(dep); }
+            }
+        });
+
+        // The fold: collect all reachable names
+        let fold = dom::fold(
+            |name: &String| vec![name.clone()],
+            |heap: &mut Vec<String>, child: &Vec<String>| heap.extend(child.iter().cloned()),
+            |heap: &Vec<String>| heap.clone(),
+        );
+
+        // The grow function: identity (the seed IS the module name)
+        let grow = |seed: &String| seed.clone();
+
+        // Entry: the top-level seeds
+        type Top = Vec<String>;
+        let seeds_from_top = graph::edgy(|top: &Top| top.clone());
+
+        let pipeline = SeedPipeline::new(
+            grow,
+            seeds_from_node,
+            seeds_from_top,
+            &fold,
+            |_top: &Top| Vec::<String>::new(),
+        );
+
+        let result = pipeline.run(&dom::FUSED, &vec!["app".to_string()]);
+        assert!(result.contains(&"app".to_string()));
+        assert!(result.contains(&"auth".to_string()));
+    }
+    // ANCHOR_END: seed_pipeline_example
+
+    // ANCHOR: seed_pipeline_parallel
+    #[test]
+    fn seed_pipeline_parallel() {
+        use hylic::cata::exec::funnel;
+        use hylic::cata::seed_lift::SeedPipeline;
+        use std::collections::HashMap;
+
+        let mut modules: HashMap<String, Vec<String>> = HashMap::new();
+        modules.insert("app".into(), vec!["db".into(), "auth".into()]);
+        modules.insert("db".into(), vec![]);
+        modules.insert("auth".into(), vec!["db".into()]);
+
+        let reg = modules.clone();
+        let seeds_from_node = graph::edgy_visit(move |name: &String, cb: &mut dyn FnMut(&String)| {
+            if let Some(deps) = reg.get(name) { for dep in deps { cb(dep); } }
+        });
+
+        let fold = dom::fold(
+            |name: &String| vec![name.clone()],
+            |heap: &mut Vec<String>, child: &Vec<String>| heap.extend(child.iter().cloned()),
+            |heap: &Vec<String>| heap.clone(),
+        );
+
+        type Top = Vec<String>;
+        let pipeline = SeedPipeline::new(
+            |seed: &String| seed.clone(),
+            seeds_from_node,
+            graph::edgy(|top: &Top| top.clone()),
+            &fold,
+            |_top: &Top| Vec::<String>::new(),
+        );
+
+        // Same pipeline, parallel execution:
+        let result = pipeline.run(
+            &dom::exec(funnel::Spec::default(4)),
+            &vec!["app".to_string()],
+        );
+        assert!(result.contains(&"app".to_string()));
+    }
+    // ANCHOR_END: seed_pipeline_parallel
 }

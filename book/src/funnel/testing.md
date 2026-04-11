@@ -23,8 +23,8 @@ High iteration counts to catch timing-sensitive races:
 - **Pool lifecycle**: 5000 create/destroy cycles
 - **Mixed policy**: 50k iterations switching between PerWorker and
   Shared on the same pool (mimics criterion benchmark pattern)
-- **100k noop iterations**: Shared + OnFinalize and Shared + OnArrival
-  at criterion warmup intensity
+- **20k noop iterations each**: Shared + OnFinalize and Shared +
+  OnArrival at criterion warmup intensity
 - **Interleaved policies**: 12.5k iterations alternating four
   policies on one pool
 
@@ -38,7 +38,7 @@ The hylomorphism property: fold interleaves with traversal across
 subtrees. While one subtree is being visited (walk down), another
 subtree's results are being accumulated (cascade up).
 
-The test uses a lock-free `TraceLog` (65k-entry ring buffer, atomic
+The test uses a lock-free `TraceLog` (2048-entry bounded log, atomic
 sequence counter) to record visit and accumulate operations with
 thread IDs and subtree tags. After 20 attempts on an 85-node tree,
 the test asserts that cross-subtree interleaving occurred — proving

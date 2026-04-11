@@ -1,70 +1,109 @@
 # Theory notes
 
-hylic implements patterns from the theory of recursion schemes, adapted
-for Rust's type system. This page maps hylic's types to their formal
-names for readers who want to connect to the literature.
+hylic implements patterns from the theory of recursion schemes,
+adapted for Rust's type system. This page maps hylic's types to
+their formal names.
 
-## Catamorphism (fold)
+## Catamorphism
 
-A catamorphism consumes a recursive structure bottom-up. hylic's `Fold<N, H, R>`
-is a monoidal catamorphism — the algebra is decomposed into three phases
-(init, accumulate, finalize) through an intermediate heap type `H`.
+A catamorphism is a bottom-up fold over a recursive structure. The
+algebra is `F R → R` — given one layer of structure with children
+already folded to `R`, produce `R`. The carrier type `R` is the
+result at every subtree.
 
-The standard formulation is a single function `F<R> → R` where `F` is the
-base functor. hylic's three-phase decomposition enables independent
-transformation of each phase via `wrap_init`, `wrap_accumulate`, `wrap_finalize`.
+hylic factors this algebra into three steps through an intermediate
+type `H`:
 
-## Anamorphism (unfold)
+```
+F R → R  =  init(&N) → H, accumulate(&mut H, &R) per child, finalize(&H) → R
+```
 
-An anamorphism builds a recursive structure from a seed. hylic's `SeedGraph`
-is a coalgebra: given a seed, produce one layer of structure (the node and
-its child seeds). The `grow` function is the coalgebra.
+`H` is mutable working state internal to each node. `R` is the
+immutable result that flows between nodes. The bracket
+(init opens `H`, finalize closes to `R`) makes the invariant
+boundary explicit. See
+[The N-H-R algebra factorization](milewski.md) for the comparison
+with Milewski's monoidal decomposition and the equivalence under
+associative `⊕`.
 
-## Hylomorphism (unfold then fold)
+## Hylomorphism
 
-When a `Treeish` is backed by lazy child discovery (via `SeedGraph`), the
-catamorphism and anamorphism fuse — the tree is never fully materialized.
-This is a hylomorphism, and it's what `Exec::run()` performs when the
-graph is lazy. The [Funnel executor](../funnel/overview.md) parallelizes
-this pattern using [CPS](../funnel/cps_walk.md) (continuation-passing
-style) and [defunctionalized tasks](../funnel/continuations.md).
+When the tree structure is not materialized but discovered on demand
+(via a `Treeish` backed by lazy child discovery), the unfold
+(anamorphism) and fold (catamorphism) fuse — the tree exists only as
+a call stack, never as a data structure. This is a hylomorphism.
+
+In hylic, every `Exec::run()` call is a hylomorphism: the executor
+receives a coalgebra (`Treeish<N>`, which produces children on
+demand) and an algebra (`FoldOps<N, H, R>`, which consumes them),
+and fuses both in a single recursive pass. `(N, Treeish<N>)` is
+hylic's runtime equivalent of the type-level `Fix (f a)` — the pair
+describes a root and a way to get children, recursively, without
+materializing the tree.
+
+The [Funnel executor](../funnel/overview.md) parallelizes the
+hylomorphism using [CPS](../funnel/cps_walk.md) and
+[defunctionalized tasks](../funnel/continuations.md).
+
+## Anamorphism (seed-based discovery)
+
+An anamorphism builds recursive structure from a seed.
+[`SeedPipeline`](../guides/seed_pipeline.md) encapsulates this:
+given a seed edge function (`Edgy<N, Seed>`) and a grow function
+(`Fn(&Seed) → N`), it constructs the treeish by composing
+`seeds_from_node.map(grow)` and handles the entry transition.
+Internally, `SeedLift` implements `LiftOps` to express the
+`Either<Seed, N>` indirection as a fold transformation.
 
 ## Histomorphism (fold with history)
 
-The `Explainer` wraps a fold to record the full computation trace at every
-node — the initial heap, each child result folded in, and the final result.
-This corresponds to a histomorphism, which is a catamorphism where each
-node has access to the full computation history of its subtree.
+The `Explainer` records the full computation trace at every node —
+initial heap, each child result folded in, and the final result.
+This corresponds to a histomorphism: a catamorphism where each node
+has access to the full computation history of its subtree.
 
-In recursion-scheme terms, the Explainer's output (`ExplainerResult`) is
-analogous to the cofree comonad annotation. The Explainer is expressed
-as a Lift — it transforms `Fold<N, H, R>` into
-`Fold<N, ExplainerHeap, ExplainerResult>` and `unwrap` extracts the
-original `R`.
+The Explainer's output (`ExplainerResult`) is analogous to the
+cofree comonad annotation. It is expressed as a
+[Lift](../guides/lifts.md) — a fold transformation that changes the
+carrier types (`H → ExplainerHeap`, `R → ExplainerResult`). The
+original `R` is accessible via `ExplainerResult::orig_result`.
 
-## Natural transformation (Lift)
+## Algebra morphism (Lift)
 
-The `LiftOps<N, R, N2>` trait represents a natural transformation
-between two F-algebras. It maps the carrier types of one algebra
-to another through two GATs (`LiftedH<H>`, `LiftedR<H>`) while
-preserving the fold's computational structure. The `unwrap` function
-recovers the original algebra's result from the lifted computation.
+`LiftOps<N, R, N2>` maps one fold algebra into another. It
+transforms the carrier types through two GATs (`LiftedH<H>`,
+`LiftedR<H>`) and can change the node type (`N → N2`) by extending
+the tree structure with new constructors.
 
-Concrete lifts implement the trait as structs: the Explainer lifts
-into a trace-recording domain (histomorphism), the SeedLift lifts
-into an `Either<Seed, Node>` domain for seed-based graph construction.
+The SeedLift extends the tree with relay constructors
+(`Either<Seed, N>`) — seed nodes pass their single child's result
+through unchanged. The Explainer enriches the heap with trace data
+without changing the node type. Both are algebra morphisms: they
+transform the `F R → R` algebra into a different `F' R' → R'`
+algebra over a richer domain.
 
-The key property: `lift::run_lifted(&exec, &lift, &fold, &graph, &root)`
-produces the same `R` as `exec.run(&fold, &graph, &root)` — the lift
-is transparent to the result.
+`lift::run_lifted` applies the three trait methods (lift_treeish,
+lift_fold, lift_root), runs the lifted computation, and returns
+`LiftedR<H>`.
 
 ## Externalized tree structure
 
-Classical recursion schemes encode the recursive structure in the type
-system via fixed points of functors (`Fix(F)`). hylic externalizes it as
-a runtime function (`Treeish<N>` = `Fn(&N, &mut dyn FnMut(&N))`). This
-trades compile-time structural guarantees for runtime flexibility: the
-same fold works with any tree shape without redefining types.
+Classical recursion schemes encode tree structure via fixed points
+of functors (`Fix F`). The functor `F` defines one layer of shape
+(leaf, binary node, n-ary node), and `Fix F` is the recursive
+nesting.
+
+hylic externalizes this as a runtime function: `Treeish<N>` is
+`Fn(&N, &mut dyn FnMut(&N))`. The node type `N` carries identity,
+not structure — the same `N` can be traversed by different treeish
+functions, and the same fold works with any tree shape. This
+trades compile-time structural guarantees for the orthogonal
+decomposition of fold, graph, and executor.
+
+The pair `(N, Treeish<N>)` corresponds to a coalgebra `N → F N` —
+the treeish IS the coalgebra, producing one layer of children on
+demand. Combined with the fold algebra, the executor performs a
+fused hylomorphism.
 
 ## Operations traits and domain abstraction
 
@@ -76,116 +115,15 @@ implementations can use Rc (Local), Box (Owned), or concrete structs
 &impl TreeOps` — fully generic over the storage, monomorphized to
 zero overhead for concrete types.
 
-This is a form of defunctionalization: the operations traits are the
-abstract interface; the domain-specific types are the concrete
-representations. The `Domain` trait with GATs maps the marker type
-(Shared, Local, Owned) to the concrete types — a type-level function
-from boxing strategy to implementation.
-
-## Domain as functor
-
-The `Domain` trait is a type-level functor: it maps a node type `N` to
-a family of concrete types (`Fold<H, R>`, `Treeish`). In category
-theory terms, each domain is a functor from the category of node types
-to the category of fold/graph implementations:
-
-```
-Domain<N> : N ↦ (Fold<H, R>, Treeish)
-```
-
-The GAT formulation makes this explicit:
-
-```rust
-trait Domain<N> {
-    type Fold<H, R>: FoldOps<N, H, R>;
-    type Treeish: TreeOps<N>;
-}
-```
-
-`Shared`, `Local`, and `Owned` are three different functors with the
-same signature — they agree on the interface (FoldOps, TreeOps) but
-disagree on the representation (Arc, Rc, Box). Code that is generic
-over `D: Domain<N>` is a natural transformation: it works uniformly
-across all three functors.
-
-The executor's domain parameter (`Exec<D, S>`) selects which functor
-to apply. The inherent method trick exploits this: D is fixed by the
-executor const's type, so the compiler resolves the GATs statically.
-No runtime dispatch over the domain — the functor application is fully
-monomorphized.
-
-## SyncRef as proof witness
-
-`SyncRef<'a, T>` is an unsafe wrapper that asserts `Send + Sync` for
-a borrowed reference. It serves as a proof witness for a specific
-safety argument: data borrowed within a scoped thread pool outlives all
-workers, so shared access is safe even for types that are normally
-`!Sync`.
-
-The formal structure:
-
-1. **Premise**: `WorkPool::with(spec, |pool| { ... })` guarantees all
-   worker threads join before the closure returns (via
-   `std::thread::scope`).
-2. **Invariant**: Within the scope, any `&T` with lifetime `'scope`
-   outlives all tasks submitted to the pool.
-3. **Obligation**: Workers must not mutate the borrowed data or clone
-   the inner wrapper (e.g., no `Rc::clone` through the reference).
-4. **Witness**: `SyncRef(&data)` encodes that the caller has verified
-   premises 1–3. The `unsafe impl Send + Sync` is the proof
-   discharge.
-
-This pattern makes domain-generic parallel execution possible.
-Without SyncRef, `&Rc<dyn Fn>` is `!Send` (because `Rc` is `!Sync`),
-blocking any cross-thread sharing. SyncRef bypasses this by asserting
-that the specific usage pattern (read-only borrows within a scoped
-pool) is safe — the Rc refcount is never touched by workers.
-
-The safety argument is local to the pool boundary: SyncRef is created
-inside the recursion engine and never escapes it. Outside the pool,
-normal Rust lifetime and Send/Sync rules apply unchanged.
-
-The funnel executor applies the same scoped-lifetime argument to its
-`RootCell` — the fold's terminal result cell lives on `run_fold`'s
-stack and is accessed through a raw pointer (`*const RootCell<R>`)
-carried by `Cont::Root`. The scoped pool guarantees the pointer is
-valid for all workers. No Arc, no heap allocation.
-
-## ConstructFold: domain-generic fold construction
-
-`ConstructFold<N>` is a type-level function from a domain marker to a
-fold constructor. Given three closures (init, accumulate, finalize),
-it produces a `D::Fold<H, R>` — wrapping in Arc for Shared, Rc for
-Local. This enables lifts to construct domain-appropriate folds without
-knowing the concrete domain at the generic code level.
-
-The challenge: Shared's fold requires `Send + Sync` closures, Local's
-does not. A single trait method can't express varying bounds per impl.
-The solution: `make_fold` is `unsafe fn` with a documented contract —
-the Shared impl uses `AssertSend` (an unsafe Send+Sync wrapper) to
-bridge the gap. The safety of this bridge rests on the observation
-that closures passed to `ConstructFold<Shared>` capture Shared-domain
-data (Arc-based), which IS Send+Sync.
-
-## Data tree decoupling
-
-The parallel lifts (ParLazy, ParEager) decouple the computation's
-*data* from the fold's *operations*. Phase 1 builds a tree of pure
-data nodes (heap values + child handles). Phase 2 applies the fold's
-accumulate and finalize through an external reference — SyncRef for
-ParLazy (scoped borrow), FoldPtr for ParEager (lifetime-erased raw
-pointer).
-
-This decoupling is what makes domain-generic parallel lifts possible.
-Without it, each node would capture domain-specific closures (Arc for
-Shared, Rc for Local), and Rc closures can't cross thread boundaries.
-By separating data from operations, the data nodes are domain-agnostic
-and the fold reference is provided at evaluation time through an
-appropriate unsafe primitive.
+The `Domain` trait with GATs maps the marker type (Shared, Local,
+Owned) to concrete fold types. Graph types are domain-independent —
+always Arc-based, always `Send + Sync`. The domain controls only
+how fold closures are stored.
 
 ## Further reading
 
 - Meijer, Fokkinga, Paterson. *Functional Programming with Bananas, Lenses, Envelopes and Barbed Wire.* (1991) — the original recursion schemes paper.
-- Milewski. *Monoidal Catamorphisms.* (2020) — the decomposition hylic's fold uses.
+- Milewski. [Monoidal Catamorphisms](https://bartoszmilewski.com/2020/06/15/monoidal-catamorphisms/) (2020) — a different algebra factorization. See [comparison](milewski.md).
+- Gonzalez. [foldl](https://hackage.haskell.org/package/foldl) — the left-fold-with-extraction pattern.
 - Kmett. [recursion-schemes](https://hackage.haskell.org/package/recursion-schemes) — Haskell reference implementation.
 - Malick. [recursion.wtf](https://recursion.wtf/) — practical recursion schemes in Rust.

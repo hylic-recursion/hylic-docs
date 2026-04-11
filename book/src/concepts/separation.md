@@ -6,7 +6,7 @@ transform each part independently.
 
 ## One function
 
-This is the entire computation, from `exec.rs`:
+This is the entire computation, from the fused executor:
 
 ```rust
 {{#include ../../../../hylic/src/cata/exec/variant/fused/mod.rs:run_inner}}
@@ -87,13 +87,16 @@ Other [domains](../design/domains.md) use Rc (Local) or Box (Owned)
 — same operations, different boxing. The fold type doesn't carry the
 domain; the [executor](../executor-design/exec_pattern.md) does.
 
-- `init`: node → heap (initialize working state)
-- `accumulate`: heap × child result → heap (fold in one child)
-- `finalize`: heap → result (produce the node's answer)
+- `init`: `&N → H` — create per-node working state from the node
+- `accumulate`: `&mut H, &R` — fold one child's result into the heap
+- `finalize`: `&H → R` — close the bracket, produce the node's result
 
-The intermediate heap `H` lets you accumulate children one at a time
-without collecting them first. `simple_fold` is a shorthand where
-`H = R` and finalize is clone:
+`H` and `R` are distinct types: `H` is mutable working state (the
+open bracket), `R` is the immutable result flowing to the parent (the
+closed bracket). See
+[The N-H-R algebra factorization](../design/milewski.md) for the
+theoretical basis. `simple_fold` is a shorthand where `H = R` and
+finalize is clone:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:simple_fold_example}}
@@ -112,8 +115,8 @@ Two built-in executors:
 | `dom::FUSED` | Callback (sequential) | all |
 | [Funnel](../funnel/overview.md) | CPS work-stealing (parallel) | Shared |
 
-Each implements the `Executor<N, R, D>` trait — parameterized by
-a boxing [domain](../design/domains.md).
+Each implements the `Executor<N, R, D, G>` trait — parameterized by
+a boxing [domain](../design/domains.md) and graph type.
 See [Executor architecture](../executor-design/exec_pattern.md) for details.
 
 ## The separation
@@ -144,10 +147,11 @@ the fold. The executor connects them. The domain determines how
 closures are stored — but the fold and treeish don't carry it;
 the executor does.
 
-Everything in hylic reduces to `dom::FUSED.run(&fold, &treeish, &root)`.
-Even `GraphWithFold::run` (the pipeline for lazy tree discovery)
-is just one manual fold step for the entry point, then `executor.run`
-for each child tree — see [Entry points](./entry.md).
+Everything in hylic reduces to `executor.run(&fold, &treeish, &root)`.
+When the tree is discovered lazily (seeds resolved on demand),
+[`SeedPipeline`](../guides/seed_pipeline.md) constructs the treeish
+from a seed edge function + grow, and delegates to `executor.run`
+internally.
 
 ## Under the hood: operations traits
 

@@ -3,191 +3,198 @@
 A Rust library for composable recursive tree computation.
 
 hylic separates a recursive computation into three independent
-concerns: a *fold* that defines what to compute at each node, a
-*graph* that describes the tree structure, and an *executor* that
+concerns: a **fold** that defines what to compute at each node, a
+**graph** that describes the tree structure, and an **executor** that
 controls how the recursion is carried out. Each concern can be
-defined, transformed, and composed independently of the others.
+defined, transformed, and composed independently.
 
 ```rust
-use hylic::domain::shared as dom;
-use hylic::graph;
-
-#[derive(Clone)]
-struct Dir { name: String, size: u64, children: Vec<Dir> }
-
-let graph = graph::treeish(|d: &Dir| d.children.clone());
-let fold = dom::simple_fold(
-    |d: &Dir| d.size,
-    |heap: &mut u64, child: &u64| *heap += child,
-);
-
-let tree = Dir {
-    name: "project".into(), size: 10,
-    children: vec![
-        Dir { name: "src".into(), size: 200, children: vec![] },
-        Dir { name: "docs".into(), size: 50, children: vec![] },
-    ],
-};
-
-// Sequential:
-let total = dom::FUSED.run(&fold, &graph, &tree);
-assert_eq!(total, 260);
-
-// Parallel — same fold, same graph:
-use hylic::cata::exec::funnel;
-let total = dom::exec(funnel::Spec::default(4)).run(&fold, &graph, &tree);
-assert_eq!(total, 260);
+{{#include ../../src/docs_examples.rs:intro_dir_example}}
 ```
 
 The tree structure need not live inside the data. A `Treeish` is a
 function from a node to its children — it can traverse a nested
 struct, look up indices in a flat array, or resolve references
-through any external mechanism. The same fold works regardless:
+through any external mechanism:
 
 ```rust
-// Flat adjacency list — nodes are indices, children are looked up
-let children: Vec<Vec<usize>> = vec![
-    vec![1, 2],  // node 0 → children 1, 2
-    vec![],      // node 1 → leaf
-    vec![],      // node 2 → leaf
-];
-let graph = graph::treeish_visit(move |n: &usize, cb: &mut dyn FnMut(&usize)| {
-    for &c in &children[*n] { cb(&c); }
-});
-let fold = dom::simple_fold(|n: &usize| *n as u64, |h: &mut u64, c: &u64| *h += c);
-
-let total = dom::FUSED.run(&fold, &graph, &0);
-assert_eq!(total, 3); // 0 + 1 + 2
+{{#include ../../src/docs_examples.rs:intro_flat_example}}
 ```
 
-## The three axes
+## Architecture
 
-A recursive tree computation decomposes along three orthogonal
-dimensions. Changing one leaves the others untouched:
-
-**Fold** — what to compute:
+User-defined closures are wrapped into composable types (Fold,
+Treeish), transformed independently, and handed to an executor. The
+executor drives a recursion where fold and graph interleave at every
+node:
 
 ```dot process
-digraph {
-    rankdir=TB; node [shape=box, style="rounded,filled", fontname="sans-serif", fontsize=10, fillcolor="#d4edda"];
-    f1 [label="map / zipmap — change result type"];
-    f2 [label="contramap — change node type"];
-    f3 [label="product — two folds, one pass"];
-    f4 [label="wrap_init / wrap_acc / wrap_fin — intercept phases"];
-    f1 -> f2 -> f3 -> f4 [style=invis];
+digraph hylic {
+    rankdir=TB;
+    compound=true;
+    newrank=true;
+    node [fontname="sans-serif", fontsize=10, shape=box, style="rounded,filled"];
+    edge [fontname="sans-serif", fontsize=9];
+
+    subgraph cluster_fold_def {
+        label=""; style=invis;
+        init [label="init: &N → H", fillcolor="#d4edda"];
+        acc  [label="accumulate: &mut H, &R", fillcolor="#d4edda"];
+        fin  [label="finalize: &H → R", fillcolor="#d4edda"];
+        init -> acc -> fin [style=invis];
+    }
+
+    subgraph cluster_graph_def {
+        label=""; style=invis;
+        visit [label="visit: &N → children", fillcolor="#cce5ff"];
+    }
+
+    fold    [label="Fold<N, H, R>", fillcolor="#a5d6a7", penwidth=2];
+    treeish [label="Treeish<N>", fillcolor="#90caf9", penwidth=2];
+
+    init -> fold;
+    acc  -> fold;
+    fin  -> fold;
+    visit -> treeish;
+
+    fold_t [label="map · zipmap · contramap\nproduct · wrap_*", fillcolor="#e8f5e9", fontsize=9, shape=note];
+    tree_t [label="filter · contramap\nmemoize", fillcolor="#e3f2fd", fontsize=9, shape=note];
+
+    fold -> fold_t [style=dashed, arrowhead=none];
+    fold_t -> fold [style=dashed, label="new Fold"];
+    treeish -> tree_t [style=dashed, arrowhead=none];
+    tree_t -> treeish [style=dashed, label="new Treeish"];
+
+    exec [label="exec.run(&fold, &graph, &root) → R", fillcolor="#fff59d", penwidth=2, fontsize=11];
+
+    fold -> exec [penwidth=1.5];
+    treeish -> exec [penwidth=1.5];
+
+    subgraph cluster_recurse {
+        label="at each node"; labeljust=l;
+        style="rounded,filled"; fillcolor="#fafafa"; color=grey80;
+        fontname="sans-serif"; fontsize=10;
+
+        s1 [label="① fold.init(&node) → heap", fillcolor="#c8e6c9"];
+        s2 [label="② graph.visit(&node, |child| …)", fillcolor="#bbdefb"];
+        s3 [label="③ fold.accumulate(&mut heap, &child_r)", fillcolor="#c8e6c9"];
+        s4 [label="④ fold.finalize(&heap) → R", fillcolor="#c8e6c9"];
+        s1 -> s2 -> s3 -> s4;
+        s3 -> s2 [label="per child", style=dashed, constraint=false];
+    }
+
+    exec -> s1 [lhead=cluster_recurse];
+
+    fused  [label="Fused\ndirect recursion\nany domain, any graph", fillcolor="#fff3cd"];
+    funnel [label="Funnel<P>\nCPS work-stealing\nthree monomorphized policy axes", fillcolor="#ffe0b2"];
+
+    {rank=same; fused; funnel}
+    s4 -> fused [style=invis];
+    s4 -> funnel [style=invis];
 }
 ```
 
-**Graph** — where the children are:
+- **`N`** — the node type (a struct, an index, a key — anything)
+- **`H`** — the heap: per-node mutable scratch space, created by `init`, not shared between nodes
+- **`R`** — the result: produced by `finalize`, flows upward to the parent's `accumulate`
+
+Any fold and graph can be executed in parallel by switching to the
+[Funnel executor](./funnel/overview.md) — a
+[CPS work-stealing](./funnel/cps_walk.md) engine where unfold and fold
+interleave without materializing the tree. Three
+[compile-time policy axes](./funnel/policies.md) control
+[queue topology](./funnel/queue_strategies.md),
+[accumulation strategy](./funnel/accumulation.md), and
+[wake policy](./funnel/pool_dispatch.md), all monomorphized to zero
+dispatch overhead. Child results flow back through a
+[packed-ticket FoldChain](./funnel/cascade.md) with
+[destructive streaming sweeps](./funnel/accumulation.md) that free
+intermediate memory progressively. See
+[Benchmarks](./cookbook/benchmarks.md) for the performance
+characteristics.
+
+## Transformations and lifts
+
+Folds and graphs are independently transformable. Each combinator
+produces a new value — the original is unchanged (for Clone domains)
+or consumed (for Owned):
 
 ```dot process
-digraph {
-    rankdir=TB; node [shape=box, style="rounded,filled", fontname="sans-serif", fontsize=10, fillcolor="#cce5ff"];
-    g1 [label="filter — prune edges"];
-    g2 [label="memoize — cache for DAGs"];
-    g3 [label="SeedPipeline — lazy discovery via grow"];
-    g1 -> g2 -> g3 [style=invis];
+digraph transforms {
+    rankdir=TB;
+    compound=true;
+    node [fontname="monospace", fontsize=9, shape=box, style="rounded,filled"];
+    edge [fontname="sans-serif", fontsize=9];
+
+    subgraph cluster_fold {
+        label="Fold<N, H, R>"; labeljust=l;
+        style="rounded,filled"; fillcolor="#f1f8e9"; color="#a5d6a7";
+        fontname="sans-serif"; fontsize=10;
+
+        fmap    [label=".map(Fn(&R)→RNew, Fn(&RNew)→R)\n→ Fold<N, H, RNew>", fillcolor="#c8e6c9"];
+        fzip    [label=".zipmap(Fn(&R)→Extra)\n→ Fold<N, H, (R, Extra)>", fillcolor="#c8e6c9"];
+        fcontra [label=".contramap(Fn(&NewN)→N)\n→ Fold<NewN, H, R>", fillcolor="#c8e6c9"];
+        fprod   [label=".product(&Fold<N, H2, R2>)\n→ Fold<N, (H,H2), (R,R2)>", fillcolor="#c8e6c9"];
+        fwrap   [label=".wrap_init(Fn(&N, &dyn Fn(&N)→H)→H)\n.wrap_accumulate(Fn(&mut H, &R, &dyn Fn(&mut H, &R)))\n.wrap_finalize(Fn(&H, &dyn Fn(&H)→R)→R)", fillcolor="#c8e6c9"];
+        fmap -> fzip -> fcontra -> fprod -> fwrap [style=invis];
+    }
+
+    subgraph cluster_graph {
+        label="Treeish<N>"; labeljust=l;
+        style="rounded,filled"; fillcolor="#e3f2fd"; color="#90caf9";
+        fontname="sans-serif"; fontsize=10;
+
+        gfilter [label=".filter(Fn(&N)→bool)\n→ Treeish<N>", fillcolor="#bbdefb"];
+        gmemo   [label="memoize_treeish(&Treeish<N>)\n→ Treeish<N>  (cached for DAGs)", fillcolor="#bbdefb"];
+        gcontra [label=".contramap(Fn(&NewN)→N)\n→ Treeish<NewN>", fillcolor="#bbdefb"];
+        gtmap   [label=".treemap(Fn(&N)→NewN, Fn(&NewN)→N)\n→ Treeish<NewN>", fillcolor="#bbdefb"];
+        gfilter -> gmemo -> gcontra -> gtmap [style=invis];
+    }
 }
 ```
 
-**Executor** — how to traverse:
+- **`N`, `NewN`** — original and target node types
+- **`H`** — the fold's per-node heap (unchanged by map/zipmap/contramap)
+- **`R`, `RNew`, `Extra`** — original, replaced, and augmented result types
 
-```dot process
-digraph {
-    rankdir=TB; node [shape=box, style="rounded,filled", fontname="sans-serif", fontsize=10, fillcolor="#fff3cd"];
-    e1 [label="Fused — sequential, all domains"];
-    e2 [label="Funnel — parallel CPS work-stealing"];
-    e1 -> e2 [style=invis];
-}
-```
+All compose freely — see the
+[Fold guide](./guides/fold.md), [Graph guide](./guides/graph.md),
+and [Transformations cookbook](./cookbook/transformations.md).
 
-The fold's three-phase structure (`init` → `accumulate` → `finalize`,
-mediated by a heap type H) admits type-level transformations — `map`,
-`contramap`, `product`, `zipmap`, phase wrapping — that compose
-without modifying the original. The graph supports filtering,
-contramap, and memoization for DAGs. The executor provides `.run()`
-with the same interface whether it recurses on a single thread or
-distributes subtrees across a work-stealing pool.
+A [lift](./guides/lifts.md) goes further — it transforms both fold
+and treeish in sync into a different type domain via the
+[`LiftOps`](./concepts/transforms.md) trait. The
+[Explainer](./concepts/transforms.md#explainer--computation-tracing)
+records the full computation trace at every node (histomorphism).
 
-## Applications
+[`SeedPipeline`](./guides/seed_pipeline.md) handles a common case:
+the tree is discovered lazily from *seed* references rather than
+known upfront. The user provides a seed edge function
+(`Edgy<N, Seed>`) and a `grow` function (`Fn(&Seed) -> N`); the
+pipeline constructs the treeish, handles the entry transition, and
+runs the fold. Internally it uses a lift (`SeedLift`), but the
+`Either<Seed, N>` type is hidden entirely.
 
-The fold–graph–executor decomposition applies wherever a tree-shaped
-structure is reduced bottom-up. The node type can be a nested struct,
-an integer index into an array, a string key in a map, or a
-reference resolved on demand through I/O. The [Cookbook](./cookbook/fibonacci.md)
-includes worked examples:
+## Cookbook
 
-**AST reduction.** An expression tree where each variant (add,
-multiply, negate) combines children differently. The fold captures
-the evaluation rules; the graph encodes the syntax tree as an enum.
-See [Expression evaluation](./cookbook/expression_eval.md).
-
-**Dependency resolution.** A module graph discovered lazily — each
-module's dependencies are resolved on demand via a `grow` function.
-Error nodes (parse failures, missing modules) become leaves. The
-`SeedPipeline` encapsulates this as a lift. See
-[Module resolution](./cookbook/module_resolution.md) and
-[Entry points](./concepts/entry.md).
-
-**Configuration inheritance.** Scoped settings that overlay
-bottom-up — child scopes inherit and override parent values. See
-[Configuration inheritance](./cookbook/config_inheritance.md).
-
-**Multi-metric aggregation.** Several independent metrics (file
-count, total size, maximum depth) computed in a single traversal
-using the `product` combinator. See
-[Filesystem summary](./cookbook/filesystem_summary.md).
-
-**Graph validation.** Cycle detection in dependency graphs by
-threading ancestor state through the node type. See
-[Cycle detection](./cookbook/cycle_detection.md).
-
-**Parallel tree processing.** The same fold and graph, executed
-concurrently via the Funnel work-stealing engine. See
-[Parallel execution](./cookbook/parallel_execution.md) and the
-[Funnel executor](./funnel/overview.md).
-
-## The parallel engine
-
-The Funnel executor parallelizes a fused hylomorphism — the unfold
-(tree discovery) and fold (bottom-up accumulation) interleave without
-materializing the intermediate tree. Children beyond the first are
-pushed to work-stealing queues; their results flow back through
-defunctionalized continuations.
-
-Three compile-time policy axes control queue topology (per-worker
-deques vs shared queue), accumulation strategy (streaming sweep vs
-bulk finalize), and wake policy (per-push, per-batch, every-K). All
-sixteen combinations are monomorphized at compile time.
-
-The accumulation sweep uses destructive reads: child results are
-moved out of their slots during accumulation and freed immediately.
-For folds that produce large intermediate results, the live memory
-footprint is proportional to the tree's width rather than its total
-size.
-
-See [Funnel overview](./funnel/overview.md) and
-[Policies](./funnel/policies.md).
-
-## Lifts
-
-A lift transforms both fold and treeish into a different type domain,
-runs the computation there, and maps the result back. The `LiftOps`
-trait uses GATs to express the type mapping without fixing the heap
-type at the trait level.
-
-The **Explainer** is a histomorphism lift that records the full
-computation trace at every node. The **SeedLift** expresses
-seed-based lazy graph discovery as a type-level fold transformation,
-with transparent relay nodes that pass results through unchanged.
-
-See [Lifts](./guides/lifts.md) and
-[Transformations](./concepts/transforms.md).
+The [Cookbook](./cookbook/fibonacci.md) contains worked examples with
+snapshot-tested output:
+[expression evaluation](./cookbook/expression_eval.md),
+[module resolution](./cookbook/module_resolution.md),
+[configuration inheritance](./cookbook/config_inheritance.md),
+[filesystem summary](./cookbook/filesystem_summary.md),
+[cycle detection](./cookbook/cycle_detection.md),
+[parallel execution](./cookbook/parallel_execution.md).
 
 ## Where to start
 
 The [Quick Start](./quickstart.md) walks through constructing and
 running a fold. [The recursive pattern](./concepts/separation.md)
-explains the underlying decomposition. The
-[Cookbook](./cookbook/fibonacci.md) contains worked examples with
-snapshot-tested output.
+explains the underlying decomposition.
+
+## Further reading
+
+- Meijer, Fokkinga, Paterson. *Functional Programming with Bananas, Lenses, Envelopes and Barbed Wire.* (1991) — the original recursion schemes paper.
+- Milewski. [Monoidal Catamorphisms](https://bartoszmilewski.com/2020/06/15/monoidal-catamorphisms/) (2020) — a different algebra factorization. See [comparison](./design/milewski.md).
+- Kmett. [recursion-schemes](https://hackage.haskell.org/package/recursion-schemes) — Haskell reference implementation.
+- Malick. [recursion.wtf](https://recursion.wtf/) — practical recursion schemes in Rust.

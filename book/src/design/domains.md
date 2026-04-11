@@ -32,8 +32,8 @@ digraph {
 | **Owned** | `Box<dyn Fn>` | no | no | move (`self`) | Fused |
 
 The domain affects only the fold. Graph types (`Treeish`, `Edgy`,
-`Graph`, `SeedGraph`) are always Arc-based because graph composition
-requires Clone. The executor accepts any graph type that implements
+`Graph`) are always Arc-based because graph composition requires
+Clone. The executor accepts any graph type that implements
 `TreeOps<N>` — the graph's storage is checked at the call site, not
 through the domain.
 
@@ -50,7 +50,7 @@ domain/
 
 graph/
   edgy.rs           Edgy<N,E>, Treeish<N> (Arc) + combinators
-  compose.rs        Graph, SeedGraph, GraphWithFold
+  compose.rs        Graph
 ```
 
 A typical program imports a domain module for folds and the graph
@@ -135,7 +135,7 @@ operates on Shared folds), and non-destructive fold transformations
 (the original fold is preserved after map/contramap/product).
 
 **Local** provides the same transformation API with lighter
-refcounting (~1ns per Rc clone vs ~5ns per Arc clone). It works
+refcounting (Rc vs Arc — non-atomic vs atomic increment). It works
 with the Fused executor for single-threaded computation.
 
 **Owned** eliminates refcounting entirely. Fold transformations

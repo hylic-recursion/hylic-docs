@@ -15,11 +15,13 @@ the fold consumes it bottom-up. When fused, the two interleave:
 each node is produced, its children recursively processed, and their
 results accumulated — without materializing the tree.
 
-In hylic terms: a `Treeish<N>` exposes `visit(&node, |child| ...)`
-and a `Fold<N, H, R>` provides `init / accumulate / finalize`. The
-executor calls `visit` to discover children, recursively processes
-each, accumulates results into the parent's heap, and finalizes.
-The intermediate tree is never materialized as a data structure.
+In hylic terms: a `Treeish<N>` (the coalgebra) exposes
+`visit(&node, |child| ...)` and a `Fold<N, H, R>` (the algebra,
+[factored as init/accumulate/finalize](../design/milewski.md))
+provides the per-node bracket. The executor calls `visit` to
+discover children, recursively processes each, accumulates their `R`
+results into the parent's `H` heap, and finalizes. The intermediate
+tree is never materialized as a data structure.
 
 The funnel parallelizes this: children beyond the first are pushed
 to a work-stealing queue. Worker threads steal and process subtrees

@@ -25,8 +25,8 @@ methods and the Lift layer. `Box<dyn Fn>` is not `Clone`;
 (lighter refcount). `owned::Fold` uses `Box<dyn Fn>` (zero refcount,
 but not Clone). The domain system abstracts over this choice.
 
-**Manual `Clone` impls:** `Fold`, `Edgy`, `Graph`, `SeedGraph`, and
-`GraphWithFold` all implement `Clone` manually instead of deriving.
+**Manual `Clone` impls:** `Fold`, `Edgy`, `Graph`, `SeedPipeline`,
+and related types implement `Clone` manually instead of deriving.
 The derived `Clone` would require type parameters to be `Clone`, but
 the structs only store `Arc`/`Edgy`/`Fold` which are always cloneable.
 
@@ -53,15 +53,15 @@ a zero-allocation push-based iterator with `map`, `filter`, `fold`,
 ## LiftOps: GAT-based lift trait
 
 `LiftOps<N, R, N2>` has two GATs: `LiftedH<H>` and `LiftedR<H>`.
-H is a method-level parameter on `lift_fold<H>` and `unwrap<H>`,
-not a trait-level parameter. This allows H to be inferred from the
-fold at each call site, and makes `unwrap` callable without
-spelling out the heap type.
+H is a method-level parameter on `lift_fold<H>`, not a trait-level
+parameter. This allows H to be inferred from the fold at each call
+site.
 
 Concrete lifts implement `LiftOps` directly as structs (Explainer
-is a unit struct, SeedLift carries a grow function, ParLazy carries
-a pool reference). There is no boxed-closure `Lift` container —
-each lift is a concrete type with generic methods.
+is a unit struct, SeedLift carries a grow function and is used
+internally by `SeedPipeline`, ParLazy carries a pool reference).
+There is no boxed-closure `Lift` container — each lift is a concrete
+type with generic methods.
 
 ## `ConstructFold`: domain-generic fold construction
 
@@ -88,8 +88,7 @@ one downstream consumer.
 ## Module visibility
 
 `graph/` is public — it contains the domain-independent graph types
-(Edgy, Treeish, Graph, SeedGraph, GraphWithFold) that all code
-imports directly. `fold/` is `pub(crate)` — it contains only the
+(Edgy, Treeish, Graph) that all code imports directly. `fold/` is `pub(crate)` — it contains only the
 domain-independent combinator functions used internally by the three
 domain Fold implementations.
 
@@ -107,7 +106,7 @@ Types in `prelude/` are built on core but not required to use hylic:
 - **TreeFormatCfg**: Tree-to-string formatting.
 - **Traced**: Path tracking for tree nodes.
 - **memoize_treeish**: Graph-level caching for DAGs.
-- **seeds_for_fallible**: Fallible seed pattern for SeedGraph.
+- **seeds_for_fallible**: Fallible seed pattern for `Either<Error, Valid>` graphs.
 
 ## Sibling crate internals
 

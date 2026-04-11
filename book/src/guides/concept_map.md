@@ -68,7 +68,7 @@ digraph {
 
         FoldOps [label="FoldOps<N, H, R>\ninit / accumulate / finalize"];
         TreeOps [label="TreeOps<N>\nvisit / apply"];
-        LiftOps [label="LiftOps<D, N, H, R, ...>\nlift_fold / lift_treeish / unwrap"];
+        LiftOps [label="LiftOps<N, R, N2>\nlift_fold / lift_treeish / lift_root"];
     }
 
     subgraph cluster_concrete {
@@ -77,7 +77,7 @@ digraph {
         fontname="sans-serif";
 
         SharedFold [label="shared::Fold<N,H,R>\nArc closures", fillcolor="#d4edda"];
-        SharedTree [label="shared::Treeish<N>\nArc closures", fillcolor="#d4edda"];
+        SharedTree [label="graph::Treeish<N>\nArc closures", fillcolor="#d4edda"];
         LocalFold [label="local::Fold<N,H,R>\nRc closures", fillcolor="#fff3cd"];
         OwnedFold [label="owned::Fold<N,H,R>\nBox closures", fillcolor="#f8d7da"];
         UserStruct [label="YourStruct\nimpl FoldOps\n(zero boxing)", fillcolor="#e8e8ff"];
@@ -145,11 +145,13 @@ entire API surface for most programs.
 |---|:---:|:---:|:---:|
 | **Fused** | yes | yes | yes |
 | **Funnel** | yes | — | — |
-| **Explainer** | yes | yes | — |
+| **Explainer** | yes | — | — |
 | **Pipeline** | yes | — | — |
 
 Fused supports all domains (borrows, never clones). Funnel requires
-`N: Clone + Send, R: Send` — the Shared domain provides these.
+`N: Clone + Send, R: Send, G: Send + Sync` — the Shared domain
+provides these. Explainer and Pipeline operate on Shared-domain types
+(Arc-based Fold and Treeish).
 
 ## Zero-boxing path
 
@@ -167,4 +169,4 @@ impl FoldOps<MyNode, MyHeap, MyResult> for MyFold {
 
 Pass `&MyFold` directly to a Fused executor's recursion engine.
 The compiler monomorphizes everything — zero vtable calls, zero
-boxing, zero `Arc`. This is the absolute performance ceiling.
+boxing, zero `Arc`. This is the zero-overhead path.

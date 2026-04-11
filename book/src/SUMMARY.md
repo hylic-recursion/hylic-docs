@@ -12,7 +12,9 @@
 
 - [Fold: shaping the computation](./guides/fold.md)
 - [Graph: controlling traversal](./guides/graph.md)
+- [Seed-based lazy discovery](./guides/seed_pipeline.md)
 - [Lifts: cross-cutting concerns](./guides/lifts.md)
+- [Implementing a custom lift](./guides/implementing_lifts.md)
 
 # Execution
 
@@ -34,6 +36,7 @@
 - [Accumulation](./funnel/accumulation.md)
 - [Infrastructure](./funnel/infrastructure.md)
 - [Testing](./funnel/testing.md)
+- [Benchmarks](./cookbook/benchmarks.md)
 
 # Cookbook
 
@@ -46,13 +49,12 @@
 - [Zero-cost performance](./cookbook/zero_cost_performance.md)
 - [Transformations](./cookbook/transformations.md)
 - [Module resolution](./cookbook/module_resolution.md)
-- [Benchmarks](./cookbook/benchmarks.md)
 
 # Reference
 
-- [Entry points](./concepts/entry.md)
 - [Import patterns](./guides/imports.md)
 - [Concept map](./guides/concept_map.md)
 - [Domain system](./design/domains.md)
 - [Implementation notes](./design/implementation_notes.md)
 - [Theory](./design/theory.md)
+- [Algebra factorization](./design/milewski.md)
