@@ -536,22 +536,17 @@ use hylic::graph;
             |heap: &Vec<String>| heap.clone(),
         );
 
-        // The grow function: identity (the seed IS the module name)
-        let grow = |seed: &String| seed.clone();
-
-        // Entry: the top-level seeds
-        type Top = Vec<String>;
-        let seeds_from_top = graph::edgy(|top: &Top| top.clone());
-
         let pipeline = SeedPipeline::new(
-            grow,
+            |seed: &String| seed.clone(),
             seeds_from_node,
-            seeds_from_top,
             &fold,
-            |_top: &Top| Vec::<String>::new(),
         );
 
-        let result = pipeline.run(&dom::FUSED, &vec!["app".to_string()]);
+        let result = pipeline.run_from_slice(
+            &dom::FUSED,
+            &["app".to_string()],
+            Vec::<String>::new(),
+        );
         assert!(result.contains(&"app".to_string()));
         assert!(result.contains(&"auth".to_string()));
     }
@@ -580,19 +575,16 @@ use hylic::graph;
             |heap: &Vec<String>| heap.clone(),
         );
 
-        type Top = Vec<String>;
         let pipeline = SeedPipeline::new(
             |seed: &String| seed.clone(),
             seeds_from_node,
-            graph::edgy(|top: &Top| top.clone()),
             &fold,
-            |_top: &Top| Vec::<String>::new(),
         );
 
-        // Same pipeline, parallel execution:
-        let result = pipeline.run(
+        let result = pipeline.run_from_slice(
             &dom::exec(funnel::Spec::default(4)),
-            &vec!["app".to_string()],
+            &["app".to_string()],
+            Vec::<String>::new(),
         );
         assert!(result.contains(&"app".to_string()));
     }

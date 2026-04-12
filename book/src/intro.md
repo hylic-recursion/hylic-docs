@@ -173,7 +173,7 @@ known upfront. The user provides a seed edge function
 (`Edgy<N, Seed>`) and a `grow` function (`Fn(&Seed) -> N`); the
 pipeline constructs the treeish, handles the entry transition, and
 runs the fold. Internally it uses a lift (`SeedLift`), but the
-`Either<Seed, N>` type is hidden entirely.
+`LiftedNode<Seed, N>` type is hidden entirely.
 
 ## Cookbook
 

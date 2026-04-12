@@ -1,16 +1,16 @@
 //! Minified module resolution — the pattern that motivated hylic.
-//! Demonstrates: SeedGraph (entry point differs from recursion),
-//! error handling via Either, and the "two-function pattern" solved.
+//! Demonstrates: SeedPipeline for lazy dependency discovery,
+//! error handling via Either, and seeds_for_fallible.
 
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
     use either::Either;
 
-    use hylic::graph::GraphWithFold;
+    use hylic::cata::seed_lift::SeedPipeline;
     use hylic::prelude::seeds_for_fallible;
     use hylic::domain::shared as dom;
-use hylic::graph;
+    use hylic::graph;
     use insta::assert_snapshot;
 
 
@@ -22,7 +22,6 @@ use hylic::graph;
     }
 
     /// A module registry: maps names to module definitions.
-    /// In reality this would be filesystem lookups.
     struct Registry(HashMap<String, Module>);
 
     impl Registry {
@@ -57,32 +56,25 @@ use hylic::graph;
             // "ghost" is not in the registry — will produce an error
         ]);
 
-        // SeedGraph is a general anamorphism — three functions:
-        // 1. seeds_from_node: a node's dependency names
-        // 2. grow: dependency name → Either<Error, Module>
-        // 3. seeds_from_top: entry point → initial names
-        // seeds_for_fallible lifts Edgy<Module, String> to Edgy<Either<..>, String>:
-        // valid modules produce seeds, errors produce none.
+        // Node = Either<ResolveError, Module>.
+        // seeds_from_node: valid modules produce dependency names (seeds),
+        // errors produce none (via seeds_for_fallible).
         let seeds_from_node = seeds_for_fallible(
             graph::edgy(move |module: &Module| module.deps.clone()),
         );
-        let seed_graph = graph::SeedGraph::new(
-            seeds_from_node,
-            {
-                let reg = registry;
-                move |dep_name: &String| -> Either<ResolveError, Module> {
-                    match reg.0.get(dep_name) {
-                        Some(m) => Either::Right(m.clone()),
-                        None => Either::Left(ResolveError(format!("not found: {}", dep_name))),
-                    }
-                }
-            },
-            graph::edgy(|top: &Vec<String>| top.clone()),
-        );
 
-        // The fold operates on Either<Error, Module> — both cases in one algebra.
-        // Left (error): no children, init produces the error.
-        // Right (valid): init produces the module name, children accumulate.
+        // grow: dependency name → Either<Error, Module>
+        let grow = {
+            let reg = registry;
+            move |dep_name: &String| -> Either<ResolveError, Module> {
+                match reg.0.get(dep_name) {
+                    Some(m) => Either::Right(m.clone()),
+                    None => Either::Left(ResolveError(format!("not found: {}", dep_name))),
+                }
+            }
+        };
+
+        // The fold operates on Either<Error, Module>.
         let init = |node: &Either<ResolveError, Module>| match node {
             Either::Right(m) => Resolved {
                 modules: vec![m.name.clone()],
@@ -99,21 +91,16 @@ use hylic::graph;
         };
         let collect = dom::simple_fold(init, acc);
 
-        // GraphWithFold wires graph + fold + a top-level heap initializer.
-        // heap_of_top initializes the heap for the entry point (which isn't
-        // a graph node — it's the spec that produces initial seeds).
-        let graph = seed_graph.make_graph();
-        let pipeline = GraphWithFold::new(
-            &graph,
-            &collect,
-            |_top| Resolved { modules: vec![], errors: vec![] },
+        // SeedPipeline: grow + seeds_from_node + fold.
+        // Entry handled at the call site.
+        let pipeline = SeedPipeline::new(grow, seeds_from_node, &collect);
+
+        let result = pipeline.run_from_slice(
+            &dom::FUSED,
+            &["app".to_string()],
+            Resolved { modules: vec![], errors: vec![] },
         );
 
-        let top_deps = vec!["app".to_string()];
-        let result = pipeline.run(&dom::FUSED, &top_deps);
-
-        // Bottom-up order: utils resolved first, then logging, config, app
-        // ghost produces an error
         assert!(result.modules.contains(&"utils".to_string()));
         assert!(result.modules.contains(&"app".to_string()));
         assert!(result.errors.contains(&"not found: ghost".to_string()));

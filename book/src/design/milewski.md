@@ -296,16 +296,11 @@ The underlying combinator (`map_edges`):
 {{#include ../../../../hylic/src/graph/combinators.rs:map_edges}}
 ```
 
-**Chain 2: entry lifting.** Widen the edge type, close the node
-side, so that a seed can enter the computation:
-
-```
-treeish:  Edgy<N, N>
-    .map(Right)                            N → Either<Seed, N>
-=         Edgy<N, Either<Seed, N>>
-    .contramap_or(dispatch)                Either<Seed, N> → delegate or produce
-=         Treeish<Either<Seed, N>>
-```
+**Chain 2: entry lifting.** The `SeedLift` constructs a
+`Treeish<LiftedNode<Seed, N>>` that dispatches per variant:
+`Node(n)` visits the original treeish (wrapping children as `Node`),
+`Seed(s)` produces one child `Node(grow(s))`, and `Entry` fans out
+the entry seeds as `Seed` children.
 
 In code (`SeedLift::lift_treeish`):
 
@@ -313,16 +308,10 @@ In code (`SeedLift::lift_treeish`):
 {{#include ../../../../hylic/src/cata/seed_lift.rs:lift_treeish}}
 ```
 
-The underlying combinator (`contramap_or_node`):
-
-```rust
-{{#include ../../../../hylic/src/graph/combinators.rs:contramap_or_node}}
-```
-
-`Left(node)` delegates to `inner` (the original treeish visits its
-children). `Right(edges)` emits edges directly. In the lift,
-`Right(node)` delegates and `Left(seed)` produces
-`[Right(grow(seed))]`.
+`Node(n)` delegates to the inner treeish. `Seed(s)` grows and
+produces a single `Node` child. `Entry` has no children of its
+own in the treeish — its children come from the entry seeds
+provided at run time.
 
 ```dot process
 digraph seed_bridge {
@@ -354,8 +343,8 @@ digraph seed_bridge {
         label="SeedLift extends"; labeljust=l; style="rounded,filled";
         fillcolor="#fafafa"; color=grey80; fontname="sans-serif"; fontsize=9;
 
-        lt [label="Treeish<Either<Seed, N>>\n.map(Right).contramap_or(dispatch)", fillcolor="#dcedc8"];
-        lf [label="Fold<Either<Seed, N>,\n     SeedHeap<H,R>, R>", fillcolor="#dcedc8"];
+        lt [label="Treeish<LiftedNode<Seed, N>>\nper-variant dispatch", fillcolor="#dcedc8"];
+        lf [label="Fold<LiftedNode<Seed, N>,\n     LiftedHeap<H,R>, R>", fillcolor="#dcedc8"];
     }
 
     t -> lt [label="lift_treeish"];
@@ -365,27 +354,29 @@ digraph seed_bridge {
         label="entry"; labeljust=l; style="rounded,filled";
         fillcolor="#fafafa"; color=grey80; fontname="sans-serif"; fontsize=9;
 
-        entry_seed [label="Left(seed)", fillcolor="#ffccbc"];
-        entry_node [label="Right(grow(seed))", fillcolor="#c8e6c9"];
+        entry_point [label="Entry", fillcolor="#e1bee7"];
+        entry_seed [label="Seed(s)", fillcolor="#ffccbc"];
+        entry_node [label="Node(grow(s))", fillcolor="#c8e6c9"];
         entry_rest [label="original treeish + fold\ndrive all further traversal", fillcolor="#c8e6c9"];
     }
 
+    entry_point -> entry_seed [label="entry seeds"];
     entry_seed -> entry_node [label="grow"];
     entry_node -> entry_rest [label="converges"];
 
-    lt -> entry_seed [label="exec.run", style=dashed];
+    lt -> entry_point [label="exec.run", style=dashed];
 }
 ```
 
-After one `Left → Right` transition, the original coalgebra and
-algebra drive all further recursion. The `Either` type, the relay
-heap, and the composed treeish are internal to the pipeline.
+After the `Entry → Seed → Node` transition, the original coalgebra
+and algebra drive all further recursion. The `LiftedNode` type, the
+`LiftedHeap`, and the composed treeish are internal to the pipeline.
 
-`SeedPipeline` also accepts a `Top` type for the entry point, with
-`seeds_from_top: Top → Seed*` and `heap_of_top: Fn(&Top) → H`.
-This is an ergonomic choice. `Top` can be a list of seeds, a
-configuration, or any type that produces initial seeds. One can also
-enter directly with a node via `pipeline.run_node(&exec, &node)`.
+Entry seeds are supplied at run time via `Edgy<(), Seed>` passed to
+`pipeline.run(exec, entry_seeds, initial_heap)`, or via
+`pipeline.run_from_slice(exec, &[seed1, seed2], initial_heap)`.
+The pipeline itself stores no entry concerns — only `grow`,
+`seeds_from_node`, and the fold.
 
 ## Further reading
 
