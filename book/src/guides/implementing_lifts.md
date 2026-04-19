@@ -1,7 +1,7 @@
 # Implementing a custom lift
 
 A lift transforms both fold and treeish into a different type domain.
-The `LiftOps` trait provides three methods — `lift_treeish`,
+The `Lift` trait provides three methods — `lift_treeish`,
 `lift_fold`, `lift_root`. This page walks through the implementation
 pattern using SeedLift (the lift inside
 [`SeedPipeline`](./seed_pipeline.md)) and the Explainer as examples.
@@ -13,7 +13,7 @@ The lifted heap dispatches between the original fold's logic and the
 lift's own logic:
 
 ```rust
-{{#include ../../../../hylic/src/cata/seed_lift.rs:seed_heap}}
+{{#include ../../../../hylic/src/cata/seed_lift/types.rs:seed_heap}}
 ```
 
 SeedLift's heap has two variants: `Active(H)` delegates to the
@@ -21,7 +21,7 @@ original fold, `Relay(Option<R>)` stores a single child's result
 for pass-through. The Explainer uses the same pattern — its
 `ExplainerHeap<N, H, R>` wraps the original `H` and adds trace
 fields. In both cases, the lifted heap is a GAT:
-`type LiftedH<H: Clone + 'static> = LiftedHeap<H, R>`.
+`type MapH<H, R> = LiftedHeap<H, R>`.
 
 ## Step 2: implement `lift_treeish`
 
@@ -69,13 +69,14 @@ resolved node. The Explainer clones the root unchanged.
 ## The trait
 
 ```rust
-{{#include ../../../../hylic/src/ops/lift.rs:liftops_trait}}
+{{#include ../../../../hylic/src/ops/lift.rs:lift_trait}}
 ```
 
-`run_lifted` applies the three methods, runs the lifted computation
-through an executor, and returns `LiftedR<H>`. The caller extracts
-the original result as appropriate — `ExplainerResult::orig_result`
-for the Explainer, or `R` directly when `LiftedR<H> = R` (SeedLift).
+`Lift<N, N2>` is a bifunctor on the `(H, R)` pair — both `MapH`
+and `MapR` are GATs parameterized by `(H, R)`. This enables blanket
+composition via `ComposedLift` without boilerplate. `run_lifted`
+applies the three methods, runs the lifted computation through an
+executor, and returns `MapR<H, R>`.
 
 ## From lift to user-facing abstraction
 
@@ -87,7 +88,7 @@ user-facing API that hides these internals: the user provides `grow`,
 lift, the treeish composition, and the entry transition. The
 `LiftedNode` type never appears in the user's code.
 
-This pattern — implement a `LiftOps` for the internal mechanics,
+This pattern — implement a `Lift` for the internal mechanics,
 then wrap it in a pipeline or adapter that presents a clean API — is
 how hylic separates the algebra morphism (the lift) from the
 ergonomics (the wrapper).

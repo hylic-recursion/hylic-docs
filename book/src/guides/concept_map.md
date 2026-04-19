@@ -68,7 +68,7 @@ digraph {
 
         FoldOps [label="FoldOps<N, H, R>\ninit / accumulate / finalize"];
         TreeOps [label="TreeOps<N>\nvisit / apply"];
-        LiftOps [label="LiftOps<N, R, N2>\nlift_fold / lift_treeish / lift_root"];
+        Lift [label="Lift<N, N2>\nlift_fold / lift_treeish / lift_root"];
     }
 
     subgraph cluster_concrete {
@@ -112,7 +112,7 @@ digraph {
     ExecDS -> FoldOps [label="&impl FoldOps", style=dotted];
     ExecDS -> TreeOps [label="&impl TreeOps", style=dotted];
 
-    LiftOps -> Explainer [dir=back, style=dashed, label="impl"];
+    Lift -> Explainer [dir=back, style=dashed, label="impl"];
 }
 ```
 

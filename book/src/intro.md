@@ -163,7 +163,7 @@ and [Transformations cookbook](./cookbook/transformations.md).
 
 A [lift](./guides/lifts.md) goes further — it transforms both fold
 and treeish in sync into a different type domain via the
-[`LiftOps`](./concepts/transforms.md) trait. The
+[`Lift`](./concepts/transforms.md) trait. The
 [Explainer](./concepts/transforms.md#explainer--computation-tracing)
 records the full computation trace at every node (histomorphism).
 

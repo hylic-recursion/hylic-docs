@@ -52,7 +52,7 @@ An anamorphism builds recursive structure from a seed.
 given a seed edge function (`Edgy<N, Seed>`) and a grow function
 (`Fn(&Seed) → N`), it constructs the treeish by composing
 `seeds_from_node.map(grow)` and handles the entry transition.
-Internally, `SeedLift` implements `LiftOps` to express the
+Internally, `SeedLift` implements `Lift` to express the
 `LiftedNode<Seed, N>` indirection as a fold transformation.
 
 ## Histomorphism (fold with history)
@@ -70,9 +70,9 @@ original `R` is accessible via `ExplainerResult::orig_result`.
 
 ## Algebra morphism (Lift)
 
-`LiftOps<N, R, N2>` maps one fold algebra into another. It
-transforms the carrier types through two GATs (`LiftedH<H>`,
-`LiftedR<H>`) and can change the node type (`N → N2`) by extending
+`Lift<N, N2>` maps one fold algebra into another. It
+transforms the carrier types through two GATs (`MapH<H, R>`,
+`MapR<H, R>`) and can change the node type (`N → N2`) by extending
 the tree structure with new constructors.
 
 The SeedLift extends the tree with relay and entry constructors
@@ -84,7 +84,7 @@ algebra over a richer domain.
 
 `lift::run_lifted` applies the three trait methods (lift_treeish,
 lift_fold, lift_root), runs the lifted computation, and returns
-`LiftedR<H>`.
+`MapR<H, R>`.
 
 ## Externalized tree structure
 

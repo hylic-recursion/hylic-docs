@@ -50,18 +50,18 @@ for parallel iteration), `apply()` collects via the callback.
 a zero-allocation push-based iterator with `map`, `filter`, `fold`,
 `collect_vec`.
 
-## LiftOps: GAT-based lift trait
+## Lift: GAT-based lift trait
 
-`LiftOps<N, R, N2>` has two GATs: `LiftedH<H>` and `LiftedR<H>`.
-H is a method-level parameter on `lift_fold<H>`, not a trait-level
-parameter. This allows H to be inferred from the fold at each call
-site.
+`Lift<N, N2>` has two GATs: `MapH<H, R>` and `MapR<H, R>`.
+H and R are method-level parameters on `lift_fold<H, R>`, not
+trait-level parameters. This allows H and R to be inferred from the
+fold at each call site. The trait is a bifunctor on the `(H, R)` pair.
 
-Concrete lifts implement `LiftOps` directly as structs (Explainer
+Concrete lifts implement `Lift` directly as structs (Explainer
 is a unit struct, SeedLift carries a grow function and is used
 internally by `SeedPipeline`, ParLazy carries a pool reference).
-There is no boxed-closure `Lift` container — each lift is a concrete
-type with generic methods.
+Automatic composition is provided by a blanket `ComposedLift`
+implementation — no per-lift boilerplate needed.
 
 ## `ConstructFold`: domain-generic fold construction
 
