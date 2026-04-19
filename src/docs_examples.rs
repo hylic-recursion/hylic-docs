@@ -118,30 +118,28 @@ use hylic::graph;
     // ANCHOR: explainer_usage
     #[test]
     fn explainer_usage() {
-        use std::sync::Arc;
-        use hylic::ops::Lift;
-        use hylic::prelude::Explainer;
+        use hylic::prelude::{Explainer, SeedPipeline, PipelineExec};
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
-        let graph = graph::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
         let fold_ = dom::simple_fold(init, acc);
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
-        // Apply Explainer to a standalone (treeish, fold) pair via CPS
-        // apply. Explainer doesn't touch grow/seeds — dummies work.
-        let dummy_grow: Arc<dyn Fn(&()) -> N + Send + Sync> = {
-            let r = root.clone();
-            Arc::new(move |_: &()| r.clone())
-        };
-        let dummy_seeds = graph::edgy_visit(|_: &N, _: &mut dyn FnMut(&())| {});
-        let trace = Explainer.apply(
-            dummy_grow, dummy_seeds, graph.clone(), fold_,
-            |_g, _s, t, f| dom::FUSED.run(&f, &t, &root),
-        );
+        // Fluent chain: build a SeedPipeline, lift, compose Explainer
+        // via apply_pre_lift, run starting from the known root.
+        let trace = SeedPipeline::new(
+                |n: &N| n.clone(),                                    // grow (unused for run_from_node)
+                graph::edgy_visit(|n: &N, cb: &mut dyn FnMut(&N)| {
+                    for c in &n.children { cb(c); }
+                }),                                                   // seeds_from_node
+                &fold_,
+            )
+            .lift()
+            .apply_pre_lift(Explainer)
+            .run_from_node(&dom::FUSED, &root);
         assert_eq!(trace.orig_result, 3);
     }
     // ANCHOR_END: explainer_usage
@@ -149,14 +147,12 @@ use hylic::graph;
     // ANCHOR: parlazy_usage
     #[test]
     fn parlazy_usage() {
-        use std::sync::Arc;
-        use hylic::ops::Lift;
+        use hylic::prelude::{SeedPipeline, PipelineExec};
         use hylic_parallel_lifts::{ParLazy, WorkPool, WorkPoolSpec};
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
 
-        let graph = graph::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
         let fold_ = dom::simple_fold(init, acc);
@@ -164,15 +160,18 @@ use hylic::graph;
 
         WorkPool::with(WorkPoolSpec::threads(2), |pool| {
             let parlazy = ParLazy::new(pool);
-            let dummy_grow: Arc<dyn Fn(&()) -> N + Send + Sync> = {
-                let r = root.clone();
-                Arc::new(move |_: &()| r.clone())
-            };
-            let dummy_seeds = graph::edgy_visit(|_: &N, _: &mut dyn FnMut(&())| {});
-            let lazy = parlazy.apply(
-                dummy_grow, dummy_seeds, graph.clone(), fold_,
-                |_g, _s, t, f| dom::FUSED.run(&f, &t, &root),
-            );
+            // Compose ParLazy via apply_pre_lift; run_from_node to
+            // get the lazy result, then evaluate it in parallel.
+            let lazy = SeedPipeline::new(
+                    |n: &N| n.clone(),
+                    graph::edgy_visit(|n: &N, cb: &mut dyn FnMut(&N)| {
+                        for c in &n.children { cb(c); }
+                    }),
+                    &fold_,
+                )
+                .lift()
+                .apply_pre_lift(parlazy.clone())
+                .run_from_node(&dom::FUSED, &root);
             let r = parlazy.eval(lazy);
             assert_eq!(r, 3);
         });
@@ -534,8 +533,7 @@ use hylic::graph;
     // ANCHOR: seed_pipeline_example
     #[test]
     fn seed_pipeline_example() {
-        use hylic::cata::seed_lift::SeedPipeline;
-        use hylic::prelude::SeedPipelineExec;
+        use hylic::prelude::{SeedPipeline, PipelineExec};
         use std::collections::HashMap;
 
         // The "registry" — flat data, not a tree
@@ -579,8 +577,7 @@ use hylic::graph;
     #[test]
     fn seed_pipeline_parallel() {
         use hylic::cata::exec::funnel;
-        use hylic::cata::seed_lift::SeedPipeline;
-        use hylic::prelude::SeedPipelineExec;
+        use hylic::prelude::{SeedPipeline, PipelineExec};
         use std::collections::HashMap;
 
         let mut modules: HashMap<String, Vec<String>> = HashMap::new();
