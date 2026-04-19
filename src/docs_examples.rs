@@ -5,6 +5,7 @@
 //! code fences in markdown — if it's in the docs, it compiles here.
 
 #[cfg(test)]
+#[allow(dead_code)] // Doc examples show representative fixture structs; not all fields are read by test assertions
 mod tests {
     use hylic::domain::shared as dom;
 use hylic::graph;
@@ -117,6 +118,8 @@ use hylic::graph;
     // ANCHOR: explainer_usage
     #[test]
     fn explainer_usage() {
+        use std::sync::Arc;
+        use hylic::ops::Lift;
         use hylic::prelude::Explainer;
 
         #[derive(Clone)]
@@ -125,11 +128,20 @@ use hylic::graph;
         let graph = graph::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = dom::simple_fold(init, acc);
+        let fold_ = dom::simple_fold(init, acc);
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
-        // run_lifted returns ExplainerResult — the lifted result type
-        let trace = hylic::cata::lift::run_lifted(&dom::FUSED, &Explainer, &fold, &graph, &root);
+        // Apply Explainer to a standalone (treeish, fold) pair via CPS
+        // apply. Explainer doesn't touch grow/seeds — dummies work.
+        let dummy_grow: Arc<dyn Fn(&()) -> N + Send + Sync> = {
+            let r = root.clone();
+            Arc::new(move |_: &()| r.clone())
+        };
+        let dummy_seeds = graph::edgy_visit(|_: &N, _: &mut dyn FnMut(&())| {});
+        let trace = Explainer.apply(
+            dummy_grow, dummy_seeds, graph.clone(), fold_,
+            |_g, _s, t, f| dom::FUSED.run(&f, &t, &root),
+        );
         assert_eq!(trace.orig_result, 3);
     }
     // ANCHOR_END: explainer_usage
@@ -137,6 +149,8 @@ use hylic::graph;
     // ANCHOR: parlazy_usage
     #[test]
     fn parlazy_usage() {
+        use std::sync::Arc;
+        use hylic::ops::Lift;
         use hylic_parallel_lifts::{ParLazy, WorkPool, WorkPoolSpec};
 
         #[derive(Clone)]
@@ -145,12 +159,20 @@ use hylic::graph;
         let graph = graph::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = dom::simple_fold(init, acc);
+        let fold_ = dom::simple_fold(init, acc);
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         WorkPool::with(WorkPoolSpec::threads(2), |pool| {
             let parlazy = ParLazy::new(pool);
-            let lazy = hylic::cata::lift::run_lifted(&dom::FUSED, &parlazy, &fold, &graph, &root);
+            let dummy_grow: Arc<dyn Fn(&()) -> N + Send + Sync> = {
+                let r = root.clone();
+                Arc::new(move |_: &()| r.clone())
+            };
+            let dummy_seeds = graph::edgy_visit(|_: &N, _: &mut dyn FnMut(&())| {});
+            let lazy = parlazy.apply(
+                dummy_grow, dummy_seeds, graph.clone(), fold_,
+                |_g, _s, t, f| dom::FUSED.run(&f, &t, &root),
+            );
             let r = parlazy.eval(lazy);
             assert_eq!(r, 3);
         });
