@@ -513,6 +513,7 @@ use hylic::graph;
     #[test]
     fn seed_pipeline_example() {
         use hylic::cata::seed_lift::SeedPipeline;
+        use hylic::prelude::SeedPipelineExec;
         use std::collections::HashMap;
 
         // The "registry" — flat data, not a tree
@@ -557,6 +558,7 @@ use hylic::graph;
     fn seed_pipeline_parallel() {
         use hylic::cata::exec::funnel;
         use hylic::cata::seed_lift::SeedPipeline;
+        use hylic::prelude::SeedPipelineExec;
         use std::collections::HashMap;
 
         let mut modules: HashMap<String, Vec<String>> = HashMap::new();

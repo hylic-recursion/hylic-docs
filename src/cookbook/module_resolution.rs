@@ -8,6 +8,7 @@ mod tests {
     use either::Either;
 
     use hylic::cata::seed_lift::SeedPipeline;
+    use hylic::prelude::SeedPipelineExec;
     use hylic::prelude::seeds_for_fallible;
     use hylic::domain::shared as dom;
     use hylic::graph;

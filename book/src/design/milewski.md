@@ -287,7 +287,7 @@ seeds_from_node: Edgy<N, Seed>             N → Seed*
 In code (`SeedPipeline::new`):
 
 ```rust
-{{#include ../../../../hylic/src/cata/seed_lift/pipeline_run.rs:treeish_from_seeds}}
+{{#include ../../../../hylic/src/cata/seed_lift/pipeline/core.rs:treeish_from_seeds}}
 ```
 
 The underlying combinator (`map_edges`):
