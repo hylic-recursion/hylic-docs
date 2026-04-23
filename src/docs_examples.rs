@@ -118,7 +118,8 @@ use hylic::graph;
     // ANCHOR: explainer_usage
     #[test]
     fn explainer_usage() {
-        use hylic::prelude::{Explainer, SeedPipeline, PipelineExec};
+        use hylic::domain::Shared;
+        use hylic_pipeline::prelude::{TreeishPipeline, PipelineExec};
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
@@ -128,17 +129,14 @@ use hylic::graph;
         let fold_ = dom::simple_fold(init, acc);
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
-        // Fluent chain: build a SeedPipeline, lift, compose Explainer
-        // via apply_pre_lift, run starting from the known root.
-        let trace = SeedPipeline::new(
-                |n: &N| n.clone(),                                    // grow (unused for run_from_node)
-                graph::edgy_visit(|n: &N, cb: &mut dyn FnMut(&N)| {
-                    for c in &n.children { cb(c); }
-                }),                                                   // seeds_from_node
+        // Honest base: user has a Treeish<N>, no seed-to-node step.
+        // TreeishPipeline.lift().then_lift(Shared::explainer_lift()).run_from_node(&exec, &root).
+        let trace = TreeishPipeline::new(
+                graph::treeish(|n: &N| n.children.clone()),
                 &fold_,
             )
             .lift()
-            .apply_pre_lift(Explainer)
+            .then_lift(Shared::explainer_lift::<N, u64, u64>())
             .run_from_node(&dom::FUSED, &root);
         assert_eq!(trace.orig_result, 3);
     }
@@ -147,7 +145,7 @@ use hylic::graph;
     // ANCHOR: parlazy_usage
     #[test]
     fn parlazy_usage() {
-        use hylic::prelude::{SeedPipeline, PipelineExec};
+        use hylic_pipeline::prelude::{TreeishPipeline, PipelineExec};
         use hylic_parallel_lifts::{ParLazy, WorkPool, WorkPoolSpec};
 
         #[derive(Clone)]
@@ -160,17 +158,14 @@ use hylic::graph;
 
         WorkPool::with(WorkPoolSpec::threads(2), |pool| {
             let parlazy = ParLazy::new(pool);
-            // Compose ParLazy via apply_pre_lift; run_from_node to
+            // Compose ParLazy via then_lift; run_from_node to
             // get the lazy result, then evaluate it in parallel.
-            let lazy = SeedPipeline::new(
-                    |n: &N| n.clone(),
-                    graph::edgy_visit(|n: &N, cb: &mut dyn FnMut(&N)| {
-                        for c in &n.children { cb(c); }
-                    }),
+            let lazy = TreeishPipeline::new(
+                    graph::treeish(|n: &N| n.children.clone()),
                     &fold_,
                 )
                 .lift()
-                .apply_pre_lift(parlazy.clone())
+                .then_lift(parlazy.clone())
                 .run_from_node(&dom::FUSED, &root);
             let r = parlazy.eval(lazy);
             assert_eq!(r, 3);
@@ -409,7 +404,7 @@ use hylic::graph;
         let fold = dom::simple_fold(init, acc);
 
         // Change node type: String → N
-        let by_name = fold.contramap(|s: &String| N { val: s.len() as u64, children: vec![] });
+        let by_name = fold.contramap_n(|s: &String| N { val: s.len() as u64, children: vec![] });
         let graph = graph::treeish_visit(|_: &String, _cb: &mut dyn FnMut(&String)| {});
 
         let result = dom::FUSED.run(&by_name, &graph, &"hello".to_string());
@@ -533,7 +528,7 @@ use hylic::graph;
     // ANCHOR: seed_pipeline_example
     #[test]
     fn seed_pipeline_example() {
-        use hylic::prelude::{SeedPipeline, PipelineExec};
+        use hylic_pipeline::prelude::{SeedPipeline, PipelineExecSeed};
         use std::collections::HashMap;
 
         // The "registry" — flat data, not a tree
@@ -577,7 +572,7 @@ use hylic::graph;
     #[test]
     fn seed_pipeline_parallel() {
         use hylic::cata::exec::funnel;
-        use hylic::prelude::{SeedPipeline, PipelineExec};
+        use hylic_pipeline::prelude::{SeedPipeline, PipelineExecSeed};
         use std::collections::HashMap;
 
         let mut modules: HashMap<String, Vec<String>> = HashMap::new();
