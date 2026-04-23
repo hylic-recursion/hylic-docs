@@ -6,26 +6,34 @@
 # Concepts
 
 - [The recursive pattern](./concepts/separation.md)
-- [Transformations and Lifts](./concepts/transforms.md)
+- [The three domains](./concepts/domains.md)
+- [Transforms and variance](./concepts/transforms.md)
+- [Lifts — the CPS triple transformer](./concepts/lifts.md)
 
 # Guides
 
 - [Fold: shaping the computation](./guides/fold.md)
 - [Graph: controlling traversal](./guides/graph.md)
-- [Seed-based lazy discovery](./guides/seed_pipeline.md)
-- [Lifts: cross-cutting concerns](./guides/lifts.md)
-- [Implementing a custom lift](./guides/implementing_lifts.md)
+- [Bare lift application](./guides/bare_lift.md)
+- [Choosing an executor](./guides/execution.md)
 
-# Execution
+# Pipelines
 
-- [Choosing the strategy](./guides/execution.md)
+- [Overview](./pipeline/overview.md)
+- [Stage 1 — SeedPipeline](./pipeline/seed.md)
+- [Stage 1 — TreeishPipeline](./pipeline/treeish.md)
+- [Stage 2 — LiftedPipeline](./pipeline/lifted.md)
+- [Blanket sugar traits](./pipeline/sugars.md)
+- [One-shot — OwnedPipeline](./pipeline/owned.md)
+- [Writing a custom Lift](./pipeline/custom_lift.md)
+- [Case study — Explainer](./pipeline/explainer.md)
+
+# Executor (Funnel deep-dive)
+
 - [The Exec pattern](./executor-design/exec_pattern.md)
 - [Domain integration](./executor-design/domain_integration.md)
 - [Policy traits](./executor-design/policy_traits.md)
-
-# Funnel Executor
-
-- [Overview](./funnel/overview.md)
+- [Funnel overview](./funnel/overview.md)
 - [Policies and presets](./funnel/policies.md)
 - [CPS walk](./funnel/cps_walk.md)
 - [Continuations](./funnel/continuations.md)
@@ -54,7 +62,7 @@
 
 - [Import patterns](./guides/imports.md)
 - [Concept map](./guides/concept_map.md)
-- [Domain system](./design/domains.md)
+- [Domain system (legacy design)](./design/domains.md)
 - [Implementation notes](./design/implementation_notes.md)
 - [Theory](./design/theory.md)
 - [Algebra factorization](./design/milewski.md)

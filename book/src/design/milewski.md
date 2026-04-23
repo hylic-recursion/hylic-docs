@@ -216,7 +216,7 @@ algebraic requirements on `acc`. It is up to the user to supply an
 appropriate accumulate function, and up to the executor to decide
 how results are folded into `H`.
 
-A [lift](../guides/lifts.md) can recover O(log n) depth when
+A [lift](../concepts/lifts.md) can recover O(log n) depth when
 needed: by transforming the tree structure to insert balanced
 reduction nodes, the contraction becomes a property of the tree
 shape rather than the algebra.
@@ -245,9 +245,9 @@ hylic's fold combinators
 [`memoize`](../guides/graph.md),
 [`contramap`](../guides/graph.md)) achieve the same practical
 composability as Milewski's `Functor`/`Applicative` on `Fold`.
-[Lifts](../guides/lifts.md) transform both fold and treeish in
+[Lifts](../concepts/lifts.md) transform both fold and treeish in
 sync, changing the carrier types through GATs. The
-[SeedPipeline](../guides/seed_pipeline.md) uses a lift internally
+[SeedPipeline](../pipeline/seed.md) uses a lift internally
 to bridge coalgebra and algebra when they speak different types.
 
 ## Bridging coalgebra and algebra: SeedPipeline
@@ -272,7 +272,7 @@ edge types match.
 
 The coalgebra produces `Seed`. The algebra consumes `N`. The
 morphism `grow: Seed → N` bridges them.
-[`SeedPipeline`](../guides/seed_pipeline.md) reconciles this
+[`SeedPipeline`](../pipeline/seed.md) reconciles this
 through two combinator chains.
 
 **Chain 1: coalgebra composition.** Close `N → Seed*` into
@@ -284,34 +284,35 @@ seeds_from_node: Edgy<N, Seed>             N → Seed*
 = treeish:       Edgy<N, N>               N → N*  (= Treeish<N>)
 ```
 
-In code (`SeedPipeline::new`):
-
-```rust
-{{#include ../../../../hylic/src/cata/seed_lift/pipeline/core.rs:treeish_from_seeds}}
-```
-
-The underlying combinator (`map_edges`):
-
-```rust
-{{#include ../../../../hylic/src/graph/combinators.rs:map_edges}}
-```
+In code: `SeedPipeline::reshape(...)` + `.with_seeded(cont)` hands
+the `(grow, seeds_from_node, fold)` triple to internal callers;
+the underlying combinator is `Edgy::map` — see
+[`hylic/src/graph/edgy.rs`](../../../../hylic/src/graph/edgy.rs).
 
 **Chain 2: entry lifting.** The `SeedLift` constructs a
-`Treeish<LiftedNode<Seed, N>>` that dispatches per variant:
-`Node(n)` visits the original treeish (wrapping children as `Node`),
-`Seed(s)` produces one child `Node(grow(s))`, and `Entry` fans out
-the entry seeds as `Seed` children.
+`Treeish<LiftedNode<N>>` with two variants: `Node(n)` visits the
+original treeish (wrapping children as `Node`), and `Entry` fans
+out the entry seeds by running `grow(seed)` on each and wrapping
+the result as `Node`.
 
-In code (`SeedLift::lift_treeish`):
+The relevant struct and its `Lift` impl:
 
 ```rust
-{{#include ../../../../hylic/src/cata/seed_lift/lift.rs:lift_treeish}}
+{{#include ../../../../hylic/src/ops/lift/seed_lift.rs:seed_lift_struct}}
 ```
 
-`Node(n)` delegates to the inner treeish. `Seed(s)` grows and
-produces a single `Node` child. `Entry` has no children of its
-own in the treeish — its children come from the entry seeds
-provided at run time.
+```rust
+{{#include ../../../../hylic/src/ops/lift/lifted_node.rs:lifted_node_enum}}
+```
+
+`Node(n)` delegates to the inner treeish. `Entry` has no children
+of its own in the treeish — its children come from the entry
+seeds provided at run time.
+
+(Historical note: an earlier design had a third `Seed(s)` variant
+that deferred grow. The current design grows inline at
+Entry-visit time, so no deferred-grow state is ever observable —
+retired as dead code during the 2026-04 refactor.)
 
 ```dot process
 digraph seed_bridge {

@@ -1,102 +1,112 @@
-# Transformations and Lifts
+# Transforms and variance
 
-hylic's types are designed for compositional transformation. Folds
-can be mapped, contramapped, zipped, and wrapped. Graphs can be
-filtered, contramapped, and treemapped. These operations produce new
-values from existing ones without modifying the originals (for
-Clone domains) or by consuming them (for Owned).
+Folds and graphs are data. You transform them like any other
+value — you build a new one from an old one, without mutating
+the original (on `Clone` domains) or by consuming it (on `Owned`).
 
-See the [Fold guide](../guides/fold.md) and
-[Graph guide](../guides/graph.md) for the full transformation API.
+The shapes of those transforms are dictated by **where each type
+axis appears in the underlying closure slots**. This chapter
+names the transforms; the next chapter puts them together with
+the [`Lift`](./lifts.md) abstraction.
 
-## Fold transformations
+## Axes and variance
 
-The fold transformation diagram summarizes what's available:
+hylic's computation triple has three axes:
 
-```dot process
-digraph {
-    rankdir=TB;
-    node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=11];
-    edge [fontname="sans-serif", fontsize=10];
+- **N** — the node type the graph and fold walk over.
+- **H** — the fold's working heap.
+- **R** — the fold's result.
 
-    F [label="Fold<N, H, R>"];
-    F1 [label="map\nFold<N, H, NewR>"];
-    F2 [label="contramap\nFold<NewN, H, R>"];
-    F3 [label="zipmap\nFold<N, H, (R, Extra)>"];
-    F4 [label="wrap_init / wrap_accumulate / wrap_finalize\nFold<N, H, R> (same types, different behavior)"];
-    F5 [label="product\nFold<N, (H1,H2), (R1,R2)>"];
-
-    F -> F1; F -> F2; F -> F3; F -> F4; F -> F5;
-}
-```
-
-These are all type-level transformations that compose. The fold's
-three-phase structure (init/accumulate/finalize) is preserved.
-
-## Lifts — type-domain transformations
-
-A lift goes further than fold transformations: it transforms BOTH
-the fold AND the treeish into a different type domain. The executor
-runs the lifted computation and returns `MapR<H, R>` — the caller
-extracts the original result as appropriate for the lift (e.g.
-`ExplainerResult::orig_result`, or identity when `MapR<H, R> = R`).
-
-The `Lift` trait defines three operations:
-
-- **lift_treeish**: `Treeish<N>` → `Treeish<N2>`
-- **lift_fold\<H, R\>**: `Fold<N, H, R>` → `Fold<N2, MapH<H, R>, MapR<H, R>>`
-- **lift_root**: `&N` → `N2`
-
-The lifted heap and result types are GATs on the trait, determined
-by each lift implementation:
+Each axis appears in one or more closure slots. Where it appears
+determines which transforms are valid:
 
 ```dot process
 digraph {
     rankdir=LR;
-    node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="monospace", fontsize=11];
-    edge [fontname="sans-serif", fontsize=10];
-
-    subgraph cluster_orig {
-        label="Original";
-        style=dashed; color="#999999"; fontname="sans-serif";
-        F [label="Fold<N, H, R>"];
-        T [label="Treeish<N>"];
-    }
-
-    subgraph cluster_lifted {
-        label="Lifted domain";
-        style=solid; color="#333333"; fontname="sans-serif";
-        F2 [label="Fold<N2, MapH<H, R>, MapR<H, R>>"];
-        T2 [label="Treeish<N2>"];
-    }
-
-    R2 [label="MapR<H, R>", shape=ellipse, style=filled, fillcolor="#fff3cd"];
-
-    F -> F2 [label="lift_fold<H, R>"];
-    T -> T2 [label="lift_treeish"];
-    F2 -> R2 [label="exec.run"];
+    node [shape=box, style="rounded,filled", fontname="sans-serif", fontsize=10];
+    edge [fontname="sans-serif", fontsize=9];
+    subgraph cluster_grow  { label="Grow<Seed, N>"; style=dashed; g [label="returns N", fillcolor="#e8f5e9"]; }
+    subgraph cluster_graph { label="Graph<N>";     style=dashed; tr [label="visit(&N, cb: &mut FnMut(&N))", fillcolor="#e3f2fd"]; }
+    subgraph cluster_fold  { label="Fold<N, H, R>"; style=dashed; fi [label="init(&N) -> H", fillcolor="#fff3e0"]; fa [label="accumulate(&mut H, &R)", fillcolor="#fff3e0"]; ff [label="finalize(&H) -> R", fillcolor="#fff3e0"]; }
 }
 ```
 
-`cata::lift::run_lifted` applies the three transformations, runs the
-lifted computation through a Shared-domain executor, and returns
-`MapR<H, R>`. H and R are inferred from the fold at the call site.
+Reading the variance off the slots:
 
-## Explainer — computation tracing
+| Axis | Position                                    | Variance          | Transform needs       |
+|------|---------------------------------------------|-------------------|-----------------------|
+| N    | `Grow` return                               | covariant         | `N → N'` (one fn)     |
+| N    | `Graph` both as input and in callback       | invariant         | visit-rewrite         |
+| N    | `Fold::init` input                          | contravariant     | `N' → N` (one fn)     |
+| H    | `Fold::init` out / `accumulate` / `finalize`| invariant         | bijection H ↔ H'      |
+| R    | `Fold::accumulate` in / `finalize` out      | invariant         | bijection R ↔ R'      |
 
-The `Explainer` is a unit struct implementing `Lift`. It wraps
-the fold to record every accumulation step. The heap becomes
-`ExplainerHeap` (initial state, node, transitions). The result
-becomes `ExplainerResult` (original result + full trace).
+## Transforms on a `Fold`
+
+A `Fold<N, H, R>` (in any domain) exposes:
+
+| method            | what it does                                             | role           |
+|-------------------|----------------------------------------------------------|----------------|
+| `wrap_init(w)`    | intercept every `init` call                              | phase wrapper  |
+| `wrap_accumulate(w)` | intercept every `accumulate`                          | phase wrapper  |
+| `wrap_finalize(w)`| intercept every `finalize`                               | phase wrapper  |
+| `map_r_bi(fwd,bwd)` | change R to R' (invariant → bijection required)        | axis-change    |
+| `zipmap(m)`       | derive an extra value beside R; produces `(R, Extra)`    | R-extension    |
+| `contramap_n(f)`  | change the node type N' → N (contravariant, one fn)      | axis-change    |
+| `product(other)`  | run two folds in parallel over one graph; result `(R1, R2)` | binary      |
+
+The naming convention:
+
+- `map_<axis>_bi` — bijection (fwd + bwd) required. The axis is
+  invariant in storage and can't be changed without an inverse.
+- `contramap_<axis>` — one function; the axis is contravariant in
+  storage and only the backward direction is needed.
+- `map` / `wrap_*` / `zipmap` / `filter` — covariant / decorator
+  forms.
+
+## Transforms on an `Edgy` / `Treeish`
+
+`Edgy<N, E>` exposes analogous per-axis transforms:
+
+| method                    | what it does                                           |
+|---------------------------|--------------------------------------------------------|
+| `map(f: E → E')`          | functor over edges                                     |
+| `contramap(f: N' → N)`    | pre-adapt the node input                               |
+| `contramap_or_emit(f)`    | contramap with an escape hatch returning edges         |
+| `filter(pred)`            | prune edges by predicate                               |
+
+`Treeish<N>` = `Edgy<N, N>` — node and edge types equal; used by
+executors.
+
+The view via the sole primitive:
 
 ```rust
-{{#include ../../../src/docs_examples.rs:explainer_usage}}
+{{#include ../../../../hylic/src/graph/edgy.rs:edgy_map}}
 ```
 
-In recursion-scheme terms, this is a histomorphism — each node
-sees its subtree's full computation history.
+```rust
+{{#include ../../../../hylic/src/graph/edgy.rs:edgy_contramap}}
+```
 
-## The mathematical picture
+All sugars are one-liners over `map_endpoints(rewrite_visit)`.
+
+## What's covered here vs. in "Lifts"
+
+The transforms above operate on **one** of Fold or Graph at a
+time. They change one axis of the triple and preserve everything
+else.
+
+A **lift** (next chapter) transforms the whole triple at once —
+`(Grow, Graph, Fold)` → `(Grow', Graph', Fold')` — and composes
+with other lifts into chains.
+
+Every library lift is internally one of these single-axis
+transforms or a small coordinated set of them. The library
+exposes them per-domain as `Shared::wrap_init_lift(w)`,
+`Shared::map_r_bi_lift(fwd, bwd)`, etc. See
+[Lifts](./lifts.md).
+
+## Category-theoretic framing (brief)
 
 The catamorphism's algebra is `F R → R` — collapse one layer with
 children already folded to R. hylic factors this through a working
@@ -104,8 +114,8 @@ type `H`: init creates `H` from the node, accumulate folds child
 results `R` into `H`, finalize projects `H → R`. The carrier is `R`
 at every subtree. `H` is internal to the bracket. See
 [The N-H-R algebra factorization](../design/milewski.md) for the
-correspondence with Milewski's monoidal decomposition and the
-equivalence conditions.
+correspondence with Milewski's monoidal decomposition.
 
 A lift is an algebra morphism: it maps the carrier types through
-`MapH` and `MapR` while preserving the fold structure.
+`MapR` (and heap type through `MapH`) while preserving the fold
+structure.

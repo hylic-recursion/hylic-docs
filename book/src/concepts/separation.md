@@ -149,7 +149,7 @@ the executor does.
 
 Everything in hylic reduces to `executor.run(&fold, &treeish, &root)`.
 When the tree is discovered lazily (seeds resolved on demand),
-[`SeedPipeline`](../guides/seed_pipeline.md) constructs the treeish
+[`SeedPipeline`](../pipeline/seed.md) constructs the treeish
 from a seed edge function + grow, and delegates to `executor.run`
 internally.
 

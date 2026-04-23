@@ -5,7 +5,7 @@ resolves dependency references (seeds) into modules (nodes), which
 may themselves have dependencies. Error handling uses
 `Either<Error, Valid>` — error nodes are leaves with no children.
 
-See [Seed-based lazy discovery](../guides/seed_pipeline.md) for
+See [Seed-based lazy discovery](../pipeline/seed.md) for
 the `SeedPipeline` API and its internal mechanics.
 
 ```rust

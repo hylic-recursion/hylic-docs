@@ -48,7 +48,7 @@ hylomorphism using [CPS](../funnel/cps_walk.md) and
 ## Anamorphism (seed-based discovery)
 
 An anamorphism builds recursive structure from a seed.
-[`SeedPipeline`](../guides/seed_pipeline.md) encapsulates this:
+[`SeedPipeline`](../pipeline/seed.md) encapsulates this:
 given a seed edge function (`Edgy<N, Seed>`) and a grow function
 (`Fn(&Seed) → N`), it constructs the treeish by composing
 `seeds_from_node.map(grow)` and handles the entry transition.
@@ -64,7 +64,7 @@ has access to the full computation history of its subtree.
 
 The Explainer's output (`ExplainerResult`) is analogous to the
 cofree comonad annotation. It is expressed as a
-[Lift](../guides/lifts.md) — a fold transformation that changes the
+[Lift](../concepts/lifts.md) — a fold transformation that changes the
 carrier types (`H → ExplainerHeap`, `R → ExplainerResult`). The
 original `R` is accessible via `ExplainerResult::orig_result`.
 

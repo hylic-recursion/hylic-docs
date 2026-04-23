@@ -161,19 +161,19 @@ All compose freely — see the
 [Fold guide](./guides/fold.md), [Graph guide](./guides/graph.md),
 and [Transformations cookbook](./cookbook/transformations.md).
 
-A [lift](./guides/lifts.md) goes further — it transforms both fold
+A [lift](./concepts/lifts.md) goes further — it transforms both fold
 and treeish in sync into a different type domain via the
 [`Lift`](./concepts/transforms.md) trait. The
 [Explainer](./concepts/transforms.md#explainer--computation-tracing)
 records the full computation trace at every node (histomorphism).
 
-[`SeedPipeline`](./guides/seed_pipeline.md) handles a common case:
+[`SeedPipeline`](./pipeline/seed.md) handles a common case:
 the tree is discovered lazily from *seed* references rather than
 known upfront. The user provides a seed edge function
 (`Edgy<N, Seed>`) and a `grow` function (`Fn(&Seed) -> N`); the
 pipeline constructs the treeish, handles the entry transition, and
 runs the fold. Internally it uses a lift (`SeedLift`), but the
-`LiftedNode<Seed, N>` type is hidden entirely.
+`LiftedNode<N>` type is hidden entirely.
 
 ## Cookbook
 
