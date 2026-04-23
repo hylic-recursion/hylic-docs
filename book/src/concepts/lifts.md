@@ -2,15 +2,19 @@
 
 ## The problem
 
-You've built a `Fold<N, H, R>` and a `Graph<N>`. You want to derive
-a new fold+graph pair whose types differ from the originals — maybe
-R changes, maybe the graph is filtered, maybe nodes get annotated,
-maybe the fold gains per-node tracing. The transforms from the
-[previous chapter](./transforms.md) operate on one of Fold or
-Graph. What you want here is a *composable* object that rewrites
-both together and can stack with other such objects.
+The transforms in the [previous chapter](./transforms.md) act on
+a single structure — a Fold or a Graph, not both. Some rewrites,
+however, must touch both in a coordinated manner: a change of
+node type that the Graph produces and the Fold consumes; a
+filter that drops edges and must therefore also leave the Fold
+structurally consistent with what remains; a per-node trace that
+wraps the Fold's output and composes with whatever other
+transforms are already in place.
 
-That object is a **Lift**. It transforms a *triple*, not a pair.
+A **Lift** is the object that performs such cross-axis rewrites.
+It operates on the full *triple* carried by a pipeline, not on
+one slot in isolation, and composes with other lifts to form a
+chain.
 
 ## Why three axes
 
@@ -40,37 +44,33 @@ L : (Grow<Seed, N>, Graph<N>, Fold<N, H, R>)
   → (Grow<Seed, L::N2>, Graph<L::N2>, Fold<L::N2, L::MapH, L::MapR>)
 ```
 
-## Why the trait takes a continuation
+## Quick start
 
-The natural-looking signature would *return* the transformed
-triple from `apply`. Try writing it: the return type is
-`(Grow<D, Seed, N2>, Graph<D, N2>, Fold<D, N2, H2, R2>)`, where
-each component is a domain-associated GAT and each axis is an
-associated type of the lift. After three chained lifts the return
-type has no nameable alias.
+Most users never interact with the `Lift` trait directly; the
+pipeline sugars are the usual surface, and each sugar delegates
+to a library lift. A small example demonstrates what a lift
+changes at the value level:
 
-Continuation-passing style ("CPS" in the docs and some comments)
-sidesteps this. The caller passes `apply` a closure — the
-continuation `cont` — which `apply` then invokes with the
-transformed triple. Because the continuation's return type
-propagates outward, Rust's type inference threads every
-intermediate through end-to-end and nothing needs a nameable
-intermediate.
+```rust
+{{#include ../../../src/docs_examples.rs:bare_lift_wrap_init}}
+```
 
-This is why every pipeline's `.run(...)` is a single walk down
-the lift chain via nested `apply` calls, each closing over the
-next: the chain is built at the type level, run once at the value
-level, and the executor only ever sees the final `(treeish, fold)`
-pair.
+`wrap_init_lift` accepts a closure that intercepts every call to
+`init`. The pipeline's `R` is unchanged; only the per-node init
+closure is wrapped. The remaining sugars follow the same pattern:
+select an axis, supply the transformation as a closure, obtain a
+new pipeline that differs only along that axis.
 
-You don't need to internalise continuation-passing to use the
-library — the sugars hide it entirely. This section explains
-*why* the `Lift` trait looks the way it does, for readers who
-want to write their own.
+The [Library catalogue](#library-catalogue) below lists the axes
+touched by each library lift.
 
 ## Four atoms
 
-Every library lift is one of four things.
+Every library lift is an instance of one of four types. The
+sugars compose these atoms without requiring any of them to be
+constructed by hand; this section names the parts so that they
+are recognisable in compiler errors and in custom-lift
+implementations.
 
 **`IdentityLift`** — pass-through. Used as the seed of a lift chain
 when a Stage-1 pipeline transitions to Stage 2 via `.lift()`.
@@ -147,14 +147,9 @@ trait:
 {{#include ../../../../hylic/src/ops/lift/bare.rs:lift_bare_trait}}
 ```
 
-Pair with a `(treeish, fold)` directly:
-
-```rust
-{{#include ../../../src/docs_examples.rs:bare_lift_wrap_init}}
-```
-
 See [Bare lift application](../pipeline/overview.md#alternative-bare-lift-application)
-in the Pipelines overview.
+in the Pipelines overview for the rationale and the `panic-grow`
+trick that lets `LiftBare` skip the grow slot.
 
 ## Per-domain capability
 
@@ -176,9 +171,9 @@ Owned pipelines have no Stage-2 surface.
 Two blanket markers gate which executors a lift can feed:
 
 - `PureLift<D, N, H, R>` — any `Lift + Clone + 'static` with
-  `Clone` outputs. Sufficient for sequential executors (`Fused`).
+  `Clone` outputs. Sufficient for the sequential executor `Fused`.
 - `ShareableLift<D, N, H, R>` — adds `Send + Sync` on everything.
-  Required for parallel executors (`Funnel`, ParLazy, ParEager).
+  Required for the parallel executors (`Funnel`, `ParLazy`, `ParEager`).
 
 You don't implement these; the compiler picks them up via blanket
 impls in [`ops::lift::capability`](../../../../hylic/src/ops/lift/capability.rs).
@@ -215,3 +210,30 @@ The last two (`phases_lift`, `treeish_lift`) are the *primitives*:
 the per-axis sugars all delegate to one of them. `n_lift` is the
 primitive for coordinated N-change; `map_n_bi_lift` is the
 bijective special case.
+
+## Appendix: why the trait takes a continuation
+
+This section is relevant only to writing a custom `Lift`
+implementation; it explains the signature rather than the
+everyday use of lifts.
+
+A direct signature would return the transformed triple from
+`apply`. The return type of such a form is
+`(Grow<D, Seed, N2>, Graph<D, N2>, Fold<D, N2, H2, R2>)`, each
+component a domain-associated GAT and each axis an associated
+type of the lift. Following three chained lifts, the return type
+admits no nameable alias.
+
+Continuation-passing style — "CPS" in the source and in some
+comments — avoids this. The caller supplies `apply` with a
+closure (the continuation `cont`), which `apply` invokes with
+the transformed triple. Because the continuation's return type
+propagates outward, Rust's type inference threads every
+intermediate through end-to-end, and no intermediate requires a
+nameable alias.
+
+Consequently, every pipeline's `.run(...)` reduces to a single
+descent through the lift chain via nested `apply` calls, each
+closing over the next. The chain is constructed at the type
+level, evaluated once at the value level, and the executor
+ultimately sees only the final `(treeish, fold)` pair.

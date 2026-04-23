@@ -1,60 +1,77 @@
 # Transforms and variance
 
 Where a type axis *appears* inside a fold or graph determines how
-you can transform that axis. Three positions, three different
-kinds of map. This chapter derives the library's naming and
-method surface from the variance structure, rather than presenting
-it as convention.
+it may be transformed. The chapter opens with three examples
+whose argument shapes differ in an informative way; the following
+section traces those differences to the notion of variance. After
+that, the library's naming — `map` versus `contramap` versus
+`_bi` — ceases to look like convention and becomes something that
+can be read off the types.
 
-## Where N lives
+## Three transforms, three shapes
 
-Start from the three slots that reference N at all. Rip out the
-signatures and look only at where N sits:
+**`map` on R** — covariant, a single function. Given a
+`Fold<N, H, u64>` summing filesystem sizes, producing a
+`Fold<N, H, String>` that formats the sum requires only a forward
+function `u64 → String`:
 
-```
-Grow<Seed, N>:   fn(&Seed) -> N            ← N is an output
-Graph<N>:        fn(&N, &mut FnMut(&N))    ← N is both an input and output
-Fold<N, H, R>::init:  fn(&N) -> H          ← N is an input
-```
-
-Three positions — output, both-positions, input. Each one forces
-a specific shape on any transform that changes N.
-
-**N as output** (Grow). To change N to N', you need `f: N → N'`;
-one forward function. You map the old Grow through `f` and get a
-new `Grow<Seed, N'>`. This is a *functor* over N, and the name is
-`map`.
-
-**N as input** (Fold). To feed an N'-taking init, you need to
-turn each N' *back* into an N so the old init can run. One
-function: `g: N' → N`. The name is `contramap` — you're mapping
-contravariantly.
-
-**N as both** (Graph). The visit callback hands the user an `&N`
-(input position) AND receives `&N` children back (output
-position). You can't fix it with one function — you'd need a
-pair. The library doesn't hand out a one-function sugar for Graph
-node-change; instead, a graph rewrite operates on the whole
-`visit` closure via `map_endpoints`.
-
-## Where H and R live
-
-H and R live inside `Fold` only. Trace where they appear:
-
-```
-init:        fn(&N)      -> H           ← H output
-accumulate:  fn(&mut H, &R)              ← H input/output, R input
-finalize:    fn(&H)      -> R           ← H input, R output
+```text
+fold.map(|n: &u64| format!("{n} bytes"))
 ```
 
-Both H and R appear in *both* positions. Each one is **invariant**:
-a single function isn't enough. Changing H to H' needs a forward
-and a backward — a bijection. Same for R.
+**`contramap_n`** — contravariant, a single function in the
+opposite direction. Adapting a `Fold<Path, H, R>` to operate on
+a `Fold<PathBuf, H, R>` requires bridging `PathBuf → Path`, since
+the existing `init` consumes `&Path` and must continue to do so:
 
-The library's answer: `_bi` on any method that wants you to
-supply both halves.
+```text
+fold.contramap_n(|pb: &PathBuf| pb.as_path().clone())
+```
 
-## The picture
+**`map_r_bi`** — invariant, a pair of functions. Changing the
+result type of an existing fold to a different representation
+requires both directions, because `R` is accumulated into (a
+parent receives its children's `R`) as well as emitted (finalize
+returns `R`); a one-way function cannot carry values through
+both roles:
+
+```text
+fold.map_r_bi(
+    /* forward  */ |n: &u64| format!("{n}"),
+    /* backward */ |s: &String| s.parse().unwrap(),
+)
+```
+
+Three argument shapes: one forward function (covariant), one
+reverse function (contravariant), a pair (invariant). The names
+track the shape.
+
+## Why the three shapes?
+
+Each axis occupies a specific position within the slots:
+
+```
+Grow<Seed, N>:        fn(&Seed) -> N            ← N is an output
+Graph<N>:             fn(&N, &mut FnMut(&N))    ← N is both
+Fold<N, H, R>::init:  fn(&N) -> H               ← N is an input
+Fold<N, H, R>::acc:   fn(&mut H, &R)            ← H both, R input
+Fold<N, H, R>::fin:   fn(&H) -> R               ← H input, R output
+```
+
+An axis that appears only in **output position** is *covariant*:
+a forward function suffices to rewrite the produced value.
+Hence `map`.
+
+An axis that appears only in **input position** is
+*contravariant*: adapting the axis requires a function in the
+*opposite* direction, so the existing consumer continues to
+receive values it understands. Hence `contramap`.
+
+An axis that appears in **both positions** is *invariant*: no
+single function bridges consumption and production together, so
+both directions must be supplied. Hence the `_bi` suffix.
+
+## The three positions
 
 ```dot process
 digraph {
@@ -89,9 +106,21 @@ digraph {
 }
 ```
 
-## Reading the method surface
+`N` occupies all three positions across different slots — output
+in Grow, input in Fold, both in Graph. A single "N transform"
+would therefore apply in different directions depending on the
+slot; the library instead exposes a per-slot transform on each
+side, or a coordinated [Lift](./lifts.md) that rewrites N across
+all three slots at once.
 
-With the variance pinned, the method catalogue is no surprise.
+`H` and `R` live only inside `Fold`, but each appears in both
+positions there (H is init-output / acc-in+out / fin-input; R is
+acc-input / fin-output). Both are invariant; changing either
+requires a bijection.
+
+## Method surface, derived
+
+With the variance pinned, the catalogue follows automatically.
 
 **On a `Fold<N, H, R>`:**
 
@@ -99,7 +128,7 @@ With the variance pinned, the method catalogue is no surprise.
 - `map_r_bi(fwd, bwd)` — invariant change of R. Two args.
 - `wrap_init(w)`, `wrap_accumulate(w)`, `wrap_finalize(w)` —
   invariant decorators on H and R. They don't change the axes
-  they touch; they just intercept the existing functions.
+  they touch; they intercept the existing functions.
 - `zipmap(m)` — a *covariant* extension: pair the existing R with
   an extra value derived from it. R changes `R → (R, Extra)`,
   forward only; the new R's first component is the old R, so

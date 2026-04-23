@@ -8,18 +8,28 @@ concerns: a **fold** that defines what to compute at each node, a
 controls how the recursion is carried out. Each concern can be
 defined, transformed, and composed independently.
 
-This isn't an academic exercise. The parallel executor (Funnel)
-reaches parity-or-better numbers against handrolled Rayon and
-Sheque baselines across a 14-workload matrix, with finely
-selectable tradeoffs along three compile-time policy axes (queue
-topology, accumulation strategy, wake policy — all monomorphised,
-no runtime dispatch). Correctness is covered by the main test
-suite plus an interleaving stress harness over the CPS scheduler.
-The fastest way to see what the library actually does in practice
-is the **[interactive benchmark viewer](./cookbook/benchmarks.md#interactive-funnel-axes-viewer)**
-— full matrix, filterable by policy axis and workload. Note that
-most scenarios are synthetic CPU-burn workloads; absolute numbers
-reflect those, not a production pipeline.
+On the performance side, the parallel executor (`Funnel`) attains
+parity with — and on several workloads exceeds — handrolled Rayon
+and Sheque baselines across a 14-workload matrix. Three
+compile-time policy axes govern its behaviour (queue topology,
+accumulation strategy, wake policy); all three are monomorphised,
+leaving no runtime dispatch on strategy choice. Correctness is
+exercised by the main test suite together with an interleaving
+stress harness over the scheduler. The
+[interactive benchmark viewer](./cookbook/benchmarks.md#interactive-funnel-axes-viewer)
+presents the full matrix filterable by axis and workload; its
+scenarios are synthetic CPU-burn workloads, so the numbers are
+informative about shape and relative ordering rather than any
+specific production pipeline.
+
+## A first example
+
+Consider the classical problem of computing total size on
+disk. The tree structure corresponds to the directory layout;
+the fold at each node combines the node's own size with the
+results from its children; the executor drives the recursion.
+Each concern is expressed independently and handed to the
+executor at the end:
 
 ```rust
 {{#include ../../src/docs_examples.rs:intro_dir_example}}
