@@ -15,8 +15,8 @@ Two methods:
 - **`apply_bare(treeish, fold)`** — returns the transformed
   `(treeish', fold')` pair. You take it from here; run it via
   any executor.
-- **`run_on(exec, treeish, fold, root)`** — applies the lift
-  AND runs it in one step. Returns the lift's `MapR`.
+- **`run_on(exec, treeish, fold, root)`** — apply + run. Returns
+  the lift's `MapR`.
 
 ## Example
 
@@ -26,33 +26,28 @@ Two methods:
 
 ## When to pick bare over pipeline
 
-- **You don't need chaining.** A single lift applied one-shot —
-  pipeline machinery is overhead.
-- **You're building a library on top of hylic** and want the
-  thinnest possible dependency. `hylic` alone (no
-  `hylic-pipeline`) suffices.
-- **You're benchmarking parallel lifts.** `ParLazy` and
-  `ParEager` (in the `hylic-parallel-lifts` crate) are `Lift`
-  impls; `run_on` is the canonical benchmark entry point —
-  no pipeline overhead in the measurement.
+- **A single lift, applied once** — pipeline machinery is dead weight.
+- **A library on top of hylic** that wants a thin dependency:
+  `hylic` alone (no `hylic-pipeline`) is enough.
+- **Benchmarking parallel lifts.** `ParLazy` and `ParEager` (in
+  `hylic-parallel-lifts`) are `Lift` impls; `run_on` measures
+  them without the pipeline in the way.
 
-## Compose first, run later
+## Compose without a pipeline
 
-You can still compose multiple lifts without a pipeline — just
-use `ComposedLift::compose`:
+`ComposedLift::compose` takes two `Lift` atoms:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:bare_lift_composed}}
 ```
 
-This is what Stage-2 `.then_lift(...)` does under the hood —
-bare usage just exposes the underlying atom.
+Stage-2 `.then_lift(...)` calls the same primitive.
 
-## The "panic-grow" trick
+## The panic-grow
 
-`Lift::apply` takes three inputs: grow, treeish, fold. But the
-bare path has no grow (you start from `&root`, not from a seed).
-`LiftBare::apply_bare` synthesises a panic-grow:
+`Lift::apply` takes `(grow, treeish, fold)`; the bare path has no
+grow (you start from `&root`). `LiftBare::apply_bare` synthesises
+one:
 
 ```text
 let panic_grow = <D as Domain<N>>::make_grow::<(), N>(|_: &()| {
@@ -61,9 +56,7 @@ let panic_grow = <D as Domain<N>>::make_grow::<(), N>(|_: &()| {
 self.apply::<(), _>(panic_grow, treeish, fold, |_g, t, f| (t, f))
 ```
 
-Why does this work? Because no library `Lift` impl actually
-*reads* the grow argument; they pass it through (grow is only
-consumed by `SeedLift`, which is NOT used in bare-execution paths).
-The panic is there for correctness: if some custom Lift broke
-this invariant, you'd find out at run time, not silently get a
-wrong answer.
+No library `Lift` impl reads `grow` at runtime (only `SeedLift`
+consumes it, and `SeedLift` doesn't run under `apply_bare`). A
+custom Lift that did read grow would panic here instead of
+computing a wrong result silently.

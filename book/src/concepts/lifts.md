@@ -132,15 +132,13 @@ apply a lift directly to a `(treeish, fold)` pair and run it:
 {{#include ../../../../hylic/src/ops/lift/bare.rs:lift_bare_trait}}
 ```
 
-In practice:
-
 ```rust
 {{#include ../../../src/docs_examples.rs:bare_lift_wrap_init}}
 ```
 
-No pipeline, no `.lift()` ceremony — just "apply this lift then
-run." Useful for bare-Fold+Graph users and for parallel-lift
-benchmarks where the pipeline layer isn't needed.
+Useful for Fold+Graph consumers that don't need a pipeline, and
+for parallel-lift benchmarks where pipeline overhead would
+distort measurements.
 
 ## Capability markers — parallel vs sequential
 
@@ -175,7 +173,7 @@ For `Shared`:
 | `Shared::map_n_bi_lift(co, contra)`| change N axis bijectively                           |
 | `Shared::n_lift(ln, bt, fc)`       | change N axis with per-slot coordination            |
 | `Shared::explainer_lift()`         | wrap fold with per-node trace recording             |
-| `Shared::explainer_describe_lift(fmt, emit)` | streaming trace emission (R stays transparent) |
+| `Shared::explainer_describe_lift(fmt, emit)` | streaming trace emission; `MapR = R` (unchanged) |
 | `Shared::phases_lift(mi, ma, mf)`  | rewrite all three fold phases (primitive)           |
 | `Shared::treeish_lift(mt)`         | rewrite the graph (primitive)                       |
 

@@ -66,20 +66,18 @@ You go custom when:
 
 ## SeedLift as a reference
 
-The library's `SeedLift` is the clearest non-trivial example.
-It's Shared-pinned, has state (grow + entry_seeds +
-entry_heap_fn), and changes N to `LiftedNode<N>`:
+`SeedLift` is the non-trivial case: Shared-pinned, stateful
+(`grow` + `entry_seeds` + `entry_heap_fn`), and changes N to
+`LiftedNode<N>`.
 
 ```rust
 {{#include ../../../../hylic/src/ops/lift/seed_lift.rs:seed_lift_struct}}
 ```
 
-Look at [`hylic/src/ops/lift/seed_lift.rs`](../../../../hylic/src/ops/lift/seed_lift.rs)
-end-to-end for the full picture: how it constructs a
-`Treeish<LiftedNode<N>>` with per-variant dispatch, how it
-wraps the fold to handle Entry's synthetic root heap, and how it
-produces an "unreachable" downstream grow (no further lift can
-observe it, because the chain is closed).
+See [`hylic/src/ops/lift/seed_lift.rs`](../../../../hylic/src/ops/lift/seed_lift.rs)
+for the full dispatch: the per-variant `Treeish<LiftedNode<N>>`
+construction, the Entry-root heap handling, and the downstream
+"unreachable grow" SeedLift synthesises to close the chain.
 
 ## Testing your lift
 

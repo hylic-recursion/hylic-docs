@@ -78,7 +78,7 @@ The naming convention:
 `Treeish<N>` = `Edgy<N, N>` — node and edge types equal; used by
 executors.
 
-The view via the sole primitive:
+The sugars wrap `Edgy::map_endpoints(rewrite_visit)`:
 
 ```rust
 {{#include ../../../../hylic/src/graph/edgy.rs:edgy_map}}
@@ -87,8 +87,6 @@ The view via the sole primitive:
 ```rust
 {{#include ../../../../hylic/src/graph/edgy.rs:edgy_contramap}}
 ```
-
-All sugars are one-liners over `map_endpoints(rewrite_visit)`.
 
 ## What's covered here vs. in "Lifts"
 

@@ -1,15 +1,18 @@
 # Pipelines — overview
 
-The `hylic-pipeline` crate gives you typestate pipelines: a
-stateful builder where the operations available at each step
-match the shape of the thing being built. Compared to bare
-[`LiftBare::run_on`](../concepts/lifts.md#applying-a-lift-without-a-pipeline),
-pipelines add:
+The `hylic-pipeline` crate is a typestate-pipeline library over
+the lift primitives in `hylic`. At each stage, the available
+methods match the shape of the thing being built:
 
-- A fluent, chainable surface (`.wrap_init(...).zipmap(...)`).
-- Explicit typestate boundaries (`SeedPipeline.lift() →
-  LiftedPipeline`).
-- Auto-dispatch of the right finishing lift when you hit `.run(...)`.
+- A builder surface (`.wrap_init(...).zipmap(...)`).
+- Two typestate boundaries (Stage 1 → Stage 2 via `.lift()`).
+- `SeedPipeline::run(...)` composes `SeedLift` onto the chain to
+  close the grow axis.
+
+Compared to bare
+[`LiftBare::run_on`](../concepts/lifts.md#applying-a-lift-without-a-pipeline),
+pipelines trade a little indirection for chainable method syntax
+and a typestate that names where you are.
 
 ```dot process
 digraph {
@@ -49,26 +52,22 @@ digraph {
 | `Seed → N` grow + `N → Seed*` children, run from entry seeds | `SeedPipeline` (Stage 1) |
 | `N → N*` children directly (already a tree), run from a root | `TreeishPipeline` (Stage 1) |
 | An existing Stage-1 pipeline you want to post-compose a lift onto | `.lift()` → `LiftedPipeline` (Stage 2) |
-| One-shot, zero-overhead, never cloning                       | `OwnedPipeline` (out-of-band) |
+| One-shot, no Clone                                           | `OwnedPipeline` (out-of-band) |
 
-## Typestate in 30 seconds
+## The two stages
 
-**Stage 1** is a coalgebra: you describe the shape of the
-computation (how to grow, how children relate, what to fold).
-Transforms at Stage 1 are **reshapes** — they change the base
-slots in place (`filter_seeds`, `wrap_grow`, `map_node_bi`, …).
+**Stage 1** holds the base slots directly — a coalgebra. Transforms
+are reshapes of those slots: `filter_seeds`, `wrap_grow`,
+`map_node_bi`, `map_seed_bi`.
 
-**Stage 2** is an algebra: a lift chain sits on top of the
-Stage-1 base. Transforms at Stage 2 are **lift compositions** —
-they stack ShapeLifts on top of the base
-(`wrap_init`, `zipmap`, `map_r_bi`, `memoize_by`, `explain`, …).
+**Stage 2** stacks lifts on top of a Stage-1 base. Transforms
+compose ShapeLifts onto the chain: `wrap_init`, `zipmap`,
+`map_r_bi`, `memoize_by`, `explain`.
 
-The typestate enforces the order: you `.lift()` once to cross the
-boundary, then chain Stage-2 sugars freely.
-
-Stage-1 pipelines also expose Stage-2 sugars via auto-lift:
-calling `seed_pipeline.wrap_init(w)` on a `SeedPipeline` implicitly
-lifts it and composes `wrap_init` — no `.lift()` keyword needed.
+`.lift()` crosses the boundary; Stage-2 sugars can then be
+chained. Stage-1 pipelines also expose Stage-2 sugars via
+auto-lift: `seed_pipeline.wrap_init(w)` lifts and composes in
+one call.
 
 ## Running a pipeline
 
@@ -95,10 +94,8 @@ that `grow` resolves via a registry:
 {{#include ../../../src/docs_examples.rs:pipeline_overview_treeish}}
 ```
 
-**Note the return type:** after `.zipmap(|r| *r > 5)`, the chain's
-tip R is `(u64, bool)` — each Stage-2 sugar's output R becomes
-the new tip, and `.run_from_node(...)` returns **exactly that**.
-No back-mapping to the original R.
+`.run_from_node` returns the tip R of the chain — here
+`(u64, bool)` after the `.zipmap(|r: &u64| *r > 5)`.
 
 ```rust
 {{#include ../../../src/docs_examples.rs:pipeline_overview_seed}}

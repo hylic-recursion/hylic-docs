@@ -57,10 +57,9 @@ innermost; `.explain` sees its results; `.zipmap` sees the
 
 ## Streaming variant
 
-`Shared::explainer_describe_lift(fmt, emit)` is a variant that
-emits formatted trace lines per node via a callback but keeps
-R transparent (`MapR = R`). Use it when you want live per-node
-trace output without changing your pipeline's result type:
+`Shared::explainer_describe_lift(fmt, emit)` emits formatted
+trace lines per node via a callback and leaves `MapR = R`
+unchanged:
 
 ```text
 use hylic::prelude::*;
@@ -70,18 +69,5 @@ let _ = Shared::explainer_describe_lift::<Node, u64, u64, _, _>(
 );
 ```
 
-Local mirror of `explainer_describe_lift` is deferred (blocked
-on `Send+Sync` in the formatter); the whole-trace `explainer_lift`
-is available for Local.
-
-## What this shows about the lift model
-
-1. **H and R can change independently.** Their types are bundled
-   by a single ShapeLift, but the lift is free to pick any shape
-   it needs.
-2. **Downstream lifts see the new shape.** If you chain
-   `.explain().zipmap(…)`, the `zipmap` closure operates on
-   `ExplainerResult<N, H, R>`, not the original R.
-3. **The type system carries the shape.** Your `.run_from_node(...)`
-   return type reflects every lift in the chain — you can see at
-   compile time what result type to expect.
+Local mirror deferred (blocked on `Send+Sync` in the formatter);
+`explainer_lift` is available for Local.

@@ -30,7 +30,7 @@ Shared is the default choice. Local is the escape hatch for
 non-`Send` captures. Owned is the minimalist choice for one-shot
 computations.
 
-## What each domain gives you
+## Per-domain bounds
 
 | Domain | Storage                       | `Clone` | `Send + Sync` | Typical executor |
 |--------|-------------------------------|---------|----------------|------------------|
@@ -99,7 +99,7 @@ Owned cannot run in parallel by construction.
   are cheap to clone (Arc bumps a counter); many threads can hold
   references simultaneously.
 - **Local** is the "single-threaded reference-counted" domain. Same
-  cloning ergonomics, but confined to one thread. Lets closures
+  cheap cloning as Shared, confined to one thread, and lets closures
   capture non-`Send` data.
 - **Owned** is the "consume-on-use" domain. Closures are cheap to
   construct and run, but each transformation consumes the original.

@@ -43,10 +43,10 @@ lifts don't exist.
 
 ## When not to use this
 
-- Any time you want chainable transforms — use Shared or Local.
-- Any time you run the same fold more than once — use Shared
-  (Clone lets you reuse).
-- Any time you need parallelism — Owned isn't `Send + Sync`.
+- You want transforms on the pipeline — use Shared or Local.
+- You run the same fold more than once — use Shared (Clone
+  lets you reuse).
+- You need parallelism — Owned isn't `Send + Sync`.
 
-In practice, Owned is the right choice for scripts, one-off
-tools, and minimal-overhead benchmarks.
+Owned fits scripts, one-off tools, and minimal-overhead
+benchmarks.

@@ -20,9 +20,9 @@ let lp = seed_pipeline.lift();  // LiftedPipeline<SeedPipeline<..>, IdentityLift
 let lp = tree_pipeline.lift();  // LiftedPipeline<TreeishPipeline<..>, IdentityLift>
 ```
 
-In practice you often skip the explicit `.lift()` — calling any
-Stage-2 sugar (`wrap_init`, `zipmap`, etc.) on a Stage-1 pipeline
-auto-lifts it.
+Calling any Stage-2 sugar (`wrap_init`, `zipmap`, etc.) on a
+Stage-1 pipeline auto-lifts, so the explicit `.lift()` is only
+needed when you want to pass a raw `Lift` impl to `then_lift`.
 
 ## The two primitives
 
@@ -48,7 +48,7 @@ digraph {
 }
 ```
 
-Under the hood, `then_lift` builds a `ComposedLift<L, L2>` (see
+`then_lift` builds a `ComposedLift<L, L2>` (see
 [Lifts chapter](../concepts/lifts.md#composedliftl1-l2)).
 
 ### `before_lift` — pre-compose (type-preserving only)
@@ -72,38 +72,23 @@ constructors (`map_n_bi_lift`, `map_r_bi_lift`, `n_lift`,
 
 ## Chaining sugars
 
-Every Stage-2 sugar method is a one-liner over `then_lift` plus a
-library-lift constructor. See [sugars](./sugars.md) for the full
-catalogue. Example:
+Each Stage-2 sugar delegates to `then_lift` with a library-lift
+constructor. See [sugars](./sugars.md) for the catalogue.
 
 ```rust
 {{#include ../../../src/docs_examples.rs:lifted_sugar_chain}}
 ```
 
-Each step is a one-liner over `.then_lift(Shared::<ctor>(...))`.
-The `r` binding at the end has type `String` because `map_r_bi`
-was the last sugar in the chain — every `.run_from_node(...)`
-returns the lift-chain's tip R.
+The `r` binding is `String` because `map_r_bi` was the last step;
+`.run_from_node` returns the chain's tip R. Each step grows the
+chain by one `ComposedLift`; a type mismatch at any join (e.g.
+passing a wrapper expecting the wrong `H`) fails at the call site.
 
-Each step grows the chain by one `ComposedLift`. Type inference
-walks the chain end-to-end, and Rust catches any type mismatch
-(e.g. passing a wrapper that expects the wrong `H`) at the call
-site.
+## Execution
 
-## The chain is invisible to the executor
-
-When you hit `.run_from_node(&exec, &root)` (or `.run(...)` for
-Seed pipelines), the chain is applied in sequence: `apply` on
-the outer lift, which calls `apply` on its inner, all the way
-down to the base. The executor only sees the final
-`(treeish, fold)` pair produced at the top of the stack.
-
-This is what "CPS composition" buys you: deeply-nested lift
-types that compile to a single pass at run time.
-
-## Running it
-
-Same entry points as Stage 1, inherited from `TreeishSource` /
+`.run_from_node(&exec, &root)` walks the chain outer-to-inner via
+CPS, producing the `(treeish, fold)` pair the executor sees. Same
+entry points as Stage 1, inherited from `TreeishSource` /
 `SeedSource`:
 
 ```text

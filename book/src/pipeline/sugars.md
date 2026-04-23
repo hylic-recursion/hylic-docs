@@ -62,8 +62,8 @@ providing a concrete `then_lift` — the actual work — and
 ## Auto-lift for Stage-1 pipelines
 
 `LiftedSugarsShared`'s impl for `SeedPipeline<Shared, …>` calls
-`self.lift()` before `then_lift_raw(...)`. So on a SeedPipeline
-you can call any Stage-2 sugar without ceremony:
+`self.lift()` before `then_lift_raw(...)`, so Stage-2 sugars work
+on a Stage-1 pipeline directly:
 
 ```text
 let r = seed_pipeline

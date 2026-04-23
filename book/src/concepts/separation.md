@@ -12,7 +12,7 @@ This is the entire computation, from the fused executor:
 {{#include ../../../../hylic/src/exec/variant/fused/mod.rs:run_inner}}
 ```
 
-Read it carefully. At each node:
+At each node:
 
 1. **init** — create a heap `H` from the node
 2. **visit children** — for each child, recurse and accumulate the result
@@ -153,7 +153,7 @@ When the tree is discovered lazily (seeds resolved on demand),
 from a seed edge function + grow, and delegates to `executor.run`
 internally.
 
-## Under the hood: operations traits
+## The operations traits
 
 The executor's recursion engine doesn't know about Arc, Rc, or Box.
 It takes `&impl FoldOps<N, H, R>` and `&impl TreeOps<N>` — pure

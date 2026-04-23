@@ -16,7 +16,7 @@ No grow step, no entry seeds. You run it by handing a starting
 
 ## When to pick this
 
-When your data already gives you `N → children: &[N]`. Examples:
+When your data already has `N → children: &[N]`. Examples:
 
 - An AST where each node has `children: Vec<Node>`.
 - A filesystem-like tree held in memory.
@@ -66,11 +66,10 @@ level to initialise. The first `init` call happens at `root_node`.
 
 ## Relation to bare lift
 
-`TreeishPipeline::new(treeish, &fold)` stores essentially the
-same two things as `LiftBare::apply_bare` operates on. The
-difference is that TreeishPipeline is a Stage-1 typestate —
-transforms produce typed TreeishPipelines — while bare usage is
-just closures.
+`TreeishPipeline::new(treeish, &fold)` stores the same two things
+`LiftBare::apply_bare` operates on. The difference: TreeishPipeline
+is a Stage-1 typestate, so transforms produce typed
+TreeishPipelines and chain methods work. Bare usage has neither.
 
-Pick the pipeline when you want the fluent builder; pick bare when
-you have a lift you want to apply one-shot.
+Pick the pipeline when you want chained transforms; pick bare when
+you have a lift to apply directly.
