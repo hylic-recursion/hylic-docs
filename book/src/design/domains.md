@@ -77,7 +77,7 @@ monomorphization time. The graph type is a separate type parameter
 implementation (Fused accepts any G; Funnel requires G: Send+Sync).
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/mod.rs:executor_trait}}
+{{#include ../../../../hylic/src/exec/mod.rs:executor_trait}}
 ```
 
 ## FoldOps and TreeOps

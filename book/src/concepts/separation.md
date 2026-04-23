@@ -9,7 +9,7 @@ transform each part independently.
 This is the entire computation, from the fused executor:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/fused/mod.rs:run_inner}}
+{{#include ../../../../hylic/src/exec/variant/fused/mod.rs:run_inner}}
 ```
 
 Read it carefully. At each node:

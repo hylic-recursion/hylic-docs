@@ -159,20 +159,20 @@ The funnel is parameterized along three independent axes, all
 resolved at compile time through the `FunnelPolicy` trait:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/policy/mod.rs:funnel_policy_trait}}
+{{#include ../../../../hylic/src/exec/variant/funnel/policy/mod.rs:funnel_policy_trait}}
 ```
 
 Each axis is a trait with its own `Spec`, `Store`/`State`, and
 implementations. The `Policy<Q, A, W>` struct bundles any combination:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/policy/mod.rs:policy_struct}}
+{{#include ../../../../hylic/src/exec/variant/funnel/policy/mod.rs:policy_struct}}
 ```
 
 Named presets are type aliases:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/policy/mod.rs:named_presets}}
+{{#include ../../../../hylic/src/exec/variant/funnel/policy/mod.rs:named_presets}}
 ```
 
 ```dot process

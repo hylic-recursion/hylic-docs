@@ -35,7 +35,7 @@ concern of each executor.
 ## The trait pair
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/mod.rs:executor_spec}}
+{{#include ../../../../hylic/src/exec/mod.rs:executor_spec}}
 ```
 
 `ExecutorSpec` is the lifecycle trait. Two GATs define each executor's
@@ -57,7 +57,7 @@ Two methods connect them:
   `with_session` borrows `&self`).
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/mod.rs:executor_trait}}
+{{#include ../../../../hylic/src/exec/mod.rs:executor_trait}}
 ```
 
 `Executor` is the computation trait. Both Specs and Sessions
@@ -70,7 +70,7 @@ implement it:
 ## `Exec<D, S>`
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/mod.rs:exec_struct}}
+{{#include ../../../../hylic/src/exec/mod.rs:exec_struct}}
 ```
 
 The user-facing wrapper. `D` is the domain (determines fold/graph
@@ -81,14 +81,14 @@ types via GATs). `S` is the strategy — a Spec or a Session.
 Two method blocks:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/mod.rs:inherent_run}}
+{{#include ../../../../hylic/src/exec/mod.rs:inherent_run}}
 ```
 
 **Block A** (`.run()`): available on ALL `Exec` where `S: Executor`.
 This is the one way to execute. Works on Specs and Sessions alike.
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/mod.rs:exec_session}}
+{{#include ../../../../hylic/src/exec/mod.rs:exec_session}}
 ```
 
 **Block B** (`.session()`, `.attach()`): available only on Spec-level

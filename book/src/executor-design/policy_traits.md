@@ -63,7 +63,7 @@ boxing.
 ## Concrete example: WorkStealing
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/policy/queue/mod.rs:work_stealing_trait}}
+{{#include ../../../../hylic/src/exec/variant/funnel/policy/queue/mod.rs:work_stealing_trait}}
 ```
 
 Two implementations:
@@ -79,18 +79,18 @@ Two implementations:
 Three independent axes combined into one type parameter:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/policy/mod.rs:funnel_policy_trait}}
+{{#include ../../../../hylic/src/exec/variant/funnel/policy/mod.rs:funnel_policy_trait}}
 ```
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/policy/mod.rs:policy_struct}}
+{{#include ../../../../hylic/src/exec/variant/funnel/policy/mod.rs:policy_struct}}
 ```
 
 `Policy<Q, A, W>` is the generic implementor. Named presets are type
 aliases. The funnel `Spec<P>` carries each axis's sub-spec:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/mod.rs:funnel_spec}}
+{{#include ../../../../hylic/src/exec/variant/funnel/mod.rs:funnel_spec}}
 ```
 
 ## Named presets as transformations

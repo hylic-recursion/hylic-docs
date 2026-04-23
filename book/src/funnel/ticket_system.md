@@ -32,7 +32,7 @@ Neither sees the complete state. Both exit. The fold hangs.
 ## The solution: packed state
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/cps/chain.rs:fold_chain_struct}}
+{{#include ../../../../hylic/src/exec/variant/funnel/cps/chain.rs:fold_chain_struct}}
 ```
 
 `state: AtomicU64` packs both counters into one word:
@@ -42,7 +42,7 @@ Neither sees the complete state. Both exit. The fold hangs.
 | `total` (0 = unknown) | `events_done` |
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/cps/chain.rs:state_packing}}
+{{#include ../../../../hylic/src/exec/variant/funnel/cps/chain.rs:state_packing}}
 ```
 
 ## How it works
@@ -50,7 +50,7 @@ Neither sees the complete state. Both exit. The fold hangs.
 Each event does a single `fetch_add` on `state`:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/cps/chain.rs:deliver_ticket}}
+{{#include ../../../../hylic/src/exec/variant/funnel/cps/chain.rs:deliver_ticket}}
 ```
 
 **Delivery** adds 1 to the low 32 bits (`events_done`).

@@ -34,7 +34,7 @@ The executor trait has four type parameters: `N` (node), `R`
 (result), `D` (domain), and `G` (graph):
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/mod.rs:executor_trait}}
+{{#include ../../../../hylic/src/exec/mod.rs:executor_trait}}
 ```
 
 The domain `D` determines the fold type (`D::Fold<H, R>`). The graph

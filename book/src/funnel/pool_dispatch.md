@@ -7,7 +7,7 @@ encapsulates the full lifecycle: publish → body → seal → latch.
 ## PoolState
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/pool.rs:pool_state}}
+{{#include ../../../../hylic/src/exec/variant/funnel/pool.rs:pool_state}}
 ```
 
 - `job_ptr`: points to a stack-local `Job` during dispatch, null
@@ -20,7 +20,7 @@ encapsulates the full lifecycle: publish → body → seal → latch.
 ## Job
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/pool.rs:job_struct}}
+{{#include ../../../../hylic/src/exec/variant/funnel/pool.rs:job_struct}}
 ```
 
 `call` is a monomorphized `worker_entry::<N, H, R, F, G, P>` —
@@ -30,7 +30,7 @@ a stack-local `FoldState`. Two words, no allocation.
 ## The dispatch lifecycle
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/pool.rs:dispatch}}
+{{#include ../../../../hylic/src/exec/variant/funnel/pool.rs:dispatch}}
 ```
 
 ```dot process
@@ -62,7 +62,7 @@ All synchronization is dispatch's responsibility.
 ## Pool thread
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/pool.rs:pool_thread}}
+{{#include ../../../../hylic/src/exec/variant/funnel/pool.rs:pool_thread}}
 ```
 
 The critical ordering: `in_job` increment happens **before**
@@ -93,7 +93,7 @@ thread visible to the latch before it touches the pointer.
 ## run_fold
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/dispatch/mod.rs:run_fold}}
+{{#include ../../../../hylic/src/exec/variant/funnel/dispatch/mod.rs:run_fold}}
 ```
 
 Creates per-fold state (store, arenas, root cell, view, context),

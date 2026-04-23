@@ -13,7 +13,7 @@ across threads at multi-child boundaries.
 ## The function
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/cps/walk.rs:fire_cont}}
+{{#include ../../../../hylic/src/exec/variant/funnel/cps/walk.rs:fire_cont}}
 ```
 
 Three continuation variants, three behaviors, one loop.

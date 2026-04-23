@@ -10,7 +10,7 @@ thread and consumed on another.
 ## FunnelTask
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/cps/cont.rs:funnel_task}}
+{{#include ../../../../hylic/src/exec/variant/funnel/cps/cont.rs:funnel_task}}
 ```
 
 The unit of parallelism. Stored inline in deque slots (PerWorker)
@@ -23,7 +23,7 @@ moved across threads via destructive slot reads). `H` has no bounds
 ## Cont
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/cps/cont.rs:cont_enum}}
+{{#include ../../../../hylic/src/exec/variant/funnel/cps/cont.rs:cont_enum}}
 ```
 
 The defunctionalized continuation. Tells [`fire_cont`](cascade.md)
@@ -63,7 +63,7 @@ Size: 8 bytes (two `u32`, regardless of `H` or `R`).
 ## ChainNode
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/cps/cont.rs:chain_node}}
+{{#include ../../../../hylic/src/exec/variant/funnel/cps/cont.rs:chain_node}}
 ```
 
 Arena-allocated. Created lazily on child 2 (never for single-child

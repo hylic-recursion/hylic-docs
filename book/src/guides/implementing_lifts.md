@@ -69,7 +69,7 @@ resolved node. The Explainer clones the root unchanged.
 ## The trait
 
 ```rust
-{{#include ../../../../hylic/src/ops/lift.rs:lift_trait}}
+{{#include ../../../../hylic/src/ops/lift/core.rs:lift_trait}}
 ```
 
 `Lift<N, N2>` is a bifunctor on the `(H, R)` pair — both `MapH`

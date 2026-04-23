@@ -8,7 +8,7 @@ delivered first. This is what allows hylic's
 to run correctly in parallel:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/policy/accumulate/mod.rs:accumulate_strategy_trait}}
+{{#include ../../../../hylic/src/exec/variant/funnel/policy/accumulate/mod.rs:accumulate_strategy_trait}}
 ```
 
 Both use the same [ticket system](ticket_system.md) for last-event

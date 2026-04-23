@@ -4,13 +4,13 @@ The funnel's behavior is fully determined by three compile-time axes
 bundled into `FunnelPolicy`:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/policy/mod.rs:funnel_policy_trait}}
+{{#include ../../../../hylic/src/exec/variant/funnel/policy/mod.rs:funnel_policy_trait}}
 ```
 
 ## The Spec
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/mod.rs:funnel_spec}}
+{{#include ../../../../hylic/src/exec/variant/funnel/mod.rs:funnel_spec}}
 ```
 
 Each axis contributes its `Spec` type. `default_pool_size` sets the
@@ -20,7 +20,7 @@ thread count for one-shot execution. Arenas grow lazily via
 ## Named presets
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/policy/mod.rs:named_presets}}
+{{#include ../../../../hylic/src/exec/variant/funnel/policy/mod.rs:named_presets}}
 ```
 
 Nine names map to seven distinct monomorphizations:
@@ -97,7 +97,7 @@ type-level design behind these tiers.
 ## Wake strategies
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/policy/wake/mod.rs:wake_strategy_trait}}
+{{#include ../../../../hylic/src/exec/variant/funnel/policy/wake/mod.rs:wake_strategy_trait}}
 ```
 
 | Strategy | Behavior | Per-worker state |

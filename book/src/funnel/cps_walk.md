@@ -10,7 +10,7 @@ without blocking.
 ## The algorithm
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/cps/walk.rs:walk_cps}}
+{{#include ../../../../hylic/src/exec/variant/funnel/cps/walk.rs:walk_cps}}
 ```
 
 The function takes `(wctx, node, cont)`:
@@ -105,7 +105,7 @@ Three compounding effects make this critical:
 Tasks are data, not closures:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/cps/cont.rs:funnel_task}}
+{{#include ../../../../hylic/src/exec/variant/funnel/cps/cont.rs:funnel_task}}
 ```
 
 `FunnelTask::Walk` pairs a child node with its continuation — plain
@@ -113,7 +113,7 @@ data stored inline in deque slots. No `Box<dyn FnOnce>`, no closure
 capture, no vtable. The `execute_task` function is the apply:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/cps/walk.rs:execute_task}}
+{{#include ../../../../hylic/src/exec/variant/funnel/cps/walk.rs:execute_task}}
 ```
 
 This is the Reynolds/Danvy defunctionalization transformation applied
@@ -131,7 +131,7 @@ events, workers may deliver results to already-appended slots. The
 ## Task submission and wake
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/dispatch/worker.rs:push_task}}
+{{#include ../../../../hylic/src/exec/variant/funnel/dispatch/worker.rs:push_task}}
 ```
 
 `push` goes through the policy's queue handle. If the queue is

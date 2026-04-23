@@ -4,7 +4,7 @@ Two work-stealing strategies, selected at compile time via the
 `WorkStealing` trait:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/policy/queue/mod.rs:work_stealing_trait}}
+{{#include ../../../../hylic/src/exec/variant/funnel/policy/queue/mod.rs:work_stealing_trait}}
 ```
 
 The three associated types capture the queue lifecycle:
@@ -15,7 +15,7 @@ The three associated types capture the queue lifecycle:
 Workers interact through `TaskOps`:
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/policy/queue/mod.rs:task_ops}}
+{{#include ../../../../hylic/src/exec/variant/funnel/policy/queue/mod.rs:task_ops}}
 ```
 
 `push` returns `Some(task)` if the queue is full — the caller
@@ -50,7 +50,7 @@ digraph {
 ```
 
 ```rust
-{{#include ../../../../hylic/src/cata/exec/variant/funnel/policy/queue/per_worker.rs:per_worker_task_ops}}
+{{#include ../../../../hylic/src/exec/variant/funnel/policy/queue/per_worker.rs:per_worker_task_ops}}
 ```
 
 **Push**: LIFO to own deque (no CAS), set bit in bitmask.
