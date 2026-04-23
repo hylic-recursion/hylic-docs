@@ -8,6 +8,19 @@ concerns: a **fold** that defines what to compute at each node, a
 controls how the recursion is carried out. Each concern can be
 defined, transformed, and composed independently.
 
+This isn't an academic exercise. The parallel executor (Funnel)
+reaches parity-or-better numbers against handrolled Rayon and
+Sheque baselines across a 14-workload matrix, with finely
+selectable tradeoffs along three compile-time policy axes (queue
+topology, accumulation strategy, wake policy — all monomorphised,
+no runtime dispatch). Correctness is covered by the main test
+suite plus an interleaving stress harness over the CPS scheduler.
+The fastest way to see what the library actually does in practice
+is the **[interactive benchmark viewer](./cookbook/benchmarks.md#interactive-funnel-axes-viewer)**
+— full matrix, filterable by policy axis and workload. Note that
+most scenarios are synthetic CPU-burn workloads; absolute numbers
+reflect those, not a production pipeline.
+
 ```rust
 {{#include ../../src/docs_examples.rs:intro_dir_example}}
 ```

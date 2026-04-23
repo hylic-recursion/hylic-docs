@@ -3,6 +3,10 @@
 [Introduction](./intro.md)
 [Quick Start](./quickstart.md)
 
+# Benchmarks
+
+- [Results](./cookbook/benchmarks.md)
+
 # Concepts
 
 - [The recursive pattern](./concepts/separation.md)
@@ -44,7 +48,6 @@
 - [Accumulation](./funnel/accumulation.md)
 - [Infrastructure](./funnel/infrastructure.md)
 - [Testing](./funnel/testing.md)
-- [Benchmarks](./cookbook/benchmarks.md)
 
 # Cookbook
 

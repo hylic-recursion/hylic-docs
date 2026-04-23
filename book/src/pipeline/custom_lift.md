@@ -1,102 +1,164 @@
 # Writing a custom Lift
 
-The library's shape-lift catalogue covers the common cases. When
-you need a lift with state, cross-node coordination, or a type
-transformation the catalogue doesn't support, you write your own
-`Lift` impl.
+Ninety-nine percent of transformations compose out of the library
+catalogue and the sugar traits. A custom `Lift` impl earns its
+keep only when your transformation has cross-node state, needs
+per-variant dispatch, or is itself an execution strategy — the
+three categories in the library (`explainer_lift`, `SeedLift`,
+`ParLazy`/`ParEager`) hit exactly those pain points.
 
-## What you implement
+This chapter walks the decisions. The worked example, a
+counter-on-init lift, is a deliberately thin case; the table at
+the end points to the heavy ones.
 
-`Lift<D, N, H, R>` declares three output types and one CPS method:
+## Four decisions
 
-```rust
-{{#include ../../../../hylic/src/ops/lift/core.rs:lift_trait}}
+Before you write `apply`, pin these four things:
+
+**1. What are your output types?**
+
+```text
+type N2   = ???;
+type MapH = ???;
+type MapR = ???;
 ```
 
-Your `apply` is handed the three input slots and a continuation.
-You build the three output slots (whatever types your lift
-produces) and pass them to `cont`.
+If your lift doesn't change an axis, mirror the input: `type N2 = N`.
+If it does, declare the new type. `MapH` and `MapR` are typically
+wrappers (the Explainer changes `MapR` to `ExplainerResult<N, H, R>`,
+bundling the user's R with a trace tree).
 
-## Minimal template (Shared, no type change)
+**2. What do you do with the input `grow`?**
 
-A no-op lift for Shared that just wraps the fold's init:
+```text
+fn apply<Seed, T>(
+    &self,
+    grow:    <D as Domain<N>>::Grow<Seed, N>,  // ← this
+    ...
+```
+
+Three choices: pass through unchanged (you don't touch N),
+wrap with an N-conversion (if you change N), or synthesise a new
+grow (only `SeedLift` does this, to close the chain). Most
+custom lifts pass through.
+
+**3. What do you do with the input `treeish`?**
+
+Pass through, filter, wrap in a visit-intercepting closure
+(`wrap_visit_lift`-style), or rebuild entirely (`n_lift`-style,
+`SeedLift`-style).
+
+**4. What do you do with the input `fold`?**
+
+Clone it (per-phase, once per closure you'll build), and construct
+a new `Fold<D::N2, MapH, MapR>` whose init/accumulate/finalize
+call through to the original via captured clones.
+
+Once the four decisions are pinned, `apply`'s body writes itself:
+build the three output slots, call `cont(grow', treeish', fold')`,
+done.
+
+## The example, decisions first
+
+Target: a `NoteVisits` lift that counts how many times `init` is
+called, into a shared `Arc<Mutex<u64>>`. No type changes.
+
+1. **Output types:** everything mirrors input.
+   `N2 = N`, `MapH = H`, `MapR = R`.
+2. **grow:** pass through.
+3. **treeish:** pass through.
+4. **fold:** wrap `init` to bump the counter; pass `accumulate`
+   and `finalize` through unchanged. Clone `fold` once per phase
+   closure.
+
+Full impl:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:custom_lift_note_visits}}
 ```
 
-This `NoteVisits` lift counts init calls into a shared
-`Arc<Mutex<u64>>`. The pattern that makes it work: clone the
-input `fold` three times (one per phase) before constructing
-the output fold, so each phase closure owns an independent
-handle. The `cont` call at the end hands the unchanged `grow`
-and `treeish` plus the wrapped fold to the downstream chain.
-
-Once defined, use it via `LiftBare::run_on` (shown inside the
-test) or via a pipeline:
+Use it via `LiftBare::run_on` (shown inside the test) or via a
+pipeline:
 
 ```text
 use hylic_pipeline::prelude::*;
-let r = my_treeish_pipeline.lift().then_lift(NoteVisits { counter })
+let r = my_treeish_pipeline.lift()
+    .then_lift(NoteVisits { counter })
     .run_from_node(&FUSED, &root);
 ```
 
-## When `ShapeLift` beats a hand-rolled `Lift`
+## When `ShapeLift` beats a custom Lift
 
-If your lift can be described as **"rewrite one or more of the
-three xforms (grow, treeish, fold)"**, prefer building a
-`ShapeLift` via the existing primitives:
+If your transformation maps cleanly onto "rewrite one of the three
+slots," don't write a Lift impl. Pick the primitive:
 
-- `Shared::phases_lift(mi, ma, mf)` — rewrite all three fold phases.
-- `Shared::treeish_lift(mt)` — rewrite the graph.
-- `Shared::n_lift(lift_node, build_treeish, fold_contra)` — change N
-  across all three slots in one coordinated move.
+| Primitive                                         | When                                   |
+|---------------------------------------------------|----------------------------------------|
+| `Shared::phases_lift(mi, ma, mf)`                 | rewrite all three Fold phases          |
+| `Shared::treeish_lift(mt)`                        | rewrite the graph                      |
+| `Shared::n_lift(lift_node, build_treeish, contra)`| coordinated N-change across all slots  |
 
-You go custom when:
+Or pick one of the per-axis sugar constructors
+(`wrap_init_lift`, `zipmap_lift`, `filter_edges_lift`, …) — they're
+all `ShapeLift`s with the xforms wired up. `NoteVisits` above is
+expressible as `Shared::wrap_init_lift(|n, orig| { counter.bump(); orig(n) })`
+with the counter captured by the closure; the custom impl is
+shown only to illustrate the CPS shape.
 
-- You need **cross-axis state** (e.g. a memoisation cache threaded
-  through multiple nodes' folds).
-- You need **different type transformations on different
-  variants** (e.g. `SeedLift`'s `LiftedNode::Entry` vs `Node(n)`
-  dispatch).
-- You're implementing a **domain-specific execution strategy** (e.g.
-  `ParLazy` and `ParEager` in the `hylic-parallel-lifts` crate —
-  they *are* `Lift<Shared, N, H, R>` impls whose `apply` produces
-  a fold that schedules work onto a thread pool).
+## When a custom Lift is the right answer
 
-## SeedLift as a reference
+Three real cases in the ecosystem:
 
-`SeedLift` is the non-trivial case: Shared-pinned, stateful
-(`grow` + `entry_seeds` + `entry_heap_fn`), and changes N to
-`LiftedNode<N>`.
+- **`SeedLift`** — Shared-pinned, stateful (`grow`, `entry_seeds`,
+  `entry_heap_fn`), N-changing, and per-variant dispatch on
+  `LiftedNode`. Structurally incompatible with `ShapeLift` because
+  it has to *consume* the upstream `grow` rather than wrap it.
 
-```rust
-{{#include ../../../../hylic/src/ops/lift/seed_lift.rs:seed_lift_struct}}
-```
+  ```rust
+  {{#include ../../../../hylic/src/ops/lift/seed_lift.rs:seed_lift_struct}}
+  ```
 
-See [`hylic/src/ops/lift/seed_lift.rs`](../../../../hylic/src/ops/lift/seed_lift.rs)
-for the full dispatch: the per-variant `Treeish<LiftedNode<N>>`
-construction, the Entry-root heap handling, and the downstream
-"unreachable grow" SeedLift synthesises to close the chain.
+  See [`hylic/src/ops/lift/seed_lift.rs`](../../../../hylic/src/ops/lift/seed_lift.rs)
+  for the full variant dispatch (`Entry` fans out entry seeds;
+  `Node(n)` visits the user's treeish; the downstream grow is
+  the synthesised unreachable-closure).
 
-## Testing your lift
+- **`Shared::explainer_lift`** — this *is* a `ShapeLift`, but its
+  construction (in `domain/shared/shape_lifts/explainer.rs`) shows
+  what a per-node stateful fold-wrap looks like: `init` opens an
+  `ExplainerHeap`, `accumulate` appends a transition, `finalize`
+  emits an `ExplainerResult`. Good reading before writing a
+  fold-rewriting lift of your own.
 
-Write a `#[test]` that:
-
-1. Constructs a simple treeish + fold.
-2. Computes the expected result without your lift.
-3. Applies your lift via `LiftBare::run_on` or a pipeline.
-4. Asserts the result (and any side effects your lift records).
-
-For cross-domain parity (if your lift has Local / Owned
-variants), write the same test twice with the respective domain.
+- **`ParLazy` / `ParEager`** in the `hylic-parallel-lifts` crate —
+  *execution strategies* that happen to implement `Lift`. `apply`
+  produces a fold whose `accumulate` schedules work onto a thread
+  pool. A different mental model from the library shape-lifts;
+  read them if you're building parallel execution primitives.
 
 ## Capability bounds
 
-If your lift needs to run under parallel executors (Funnel),
-make it `Clone + Send + Sync + 'static` with
-`Send + Sync + 'static` on every output type. The blanket
-`ShareableLift` marker will pick it up automatically.
+`PureLift` and `ShareableLift` are blanket markers. You don't
+implement them; they fire automatically when your lift's types
+meet the bounds:
 
-Sequential executors (`Fused`) only need `PureLift`, which
-everything Clone + 'static satisfies automatically.
+- **`PureLift`** — `Clone + 'static` on the lift and Clone on its
+  outputs. Sequential executors (`Fused`) need this.
+- **`ShareableLift`** — adds `Send + Sync + 'static` everywhere.
+  Parallel executors (`Funnel`) need this.
+
+If your lift needs to run under `Funnel`, make the struct `Clone +
+Send + Sync + 'static` and ensure every captured field is too.
+
+## Testing
+
+Write a `#[test]` that:
+
+1. Constructs a simple treeish + fold whose result you can compute
+   by hand.
+2. Applies your lift via `LiftBare::run_on` or a pipeline.
+3. Asserts both the result and any side effects the lift should
+   record.
+
+For domain parity, repeat the test with Local (and Owned, if your
+lift has an Owned variant).
