@@ -17,7 +17,7 @@ A complete example using both:
 use hylic::domain::shared as dom;
 use hylic::graph;
 
-let fold  = dom::simple_fold(|n: &i32| *n as u64, |h: &mut u64, c: &u64| *h += c);
+let fold  = dom::fold(|n: &i32| *n as u64, |h: &mut u64, c: &u64| *h += c, |h: &u64| *h);
 let graph = graph::treeish(|n: &i32| if *n > 1 { vec![n - 1, n - 2] } else { vec![] });
 let result = dom::FUSED.run(&fold, &graph, &5);
 ```
@@ -32,7 +32,7 @@ export the fold type and its constructors, plus executor binding:
 
 | Export | Purpose |
 |--------|---------|
-| `Fold`, `fold()`, `simple_fold()` | Fold type and constructors |
+| `Fold`, `fold()` | Fold type and constructor |
 | `FUSED` | Sequential executor (all domains) |
 | `exec(spec)` | Bind a parallel executor to this domain |
 

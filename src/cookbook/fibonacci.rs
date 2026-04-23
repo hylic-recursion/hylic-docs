@@ -23,12 +23,13 @@ use hylic::graph;
             else { vec![FibNode(n.0 - 1), FibNode(n.0 - 2)] }
         });
 
-        // simple_fold: H = R (heap IS the result, finalize is clone).
-        // init: each node seeds its heap — leaves get their value, inner nodes get 0.
+        // H = R: the heap is the result; finalize is just the identity
+        // extraction from it. init: each node seeds its heap — leaves get
+        // their value, inner nodes get 0.
         // accumulate: called once per child result, folds it into the heap.
         let init = |n: &FibNode| if n.0 <= 1 { n.0 } else { 0 };
         let acc = |heap: &mut u64, child: &u64| *heap += child;
-        let fib = dom::simple_fold(init, acc);
+        let fib = dom::fold(init, acc, |h| h.clone());
 
         let result = dom::FUSED.run(&fib, &graph, &FibNode(10));
         assert_eq!(result, 55);

@@ -26,7 +26,7 @@ use hylic::graph;
 
     // ANCHOR: simple_fold_example
     #[test]
-    fn simple_fold_example() {
+    fn identity_finalize_fold_example() {
 
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
@@ -34,7 +34,7 @@ use hylic::graph;
         let graph = graph::treeish(|d: &Dir| d.children.clone());
         let init = |d: &Dir| d.size;
         let acc = |heap: &mut u64, child: &u64| *heap += child;
-        let sum = dom::simple_fold(init, acc);
+        let sum = dom::fold(init, acc, |h| h.clone());
 
         let tree = Dir {
             name: "root".into(), size: 10,
@@ -58,7 +58,7 @@ use hylic::graph;
         let graph = graph::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = dom::simple_fold(init, acc);
+        let fold = dom::fold(init, acc, |h| h.clone());
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         let r = dom::FUSED.run(&fold, &graph, &root);           // sequential
@@ -79,7 +79,7 @@ use hylic::graph;
         let graph = graph::treeish(|d: &Dir| d.children.clone());
         let init = |d: &Dir| d.size;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = dom::simple_fold(init, acc);
+        let fold = dom::fold(init, acc, |h| h.clone());
 
         let logged = fold.wrap_init(|d: &Dir, orig: &dyn Fn(&Dir) -> u64| {
             // side effect: could log here
@@ -102,7 +102,7 @@ use hylic::graph;
         let graph = graph::treeish(|d: &Dir| d.children.clone());
         let init = |d: &Dir| d.size;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let size_fold = dom::simple_fold(init, acc);
+        let size_fold = dom::fold(init, acc, |h| h.clone());
 
         let both = size_fold.product(&depth_fold());
         let tree = Dir {
@@ -126,7 +126,7 @@ use hylic::graph;
 
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold_ = dom::simple_fold(init, acc);
+        let fold_ = dom::fold(init, acc, |h| h.clone());
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         // Honest base: user has a Treeish<N>, no seed-to-node step.
@@ -153,7 +153,7 @@ use hylic::graph;
 
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold_ = dom::simple_fold(init, acc);
+        let fold_ = dom::fold(init, acc, |h| h.clone());
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         WorkPool::with(WorkPoolSpec::threads(2), |pool| {
@@ -184,7 +184,7 @@ use hylic::graph;
         let graph = graph::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = dom::simple_fold(init, acc);
+        let fold = dom::fold(init, acc, |h| h.clone());
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         WorkPool::with(WorkPoolSpec::threads(2), |pool| {
@@ -243,7 +243,7 @@ use hylic::graph;
         let graph = graph::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = dom::simple_fold(init, acc);
+        let fold = dom::fold(init, acc, |h| h.clone());
         let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
 
         // Same .run() for both — uniform interface
@@ -299,7 +299,7 @@ use hylic::graph;
         let graph = graph::treeish(|n: &Node| n.children.clone());
         let init = |n: &Node| n.value;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = dom::simple_fold(init, acc);
+        let fold = dom::fold(init, acc, |h| h.clone());
 
         let root = Node { value: 1, children: vec![
             Node { value: 10, children: vec![] },
@@ -330,7 +330,7 @@ use hylic::graph;
 
         let init = |n: &u64| *n;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = dom::simple_fold(init, acc);
+        let fold = dom::fold(init, acc, |h| h.clone());
 
         let cached = memoize_treeish(&graph);
         let _ = dom::FUSED.run(&fold, &cached, &3u64);
@@ -379,7 +379,7 @@ use hylic::graph;
         let graph = graph::treeish(|n: &N| n.children.clone());
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = dom::simple_fold(init, acc);
+        let fold = dom::fold(init, acc, |h| h.clone());
 
         let with_flag = fold.zipmap(|r: &u64| *r > 5);
         let root = N { val: 1, children: vec![
@@ -401,7 +401,7 @@ use hylic::graph;
 
         let init = |n: &N| n.val;
         let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = dom::simple_fold(init, acc);
+        let fold = dom::fold(init, acc, |h| h.clone());
 
         // Change node type: String → N
         let by_name = fold.contramap_n(|s: &String| N { val: s.len() as u64, children: vec![] });
@@ -423,9 +423,10 @@ use hylic::graph;
         struct Dir { name: String, size: u64, children: Vec<Dir> }
 
         let graph = graph::treeish(|d: &Dir| d.children.clone());
-        let fold = dom::simple_fold(
+        let fold = dom::fold(
             |d: &Dir| d.size,
             |heap: &mut u64, child: &u64| *heap += child,
+            |heap: &u64| *heap,
         );
 
         let tree = Dir {
@@ -458,7 +459,7 @@ use hylic::graph;
         let graph = graph::treeish_visit(move |n: &usize, cb: &mut dyn FnMut(&usize)| {
             for &c in &children[*n] { cb(&c); }
         });
-        let fold = dom::simple_fold(|n: &usize| *n as u64, |h: &mut u64, c: &u64| *h += c);
+        let fold = dom::fold(|n: &usize| *n as u64, |h: &mut u64, c: &u64| *h += c, |h| h.clone());
 
         let total = dom::FUSED.run(&fold, &graph, &0);
         assert_eq!(total, 3); // 0 + 1 + 2
@@ -476,9 +477,10 @@ use hylic::graph;
         struct Dir { name: String, size: u64, children: Vec<Dir> }
 
         let graph = graph::treeish(|d: &Dir| d.children.clone());
-        let fold = dom::simple_fold(
+        let fold = dom::fold(
             |d: &Dir| d.size,
             |heap: &mut u64, child: &u64| *heap += child,
+            |heap: &u64| *heap,
         );
 
         let tree = Dir {
@@ -503,9 +505,10 @@ use hylic::graph;
         struct Dir { name: String, size: u64, children: Vec<Dir> }
 
         let graph = graph::treeish(|d: &Dir| d.children.clone());
-        let fold = dom::simple_fold(
+        let fold = dom::fold(
             |d: &Dir| d.size,
             |heap: &mut u64, child: &u64| *heap += child,
+            |heap: &u64| *heap,
         );
 
         let tree = Dir {

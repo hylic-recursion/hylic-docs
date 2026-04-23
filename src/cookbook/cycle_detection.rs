@@ -85,7 +85,7 @@ use hylic::graph;
             heap.cycles.extend(child.cycles.iter().cloned());
             heap.visited += child.visited;
         };
-        let detect = dom::simple_fold(init, acc);
+        let detect = dom::fold(init, acc, |h| h.clone());
 
         let result = dom::FUSED.run(&detect, &graph, &DepNode::root("A"));
 

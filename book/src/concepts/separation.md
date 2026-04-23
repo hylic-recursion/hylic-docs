@@ -97,8 +97,8 @@ domain; the [executor](../executor-design/exec_pattern.md) does.
 open bracket), `R` is the immutable result flowing to the parent (the
 closed bracket). See
 [The N-H-R algebra factorization](../design/milewski.md) for the
-theoretical basis. `simple_fold` is a shorthand where `H = R` and
-finalize is clone:
+theoretical basis. Many folds have `H = R`, in which case `finalize`
+is just an identity extraction from the heap:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:simple_fold_example}}

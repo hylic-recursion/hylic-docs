@@ -89,7 +89,7 @@ mod tests {
             heap.modules.extend(child.modules.iter().cloned());
             heap.errors.extend(child.errors.iter().cloned());
         };
-        let collect = dom::simple_fold(init, acc);
+        let collect = dom::fold(init, acc, |h| h.clone());
 
         // SeedPipeline: grow + seeds_from_node + fold.
         // Entry handled at the call site.

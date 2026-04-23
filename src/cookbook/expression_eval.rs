@@ -38,9 +38,9 @@ use hylic::graph;
             }
         });
 
-        // vec_fold: unlike simple_fold, finalize sees the node AND all child
-        // results together. Needed here because each node type combines
-        // children differently (sum vs product vs negate).
+        // vec_fold: finalize sees the node AND all child results together.
+        // Needed here because each node type combines children differently
+        // (sum vs product vs negate).
         let format = |heap: &VecHeap<Expr, f64>| {
             match &heap.node {
                 Expr::Num(v) => *v,

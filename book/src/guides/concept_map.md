@@ -127,7 +127,7 @@ digraph {
     edge [fontname="sans-serif", fontsize=10];
 
     pick [label="1. Pick domain\nuse hylic::domain::shared as dom;", fillcolor="#d4edda"];
-    build [label="2. Build fold + graph\ndom::simple_fold(...)\ngraph::treeish(...)", fillcolor="#fff3cd"];
+    build [label="2. Build fold + graph\ndom::fold(...)\ngraph::treeish(...)", fillcolor="#fff3cd"];
     run [label="3. Run\ndom::FUSED.run(&fold, &graph, &root)", fillcolor="#cce5ff"];
     par [label="3b. Or parallel\ndom::exec(funnel::Spec::default(8))\n  .run(...)", fillcolor="#cce5ff"];
 

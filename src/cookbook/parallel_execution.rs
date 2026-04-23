@@ -50,9 +50,10 @@ mod tests {
         });
 
         let vals_for_fold = vals.clone();
-        let sum = dom::simple_fold(
+        let sum = dom::fold(
             move |n: &usize| vals_for_fold[*n],
             |heap: &mut u64, child: &u64| *heap += child,
+            |heap: &u64| *heap,
         );
 
         // Sequential baseline

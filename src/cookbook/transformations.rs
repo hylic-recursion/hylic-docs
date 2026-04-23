@@ -58,7 +58,7 @@ use hylic::graph;
     fn base_fold() -> dom::Fold<Task, u64, u64> {
         let init = |t: &Task| t.cost_ms;
         let acc = |heap: &mut u64, child: &u64| *heap += child;
-        dom::simple_fold(init, acc)
+        dom::fold(init, acc, |h| h.clone())
     }
 
     // ── Fold phase wrappers ─────────────────────────────────

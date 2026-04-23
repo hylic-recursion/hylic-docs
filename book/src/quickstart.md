@@ -36,14 +36,13 @@ let graph = graph::treeish(|d: &Dir| d.children.clone());
 
 A fold has three phases: `init` produces a heap value from a node,
 `accumulate` incorporates each child's result into the heap, and
-`finalize` extracts the result. `simple_fold` is a shorthand for
-the common case where the heap type equals the result type and
-finalize is the identity.
+`finalize` extracts the result. Here the heap type equals the
+result type, so the finalize step is just an identity extraction:
 
 ```rust
 let init = |d: &Dir| d.size;
 let acc = |heap: &mut u64, child: &u64| *heap += child;
-let fold = dom::simple_fold(init, acc);
+let fold = dom::fold(init, acc, |heap: &u64| *heap);
 ```
 
 ## Run it
@@ -78,9 +77,10 @@ let sizes = vec![10u64, 100, 50, 30];
 let graph = graph::treeish_visit(move |n: &usize, cb: &mut dyn FnMut(&usize)| {
     for &c in &children[*n] { cb(&c); }
 });
-let fold = dom::simple_fold(
+let fold = dom::fold(
     move |n: &usize| sizes[*n],
     |heap: &mut u64, child: &u64| *heap += child,
+    |heap: &u64| *heap,
 );
 
 let total = dom::FUSED.run(&fold, &graph, &0);

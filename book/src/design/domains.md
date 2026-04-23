@@ -44,9 +44,9 @@ Graph types are in a separate public module:
 
 ```
 domain/
-  shared/fold.rs    Fold (Arc) + fold(), simple_fold(), exec(), FUSED
-  local/mod.rs      Fold (Rc)  + fold(), simple_fold(), exec(), FUSED
-  owned/mod.rs      Fold (Box) + fold(), simple_fold(), exec(), FUSED
+  shared/fold.rs    Fold (Arc) + fold(), exec(), FUSED
+  local/mod.rs      Fold (Rc)  + fold(), exec(), FUSED
+  owned/mod.rs      Fold (Box) + fold(), exec(), FUSED
 
 graph/
   edgy.rs           Edgy<N,E>, Treeish<N> (Arc) + combinators

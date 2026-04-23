@@ -79,7 +79,7 @@ use hylic::graph;
                 heap.merged.entry(k.clone()).or_insert_with(|| v.clone());
             }
         };
-        let resolve = dom::simple_fold(init, acc);
+        let resolve = dom::fold(init, acc, |h| h.clone());
 
         let result = dom::FUSED.run(&resolve, &graph, &root);
 

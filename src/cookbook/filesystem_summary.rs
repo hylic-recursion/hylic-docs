@@ -67,7 +67,7 @@ use hylic::graph;
             heap.file_count += child.file_count;
             heap.dir_count += child.dir_count;
         };
-        let summarize = dom::simple_fold(init, acc);
+        let summarize = dom::fold(init, acc, |h| h.clone());
 
         let result = dom::FUSED.run(&summarize, &graph, &tree);
         assert_eq!(result, Summary {
