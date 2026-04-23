@@ -24,7 +24,7 @@ pub fn show_all_exec<N, H, R: std::fmt::Debug + PartialEq>(
     H: 'static,
     R: Clone + Send + 'static + PartialEq,
 {
-    use hylic::cata::exec::funnel;
+    use hylic::exec::funnel;
     let expected = dom::FUSED.run(fold, graph, root);
     let funnel_spec = funnel::Spec::default(4);
     let funnel_result = dom::exec(funnel_spec).run(fold, graph, root);

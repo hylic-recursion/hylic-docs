@@ -6,7 +6,7 @@
 mod tests {
     use hylic::domain::shared as dom;
     use hylic::graph;
-    use hylic::cata::exec::funnel;
+    use hylic::exec::funnel;
     use insta::assert_snapshot;
 
     /// Build a tree as a flat adjacency list + value array.

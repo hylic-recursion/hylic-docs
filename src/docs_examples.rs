@@ -50,7 +50,7 @@ use hylic::graph;
     // ANCHOR: exec_usage
     #[test]
     fn exec_usage() {
-        use hylic::cata::exec::funnel;
+        use hylic::exec::funnel;
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
@@ -235,7 +235,7 @@ use hylic::graph;
     // ANCHOR: runtime_dispatch
     #[test]
     fn runtime_dispatch() {
-        use hylic::cata::exec::funnel;
+        use hylic::exec::funnel;
 
         #[derive(Clone)]
         struct N { val: u64, children: Vec<N> }
@@ -417,7 +417,7 @@ use hylic::graph;
     // ANCHOR: intro_dir_example
     #[test]
     fn intro_dir_example() {
-        use hylic::cata::exec::funnel;
+        use hylic::exec::funnel;
 
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
@@ -470,7 +470,7 @@ use hylic::graph;
     // ANCHOR: quickstart_funnel
     #[test]
     fn quickstart_funnel() {
-        use hylic::cata::exec::funnel;
+        use hylic::exec::funnel;
 
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
@@ -497,7 +497,7 @@ use hylic::graph;
     // ANCHOR: quickstart_session
     #[test]
     fn quickstart_session() {
-        use hylic::cata::exec::funnel;
+        use hylic::exec::funnel;
 
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
@@ -571,7 +571,7 @@ use hylic::graph;
     // ANCHOR: seed_pipeline_parallel
     #[test]
     fn seed_pipeline_parallel() {
-        use hylic::cata::exec::funnel;
+        use hylic::exec::funnel;
         use hylic_pipeline::prelude::{SeedPipeline, PipelineExecSeed};
         use std::collections::HashMap;
 
