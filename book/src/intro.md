@@ -98,8 +98,8 @@ digraph hylic {
 
     exec -> s1 [lhead=cluster_recurse];
 
-    fused  [label="Fused\ndirect recursion\nany domain, any graph", fillcolor="#fff3cd"];
-    funnel [label="Funnel<P>\nCPS work-stealing\nthree monomorphized policy axes", fillcolor="#ffe0b2"];
+    fused  [label="Fused\ndirect sequential recursion\nany domain, any graph", fillcolor="#fff3cd"];
+    funnel [label="Funnel<P>\nparallel work-stealing\nthree monomorphized policy axes", fillcolor="#ffe0b2"];
 
     {rank=same; fused; funnel}
     s4 -> fused [style=invis];
@@ -111,20 +111,15 @@ digraph hylic {
 - **`H`** — the heap: per-node mutable scratch space, created by `init`, not shared between nodes
 - **`R`** — the result: produced by `finalize`, flows upward to the parent's `accumulate`
 
-Any fold and graph can be executed in parallel by switching to the
-[Funnel executor](./funnel/overview.md) — a
-[CPS work-stealing](./funnel/cps_walk.md) engine where unfold and fold
-interleave without materializing the tree. Three
-[compile-time policy axes](./funnel/policies.md) control
+Any fold and graph can be executed in parallel by switching to
+the [Funnel executor](./funnel/overview.md) — a work-stealing
+engine that interleaves unfold and fold without materialising the
+tree. Three [compile-time policy axes](./funnel/policies.md) —
 [queue topology](./funnel/queue_strategies.md),
-[accumulation strategy](./funnel/accumulation.md), and
-[wake policy](./funnel/pool_dispatch.md), all monomorphized to zero
-dispatch overhead. Child results flow back through a
-[packed-ticket FoldChain](./funnel/cascade.md) with
-[destructive streaming sweeps](./funnel/accumulation.md) that free
-intermediate memory progressively. See
-[Benchmarks](./cookbook/benchmarks.md) for the performance
-characteristics.
+[accumulation strategy](./funnel/accumulation.md),
+[wake policy](./funnel/pool_dispatch.md) — are monomorphised, so
+there is no runtime dispatch on strategy choice. See
+[Benchmarks](./cookbook/benchmarks.md) for measured results.
 
 ## Transformations and lifts
 
@@ -171,7 +166,7 @@ digraph transforms {
 - **`R`, `RNew`, `Extra`** — original, replaced, and augmented result types
 
 All compose freely — see the
-[Fold guide](./guides/fold.md), [Graph guide](./guides/graph.md),
+[Fold guide](./guides/fold.md), [Graph guide](./guides/treeish.md),
 and [Transformations cookbook](./cookbook/transformations.md).
 
 A [lift](./concepts/lifts.md) goes further — it transforms both fold

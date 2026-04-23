@@ -9,8 +9,8 @@ methods match the shape of the thing being built:
 - `SeedPipeline::run(...)` composes `SeedLift` onto the chain to
   close the grow axis.
 
-Compared to bare
-[`LiftBare::run_on`](../concepts/lifts.md#applying-a-lift-without-a-pipeline),
+Compared to [bare lift application](#alternative-bare-lift-application)
+(a single `LiftBare::run_on` call over a `(treeish, fold)` pair),
 pipelines trade a little indirection for chainable method syntax
 and a typestate that names where you are.
 
@@ -101,7 +101,64 @@ that `grow` resolves via a registry:
 {{#include ../../../src/docs_examples.rs:pipeline_overview_seed}}
 ```
 
-From here:
+## Alternative: bare lift application
+
+You don't have to use this crate to benefit from lifts. Any
+`Lift` implementation applies directly to a bare `(treeish, fold)`
+pair via the `LiftBare` blanket trait from `hylic`:
+
+```rust
+{{#include ../../../../hylic/src/ops/lift/bare.rs:lift_bare_trait}}
+```
+
+Two methods:
+
+- **`apply_bare(treeish, fold)`** — returns the transformed
+  `(treeish', fold')` pair. You take it from there; run it via any
+  executor.
+- **`run_on(exec, treeish, fold, root)`** — apply + run. Returns
+  the lift's `MapR`.
+
+```rust
+{{#include ../../../src/docs_examples.rs:bare_lift_wrap_init}}
+```
+
+Pick bare over a pipeline when:
+
+- **A single lift, applied once** — pipeline machinery is dead weight.
+- **A library on top of hylic** that wants a thin dependency —
+  `hylic` alone (no `hylic-pipeline`) is enough.
+- **Benchmarking parallel lifts.** `ParLazy` and `ParEager` (in
+  `hylic-parallel-lifts`) are `Lift` impls; `run_on` measures
+  them without the pipeline in the way.
+
+Compose without a pipeline using `ComposedLift::compose`:
+
+```rust
+{{#include ../../../src/docs_examples.rs:bare_lift_composed}}
+```
+
+Stage-2 `.then_lift(...)` calls the same primitive.
+
+### The panic-grow
+
+`Lift::apply` takes `(grow, treeish, fold)`; the bare path has no
+grow (you start from `&root`). `LiftBare::apply_bare` synthesises
+one:
+
+```text
+let panic_grow = <D as Domain<N>>::make_grow::<(), N>(|_: &()| {
+    unreachable!("LiftBare::apply_bare synthesises a panic-grow; no Lift impl invokes grow at runtime")
+});
+self.apply::<(), _>(panic_grow, treeish, fold, |_g, t, f| (t, f))
+```
+
+No library `Lift` impl reads `grow` at runtime (only `SeedLift`
+does, and `SeedLift` doesn't run under `apply_bare`). A custom
+Lift that read grow would panic here instead of computing a wrong
+result silently.
+
+## From here
 
 - [Stage 1 — SeedPipeline](./seed.md)
 - [Stage 1 — TreeishPipeline](./treeish.md)
@@ -109,4 +166,4 @@ From here:
 - [Blanket sugar traits](./sugars.md)
 - [One-shot — OwnedPipeline](./owned.md)
 - [Writing a custom Lift](./custom_lift.md)
-- [Case study — Explainer](./explainer.md)
+- [Cookbook: Explainer case study](../cookbook/explainer.md)

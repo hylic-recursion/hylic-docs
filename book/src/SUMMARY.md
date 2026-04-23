@@ -2,6 +2,7 @@
 
 [Introduction](./intro.md)
 [Quick Start](./quickstart.md)
+[Glossary](./glossary.md)
 
 # Benchmarks
 
@@ -12,13 +13,12 @@
 - [The recursive pattern](./concepts/separation.md)
 - [The three domains](./concepts/domains.md)
 - [Transforms and variance](./concepts/transforms.md)
-- [Lifts — the CPS triple transformer](./concepts/lifts.md)
+- [Lifts — cross-axis transforms](./concepts/lifts.md)
 
 # Guides
 
 - [Fold: shaping the computation](./guides/fold.md)
-- [Graph: controlling traversal](./guides/graph.md)
-- [Bare lift application](./guides/bare_lift.md)
+- [Graph: controlling traversal](./guides/treeish.md)
 - [Choosing an executor](./guides/execution.md)
 
 # Pipelines
@@ -30,7 +30,6 @@
 - [Blanket sugar traits](./pipeline/sugars.md)
 - [One-shot — OwnedPipeline](./pipeline/owned.md)
 - [Writing a custom Lift](./pipeline/custom_lift.md)
-- [Case study — Explainer](./pipeline/explainer.md)
 
 # Executor (Funnel deep-dive)
 
@@ -60,6 +59,7 @@
 - [Zero-cost performance](./cookbook/zero_cost_performance.md)
 - [Transformations](./cookbook/transformations.md)
 - [Module resolution](./cookbook/module_resolution.md)
+- [Explainer (case study)](./cookbook/explainer.md)
 
 # Reference
 

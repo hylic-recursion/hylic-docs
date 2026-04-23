@@ -241,9 +241,9 @@ hylic's fold combinators
 ([`product`](../cookbook/filesystem_summary.md),
 [`map`](../guides/fold.md), [`zipmap`](../guides/fold.md),
 [`wrap_*`](../cookbook/transformations.md)) and graph combinators
-([`filter`](../guides/graph.md),
-[`memoize`](../guides/graph.md),
-[`contramap`](../guides/graph.md)) achieve the same practical
+([`filter`](../guides/treeish.md),
+[`memoize`](../guides/treeish.md),
+[`contramap`](../guides/treeish.md)) achieve the same practical
 composability as Milewski's `Functor`/`Applicative` on `Fold`.
 [Lifts](../concepts/lifts.md) transform both fold and treeish in
 sync, changing the carrier types through GATs. The

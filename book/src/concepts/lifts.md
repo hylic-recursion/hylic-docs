@@ -1,4 +1,4 @@
-# Lifts — the CPS triple transformer
+# Lifts — cross-axis transforms
 
 ## The problem
 
@@ -40,28 +40,33 @@ L : (Grow<Seed, N>, Graph<N>, Fold<N, H, R>)
   → (Grow<Seed, L::N2>, Graph<L::N2>, Fold<L::N2, L::MapH, L::MapR>)
 ```
 
-## Why CPS
+## Why the trait takes a continuation
 
-The obvious signature would be to *return* the transformed triple
-from `apply`. Try it: the return type is
-`(Grow<D, Seed, N2>, Graph<D, N2>, Fold<D, N2, H2, R2>)` where each
-of those is a domain-associated GAT and each axis is an associated
-type of the lift. After three chained lifts, the return type is
-unnameable without a fresh alias per call site.
+The natural-looking signature would *return* the transformed
+triple from `apply`. Try writing it: the return type is
+`(Grow<D, Seed, N2>, Graph<D, N2>, Fold<D, N2, H2, R2>)`, where
+each component is a domain-associated GAT and each axis is an
+associated type of the lift. After three chained lifts the return
+type has no nameable alias.
 
-CPS sidesteps this. The caller hands `apply` a continuation; the
-lift fills in its three output types and invokes the continuation
-with the transformed triple. The continuation does whatever it
-wants — typically calls another lift's `apply` — and the caller
-ends up with whatever that continuation returned. Rust's type
-inference threads the associated types through end-to-end; nothing
-needs a nameable intermediate.
+Continuation-passing style ("CPS" in the docs and some comments)
+sidesteps this. The caller passes `apply` a closure — the
+continuation `cont` — which `apply` then invokes with the
+transformed triple. Because the continuation's return type
+propagates outward, Rust's type inference threads every
+intermediate through end-to-end and nothing needs a nameable
+intermediate.
 
-This is why every pipeline's `.run(...)` method ends up being a
-single walk down the lift chain via nested `apply` calls, each
-closing over the next: the chain is built at the type level, run
-once at the value level, and the executor only ever sees the final
-`(treeish, fold)` pair.
+This is why every pipeline's `.run(...)` is a single walk down
+the lift chain via nested `apply` calls, each closing over the
+next: the chain is built at the type level, run once at the value
+level, and the executor only ever sees the final `(treeish, fold)`
+pair.
+
+You don't need to internalise continuation-passing to use the
+library — the sugars hide it entirely. This section explains
+*why* the `Lift` trait looks the way it does, for readers who
+want to write their own.
 
 ## Four atoms
 
@@ -148,7 +153,8 @@ Pair with a `(treeish, fold)` directly:
 {{#include ../../../src/docs_examples.rs:bare_lift_wrap_init}}
 ```
 
-See [Bare lift application](../guides/bare_lift.md).
+See [Bare lift application](../pipeline/overview.md#alternative-bare-lift-application)
+in the Pipelines overview.
 
 ## Per-domain capability
 

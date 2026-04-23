@@ -120,6 +120,6 @@ dom::exec(funnel::Spec::default(8)).session(|s| {
   decomposition that makes this work
 - [Fold guide](./guides/fold.md) — transformations: map, contramap,
   product, phase wrapping
-- [Graph guide](./guides/graph.md) — filtering, contramap, memoization
-- [Funnel executor](./funnel/overview.md) — the parallel CPS engine
+- [Graph guide](./guides/treeish.md) — filtering, contramap, memoization
+- [Funnel executor](./funnel/overview.md) — the parallel work-stealing engine
 - [Cookbook](./cookbook/fibonacci.md) — worked examples

@@ -39,9 +39,11 @@ digraph {
 
 The base stays constant. The lift tree grows outward: each new
 sugar wraps the previous lift in `ComposedLift<Previous, New>`.
-This is the cost of static dispatch — the chain is fully visible
-to the compiler, which inlines through it end-to-end. The benefit
-is that there is no per-step dispatch at runtime.
+The type has to record the entire chain so the compiler can
+verify each junction — each lift's inputs must match the previous
+lift's outputs. In exchange for the deep types, every layer
+monomorphises and inlines together; there is no per-lift dispatch
+at runtime.
 
 Sugar call ordering matters for the type, but that's the point:
 changing the order changes the type chain, and the compiler
@@ -123,22 +125,21 @@ site with a localised compile error.
 
 ## Why the type nesting doesn't hurt
 
-In practice, the monomorphised chain inlines through every
-`ComposedLift` layer. The runtime shape is one CPS walk producing
-one `(treeish, fold)` pair; the executor sees a plain `Fold<N',
-H', R'>` at the end. No per-lift dispatch, no per-lift allocation.
+The monomorphised chain inlines through every `ComposedLift`
+layer. The runtime shape is one tree walk producing one
+`(treeish, fold)` pair; the executor sees a plain `Fold<N', H',
+R'>` at the end. No per-lift dispatch, no per-lift allocation.
 
 The ergonomic cost is diagnostics: a mismatched sugar call prints
-the full nested type in the error message. Reading them is a
-matter of working inside-out — the `Inner` of the innermost
-`ComposedLift` is the base, each outer layer is one `.then_lift`.
+the full nested type in the error message. Read them inside-out —
+the `Inner` of the innermost `ComposedLift` is the base, each
+outer layer is one `.then_lift`.
 
 ## Execution
 
-`.run_from_node(&exec, &root)` walks the chain outer-to-inner via
-CPS, producing the `(treeish, fold)` pair the executor consumes.
-Same entry points as Stage 1, inherited from `TreeishSource` /
-`SeedSource`:
+`.run_from_node(&exec, &root)` resolves the chain into a single
+`(treeish, fold)` pair and hands it to the executor. Same entry
+points as Stage 1, inherited from `TreeishSource` / `SeedSource`:
 
 ```text
 // Tree-rooted:
@@ -151,3 +152,7 @@ let r = lp.run_from_slice(&FUSED, &[entry_seed], initial_heap);
 Under the hood, the executor receives the concrete
 `(Treeish<N'>, Fold<N', H', R'>)` at the chain tip — the nested
 `ComposedLift` is just a compile-time record of how it was built.
+
+For the continuation-passing internals that make this resolution
+work without materialising intermediate pairs, see
+[Lifts](../concepts/lifts.md).
