@@ -57,20 +57,7 @@ grow slot.
 ## Constructing one
 
 ```rust
-use hylic_pipeline::prelude::*;
-
-let pipeline: SeedPipeline<Shared, Node, String, u64, u64> =
-    SeedPipeline::new(
-        |s: &String| resolve_module(s),       // grow: Seed -> N
-        edgy_visit(|n: &Node, cb: &mut dyn FnMut(&String)| {
-            for d in &n.deps { cb(d); }
-        }),                                     // seeds_from_node: N -> Seed*
-        &fold(
-            |n: &Node| n.cost as u64,           // init
-            |h: &mut u64, c: &u64| *h += c,     // accumulate
-            |h: &u64| *h,                        // finalize
-        ),
-    );
+{{#include ../../../src/docs_examples.rs:pipeline_overview_seed}}
 ```
 
 ## Stage-1 reshapes (inherent methods)
@@ -95,16 +82,18 @@ Stage-2 sugars are ALSO available on a SeedPipeline directly via
 auto-lift. Any call to `.wrap_init(w)`, `.zipmap(m)`, etc.
 implicitly lifts the pipeline and composes the sugar:
 
-```rust
-let lifted: LiftedPipeline<_, _> = pipeline
+```text
+// auto-lifting shape (pseudocode):
+let lifted = pipeline
     .wrap_init(|n, orig| orig(n) + 1)     // auto-lifts here
-    .zipmap(|r| *r > 100);                // chains further
+    .zipmap(|r| *r > 100);                 // chains further
+// `lifted` is a LiftedPipeline<…, …> with tip R = (u64, bool).
 ```
 
 If you want the explicit lift (e.g. to pass a raw `Lift` impl
 via `then_lift`), use `.lift()`:
 
-```rust
+```text
 let lp = pipeline.lift();           // LiftedPipeline<SeedPipeline<...>, IdentityLift>
 let lp = lp.then_lift(my_custom_lift);
 ```
@@ -113,7 +102,7 @@ let lp = lp.then_lift(my_custom_lift);
 
 Two entry points, both via the `PipelineExecSeed` trait:
 
-```rust
+```text
 // Entry seeds as a slice (convenience):
 let r: u64 = pipeline
     .run_from_slice(&FUSED, &["app".to_string()], 0u64);

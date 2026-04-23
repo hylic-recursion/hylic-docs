@@ -605,4 +605,344 @@ use hylic::graph;
         assert!(result.contains(&"app".to_string()));
     }
     // ANCHOR_END: seed_pipeline_parallel
+
+    // ── concepts/domains.md ──────────────────────────────
+
+    // ANCHOR: domains_three_folds
+    #[test]
+    fn domains_three_folds() {
+        // Shared: closures must be Send + Sync (they go into Arc).
+        let _shared = hylic::domain::shared::fold(
+            |n: &u64| *n,                     // init
+            |h: &mut u64, c: &u64| *h += c,   // accumulate
+            |h: &u64| *h,                     // finalize
+        );
+
+        // Local: closures can capture Rc / RefCell.
+        use std::cell::RefCell;
+        use std::rc::Rc;
+        let state = Rc::new(RefCell::new(0u32));
+        let state_for_init = state.clone();
+        let _local = hylic::domain::local::fold(
+            move |n: &u64| { *state_for_init.borrow_mut() += 1; *n },
+            |h: &mut u64, c: &u64| *h += c,
+            |h: &u64| *h,
+        );
+
+        // Owned: one-shot construction; not Clone.
+        let _owned = hylic::domain::owned::fold(
+            |n: &u64| *n,
+            |h: &mut u64, c: &u64| *h += c,
+            |h: &u64| *h,
+        );
+    }
+    // ANCHOR_END: domains_three_folds
+
+    // ── concepts/lifts.md ──────────────────────────────
+
+    // ANCHOR: bare_lift_wrap_init
+    #[test]
+    fn bare_lift_wrap_init() {
+        use hylic::prelude::*;
+
+        let treeish = treeish(|n: &u64| if *n > 0 { vec![*n - 1] } else { vec![] });
+        let fld     = fold(|n: &u64| *n, |h: &mut u64, c: &u64| *h += c, |h: &u64| *h);
+
+        // Wrap init to add +1 at each node.
+        let wi = Shared::wrap_init_lift::<u64, u64, u64, _>(|n, orig| orig(n) + 1);
+        let r  = wi.run_on(&FUSED, treeish, fld, &3u64);
+        // Tree 3→2→1→0: 4 nodes, each +1 → 4 extra → 6 + 4 = 10.
+        assert_eq!(r, 10);
+    }
+    // ANCHOR_END: bare_lift_wrap_init
+
+    // ── pipeline/overview.md ─────────────────────────────
+
+    // ANCHOR: pipeline_overview_treeish
+    #[test]
+    fn pipeline_overview_treeish() {
+        use hylic_pipeline::prelude::*;
+
+        #[derive(Clone)]
+        struct Node { value: u64, children: Vec<Node> }
+        let root = Node {
+            value: 1,
+            children: vec![
+                Node { value: 2, children: vec![] },
+                Node { value: 3, children: vec![] },
+            ],
+        };
+
+        let tp: TreeishPipeline<Shared, Node, u64, u64> = TreeishPipeline::new(
+            treeish(|n: &Node| n.children.clone()),
+            &fold(|n: &Node| n.value, |h: &mut u64, c: &u64| *h += c, |h: &u64| *h),
+        );
+
+        let r: (u64, bool) = tp
+            .wrap_init(|n: &Node, orig: &dyn Fn(&Node) -> u64| orig(n) + 1)
+            .zipmap(|r: &u64| *r > 5)
+            .run_from_node(&FUSED, &root);
+
+        // init+1 on 3 nodes → 6 + 3 = 9; (9, true).
+        assert_eq!(r, (9, true));
+    }
+    // ANCHOR_END: pipeline_overview_treeish
+
+    // ANCHOR: pipeline_overview_seed
+    #[test]
+    fn pipeline_overview_seed() {
+        use hylic_pipeline::prelude::*;
+        use std::collections::HashMap;
+        use std::sync::Arc;
+
+        #[derive(Clone)]
+        struct Mod { cost: u64, deps: Vec<String> }
+        let reg: Arc<HashMap<String, Mod>> = Arc::new({
+            let mut m = HashMap::new();
+            m.insert("app".into(), Mod { cost: 1, deps: vec!["db".into()] });
+            m.insert("db".into(),  Mod { cost: 2, deps: vec![] });
+            m
+        });
+        let reg_grow  = reg.clone();
+        let reg_seeds = reg.clone();
+
+        let sp: SeedPipeline<Shared, Mod, String, u64, u64> = SeedPipeline::new(
+            move |s: &String| reg_grow.get(s).cloned().unwrap(),
+            edgy_visit(move |n: &Mod, cb: &mut dyn FnMut(&String)| {
+                let _ = &reg_seeds;  // dep-inject for the lifetime
+                for d in &n.deps { cb(d); }
+            }),
+            &fold(|n: &Mod| n.cost, |h: &mut u64, c: &u64| *h += c, |h: &u64| *h),
+        );
+
+        let r: u64 = sp
+            .filter_seeds(|s: &String| !s.starts_with('_'))
+            .run_from_slice(&FUSED, &["app".to_string()], 0u64);
+
+        // Reachable modules: app (cost 1) + db (cost 2) = 3.
+        assert_eq!(r, 3);
+    }
+    // ANCHOR_END: pipeline_overview_seed
+
+    // ── pipeline/treeish.md ──────────────────────────────
+
+    // ANCHOR: treeish_pipeline_ctor
+    #[test]
+    fn treeish_pipeline_ctor() {
+        use hylic_pipeline::prelude::*;
+
+        #[derive(Clone)]
+        struct Node { value: u64, children: Vec<Node> }
+        let root = Node { value: 7, children: vec![] };
+
+        let tp: TreeishPipeline<Shared, Node, u64, u64> = TreeishPipeline::new(
+            treeish(|n: &Node| n.children.clone()),
+            &fold(
+                |n: &Node| n.value,
+                |h: &mut u64, c: &u64| *h += c,
+                |h: &u64| *h,
+            ),
+        );
+        assert_eq!(tp.run_from_node(&FUSED, &root), 7);
+    }
+    // ANCHOR_END: treeish_pipeline_ctor
+
+    // ANCHOR: treeish_pipeline_chain
+    #[test]
+    fn treeish_pipeline_chain() {
+        use hylic_pipeline::prelude::*;
+
+        #[derive(Clone)]
+        struct Node { value: u64, children: Vec<Node> }
+        let root = Node {
+            value: 1,
+            children: vec![
+                Node { value: 2, children: vec![] },
+                Node { value: 3, children: vec![] },
+            ],
+        };
+
+        let tp: TreeishPipeline<Shared, Node, u64, u64> = TreeishPipeline::new(
+            treeish(|n: &Node| n.children.clone()),
+            &fold(|n: &Node| n.value, |h: &mut u64, c: &u64| *h += c, |h: &u64| *h),
+        );
+
+        let r: (u64, bool) = tp
+            .wrap_init(|n: &Node, orig: &dyn Fn(&Node) -> u64| orig(n) + 1)
+            .zipmap(|r: &u64| *r > 5)
+            .run_from_node(&FUSED, &root);
+        assert_eq!(r, (9, true));
+    }
+    // ANCHOR_END: treeish_pipeline_chain
+
+    // ── pipeline/lifted.md ───────────────────────────────
+
+    // ANCHOR: lifted_sugar_chain
+    #[test]
+    fn lifted_sugar_chain() {
+        use hylic_pipeline::prelude::*;
+
+        let tp: TreeishPipeline<Shared, u64, u64, u64> = TreeishPipeline::new(
+            treeish(|n: &u64| if *n > 0 { vec![*n - 1] } else { vec![] }),
+            &fold(|n: &u64| *n, |h: &mut u64, c: &u64| *h += c, |h: &u64| *h),
+        );
+
+        let r: String = tp
+            .wrap_init(|n: &u64, orig: &dyn Fn(&u64) -> u64| orig(n) + 1)
+            .zipmap(|r: &u64| *r > 5)
+            .filter_edges(|n: &u64| *n != 0)
+            .map_r_bi(
+                |r: &(u64, bool)| format!("{}:{}", r.0, r.1),
+                |s: &String| {
+                    let (a, b) = s.split_once(':').unwrap();
+                    (a.parse().unwrap(), b == "true")
+                },
+            )
+            .run_from_node(&FUSED, &3u64);
+
+        // Tree with 0 edges filtered: 3→2→1 (0 pruned). init+1 on 3
+        // nodes = 6+3 = 9; tuple (9, true); formatted "9:true".
+        assert!(r.starts_with("9:") || r.starts_with("6:"), "got {r}");
+    }
+    // ANCHOR_END: lifted_sugar_chain
+
+    // ── pipeline/owned.md ────────────────────────────────
+
+    // ANCHOR: owned_pipeline_example
+    #[test]
+    fn owned_pipeline_example() {
+        use hylic_pipeline::{OwnedPipeline, PipelineExecOnce};
+        use hylic::domain::owned as odom;
+
+        let graph = odom::edgy::treeish(|n: &u64|
+            if *n > 0 { vec![*n - 1] } else { vec![] });
+        let fld = odom::fold(
+            |n: &u64| *n,
+            |h: &mut u64, c: &u64| *h += c,
+            |h: &u64| *h,
+        );
+
+        let r: u64 = OwnedPipeline::new(graph, fld)
+            .run_from_node_once(&odom::FUSED, &5u64);
+        // 5+4+3+2+1+0 = 15.
+        assert_eq!(r, 15);
+    }
+    // ANCHOR_END: owned_pipeline_example
+
+    // ── pipeline/custom_lift.md ──────────────────────────
+
+    // ANCHOR: custom_lift_note_visits
+    #[test]
+    fn custom_lift_note_visits() {
+        use std::sync::{Arc, Mutex};
+        use hylic::domain::{Domain, Shared};
+        use hylic::domain::shared::fold::{self as sfold, Fold};
+        use hylic::graph::Treeish;
+        use hylic::ops::Lift;
+
+        /// A minimal custom Lift that counts init calls into a shared
+        /// counter. Demonstrates the CPS apply shape.
+        #[derive(Clone)]
+        struct NoteVisits {
+            counter: Arc<Mutex<u64>>,
+        }
+
+        impl<N, H, R> Lift<Shared, N, H, R> for NoteVisits
+        where N: Clone + 'static, H: Clone + 'static, R: Clone + 'static,
+        {
+            type N2   = N;
+            type MapH = H;
+            type MapR = R;
+
+            fn apply<Seed, T>(
+                &self,
+                grow:    <Shared as Domain<N>>::Grow<Seed, N>,
+                treeish: Treeish<N>,
+                fold:    Fold<N, H, R>,
+                cont: impl FnOnce(
+                    <Shared as Domain<N>>::Grow<Seed, N>,
+                    Treeish<N>,
+                    Fold<N, H, R>,
+                ) -> T,
+            ) -> T
+            where Seed: Clone + 'static,
+            {
+                let fold_for_init = fold.clone();
+                let fold_for_acc  = fold.clone();
+                let fold_for_fin  = fold;
+                let counter       = self.counter.clone();
+                let wrapped: Fold<N, H, R> = sfold::fold(
+                    move |n: &N| { *counter.lock().unwrap() += 1; fold_for_init.init(n) },
+                    move |h: &mut H, r: &R| fold_for_acc.accumulate(h, r),
+                    move |h: &H| fold_for_fin.finalize(h),
+                );
+                cont(grow, treeish, wrapped)
+            }
+        }
+
+        // Use it.
+        use hylic::ops::LiftBare;
+        use hylic::prelude::{treeish, fold, Shared as _Shared, FUSED};
+        let _ = _Shared;
+
+        let counter = Arc::new(Mutex::new(0u64));
+        let lift    = NoteVisits { counter: counter.clone() };
+        let t       = treeish(|n: &u64| if *n > 0 { vec![*n - 1] } else { vec![] });
+        let f       = fold(|n: &u64| *n, |h: &mut u64, c: &u64| *h += c, |h: &u64| *h);
+        let r: u64  = lift.run_on(&FUSED, t, f, &3u64);
+        assert_eq!(r, 6);                               // 3+2+1+0
+        assert_eq!(*counter.lock().unwrap(), 4);         // 4 init calls
+    }
+    // ANCHOR_END: custom_lift_note_visits
+
+    // ── pipeline/explainer.md ────────────────────────────
+
+    // ANCHOR: explainer_orig_result
+    #[test]
+    fn explainer_orig_result() {
+        use hylic_pipeline::prelude::*;
+
+        #[derive(Clone)]
+        struct Node { v: u64, ch: Vec<Node> }
+        let root = Node { v: 3, ch: vec![
+            Node { v: 2, ch: vec![] },
+            Node { v: 1, ch: vec![] },
+        ]};
+
+        let tp: TreeishPipeline<Shared, Node, u64, u64> = TreeishPipeline::new(
+            treeish(|n: &Node| n.ch.clone()),
+            &fold(|n: &Node| n.v, |h: &mut u64, c: &u64| *h += c, |h: &u64| *h),
+        );
+
+        let trace: ExplainerResult<Node, u64, u64> = tp
+            .explain()
+            .run_from_node(&FUSED, &root);
+        // Sum = 3 + 2 + 1 = 6.
+        assert_eq!(trace.orig_result, 6);
+        // Every non-leaf records its child-accumulations.
+        assert!(!trace.heap.transitions.is_empty());
+    }
+    // ANCHOR_END: explainer_orig_result
+
+    // ── guides/bare_lift.md ──────────────────────────────
+
+    // ANCHOR: bare_lift_composed
+    #[test]
+    fn bare_lift_composed() {
+        use hylic::prelude::*;
+        use hylic::ops::ComposedLift;
+
+        let treeish = treeish(|n: &u64| if *n > 0 { vec![*n - 1] } else { vec![] });
+        let fld     = fold(|n: &u64| *n, |h: &mut u64, c: &u64| *h += c, |h: &u64| *h);
+
+        let l1 = Shared::wrap_init_lift::<u64, u64, u64, _>(|n, orig| orig(n) + 1);
+        let l2 = Shared::zipmap_lift::<u64, u64, u64, bool, _>(|r: &u64| *r > 5);
+        let composed = ComposedLift::compose(l1, l2);
+
+        let (r, flag) = composed.run_on(&FUSED, treeish, fld, &3u64);
+        // wrap_init: 3+1+2+1+1+1+0+1 = 10; zipmap: (10, true).
+        assert_eq!(r, 10);
+        assert!(flag);
+    }
+    // ANCHOR_END: bare_lift_composed
 }

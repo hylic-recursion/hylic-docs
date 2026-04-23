@@ -87,30 +87,21 @@ The run entry points, from the `source.rs` interface traits:
 
 ## Example shape of a pipeline
 
-Here's the top-level user flow for each style:
+Two small worked examples — a TreeishPipeline starting from a root
+`Node`, and a SeedPipeline starting from a module name `String`
+that `grow` resolves via a registry:
 
 ```rust
-use hylic_pipeline::prelude::*;
+{{#include ../../../src/docs_examples.rs:pipeline_overview_treeish}}
+```
 
-// Stage-1 TreeishPipeline, run from a root:
-let tp = TreeishPipeline::<Shared, Node, u64, u64>::new(
-    treeish(|n: &Node| n.children.clone()),
-    &fold(|n: &Node| n.value, |h, c| *h += c, |h: &u64| *h),
-);
-let r: u64 = tp
-    .wrap_init(|n, orig| orig(n) + 1)  // auto-lifts + composes
-    .zipmap(|r| *r > 100)
-    .run_from_node(&FUSED, &root);
+**Note the return type:** after `.zipmap(|r| *r > 5)`, the chain's
+tip R is `(u64, bool)` — each Stage-2 sugar's output R becomes
+the new tip, and `.run_from_node(...)` returns **exactly that**.
+No back-mapping to the original R.
 
-// Stage-1 SeedPipeline, run from entry seeds:
-let sp = SeedPipeline::<Shared, Node, Seed, u64, u64>::new(
-    |s: &Seed| resolve(s),
-    edgy_visit(|n: &Node, cb: &mut dyn FnMut(&Seed)| { for d in &n.deps { cb(d); } }),
-    &fold(|n: &Node| n.value, |h, c| *h += c, |h: &u64| *h),
-);
-let r: u64 = sp
-    .filter_seeds(|s| !s.is_ignored())
-    .run_from_slice(&exec(funnel::Spec::default(4)), &[root_seed], 0u64);
+```rust
+{{#include ../../../src/docs_examples.rs:pipeline_overview_seed}}
 ```
 
 From here:

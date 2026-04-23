@@ -22,64 +22,23 @@ produces) and pass them to `cont`.
 A no-op lift for Shared that just wraps the fold's init:
 
 ```rust
-use std::sync::Arc;
-use hylic::domain::{Domain, Shared};
-use hylic::domain::shared::fold::{self as sfold, Fold};
-use hylic::graph::Treeish;
-use hylic::ops::Lift;
-
-#[derive(Clone)]
-struct NoteVisits;
-
-impl<N, H, R> Lift<Shared, N, H, R> for NoteVisits
-where N: Clone + 'static, H: Clone + 'static, R: Clone + 'static,
-{
-    type N2   = N;           // no type change
-    type MapH = H;
-    type MapR = R;
-
-    fn apply<Seed, T>(
-        &self,
-        grow:    <Shared as Domain<N>>::Grow<Seed, N>,
-        treeish: Treeish<N>,
-        fold:    Fold<N, H, R>,
-        cont: impl FnOnce(
-            <Shared as Domain<N>>::Grow<Seed, N>,
-            Treeish<N>,
-            Fold<N, H, R>,
-        ) -> T,
-    ) -> T
-    where Seed: Clone + 'static,
-    {
-        // Wrap the fold's init to eprintln on each node visit.
-        let f_init = fold.clone();
-        let wrapped: Fold<N, H, R> = sfold::fold(
-            move |n: &N| {
-                eprintln!("visit");
-                f_init.init(n)
-            },
-            {
-                let f = fold.clone();
-                move |h: &mut H, r: &R| f.accumulate(h, r)
-            },
-            {
-                let f = fold.clone();
-                move |h: &H| f.finalize(h)
-            },
-        );
-        cont(grow, treeish, wrapped)
-    }
-}
+{{#include ../../../src/docs_examples.rs:custom_lift_note_visits}}
 ```
 
-Once defined, use via `LiftBare` or pipeline:
+This `NoteVisits` lift counts init calls into a shared
+`Arc<Mutex<u64>>`. The pattern that makes it work: clone the
+input `fold` three times (one per phase) before constructing
+the output fold, so each phase closure owns an independent
+handle. The `cont` call at the end hands the unchanged `grow`
+and `treeish` plus the wrapped fold to the downstream chain.
 
-```rust
-use hylic::ops::LiftBare;
-let r = NoteVisits.run_on(&FUSED, tree, fld, &root);
+Once defined, use it via `LiftBare::run_on` (shown inside the
+test) or via a pipeline:
 
+```text
 use hylic_pipeline::prelude::*;
-let r = treeish_pipeline.lift().then_lift(NoteVisits).run_from_node(&FUSED, &root);
+let r = my_treeish_pipeline.lift().then_lift(NoteVisits { counter })
+    .run_from_node(&FUSED, &root);
 ```
 
 ## When `ShapeLift` beats a hand-rolled `Lift`

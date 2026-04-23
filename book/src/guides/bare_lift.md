@@ -21,15 +21,7 @@ Two methods:
 ## Example
 
 ```rust
-use hylic::prelude::*;
-
-let treeish = treeish(|n: &u64| if *n > 0 { vec![*n - 1] } else { vec![] });
-let fld     = fold(|n: &u64| *n, |h: &mut u64, c: &u64| *h += c, |h: &u64| *h);
-
-// Direct: a single lift applied to a bare pair.
-let trace_lift = Shared::explainer_lift::<u64, u64, u64>();
-let r = trace_lift.run_on(&FUSED, treeish.clone(), fld.clone(), &5u64);
-println!("result = {}", r.orig_result);
+{{#include ../../../src/docs_examples.rs:bare_lift_wrap_init}}
 ```
 
 ## When to pick bare over pipeline
@@ -50,13 +42,7 @@ You can still compose multiple lifts without a pipeline — just
 use `ComposedLift::compose`:
 
 ```rust
-use hylic::ops::ComposedLift;
-
-let l1 = Shared::wrap_init_lift::<u64, u64, u64, _>(|n, orig| orig(n) + 1);
-let l2 = Shared::zipmap_lift::<u64, u64, u64, bool, _>(|r: &u64| *r > 5);
-let composed = ComposedLift::compose(l1, l2);
-
-let (r, flag) = composed.run_on(&FUSED, treeish, fld, &5u64);
+{{#include ../../../src/docs_examples.rs:bare_lift_composed}}
 ```
 
 This is what Stage-2 `.then_lift(...)` does under the hood —
@@ -68,7 +54,7 @@ bare usage just exposes the underlying atom.
 bare path has no grow (you start from `&root`, not from a seed).
 `LiftBare::apply_bare` synthesises a panic-grow:
 
-```rust
+```text
 let panic_grow = <D as Domain<N>>::make_grow::<(), N>(|_: &()| {
     unreachable!("LiftBare::apply_bare synthesises a panic-grow; no Lift impl invokes grow at runtime")
 });

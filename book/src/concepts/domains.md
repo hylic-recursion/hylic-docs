@@ -60,31 +60,7 @@ Each domain exposes the same constructor surface (with different
 bounds):
 
 ```rust
-use hylic::prelude::*;
-
-// Shared: closures must be Send + Sync (they go into Arc).
-let f = fold(
-    |n: &u64| *n,                         // init
-    |h: &mut u64, c: &u64| *h += c,       // accumulate
-    |h: &u64| *h,                         // finalize
-);
-
-// Local: closures can capture Rc / RefCell.
-use hylic::domain::local as ldom;
-let state = std::rc::Rc::new(std::cell::RefCell::new(0));
-let lf = ldom::fold(
-    move |n: &u64| { *state.borrow_mut() += 1; *n },
-    |h: &mut u64, c: &u64| *h += c,
-    |h: &u64| *h,
-);
-
-// Owned: one-shot construction; not Clone.
-use hylic::domain::owned as odom;
-let of = odom::fold(
-    |n: &u64| *n,
-    |h: &mut u64, c: &u64| *h += c,
-    |h: &u64| *h,
-);
+{{#include ../../../src/docs_examples.rs:domains_three_folds}}
 ```
 
 ## The three Fold types in parallel

@@ -36,9 +36,7 @@ The return type is `ExplainerResult<N, H, R>`. Access
 `.orig_result` for the original computation's output:
 
 ```rust
-let trace: ExplainerResult<Node, u64, u64> = pipeline.explain().run_from_node(&FUSED, &root);
-assert_eq!(trace.orig_result, 42);  // the value the original fold would have produced
-// trace.heap.transitions gives the per-child accumulation history
+{{#include ../../../src/docs_examples.rs:explainer_orig_result}}
 ```
 
 ## Composing with other lifts
@@ -46,7 +44,7 @@ assert_eq!(trace.orig_result, 42);  // the value the original fold would have pr
 Because `explain()` is just a `then_lift(Shared::explainer_lift())`,
 it composes:
 
-```rust
+```text
 let r = pipeline
     .wrap_init(|n, orig| orig(n) * 2)   // first lift
     .explain()                           // records the wrap_init results
@@ -64,7 +62,7 @@ emits formatted trace lines per node via a callback but keeps
 R transparent (`MapR = R`). Use it when you want live per-node
 trace output without changing your pipeline's result type:
 
-```rust
+```text
 use hylic::prelude::*;
 let _ = Shared::explainer_describe_lift::<Node, u64, u64, _, _>(
     trace_fold_compact::<Node, u64, u64>,

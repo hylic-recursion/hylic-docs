@@ -135,14 +135,7 @@ apply a lift directly to a `(treeish, fold)` pair and run it:
 In practice:
 
 ```rust
-use hylic::prelude::*;
-
-let treeish = treeish(|n: &u64| if *n > 0 { vec![*n - 1] } else { vec![] });
-let fld     = fold(|n: &u64| *n, |h: &mut u64, c: &u64| *h += c, |h: &u64| *h);
-
-// Wrap init to add +1 to each node's seed value.
-let wi = Shared::wrap_init_lift::<u64, u64, u64, _>(|n, orig| orig(n) + 1);
-let r  = wi.run_on(&FUSED, treeish, fld, &3u64);
+{{#include ../../../src/docs_examples.rs:bare_lift_wrap_init}}
 ```
 
 No pipeline, no `.lift()` ceremony — just "apply this lift then

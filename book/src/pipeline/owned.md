@@ -23,17 +23,11 @@ The primitive you do get: `new(treeish, fold).run_from_node_once(&exec, &root)`.
 ## Example
 
 ```rust
-use hylic_pipeline::{OwnedPipeline, PipelineExecOnce};
-use hylic::domain::owned as odom;
-
-let graph   = odom::edgy::treeish(|n: &u64| if *n > 0 { vec![*n - 1] } else { vec![] });
-let fld     = odom::fold(|n: &u64| *n, |h: &mut u64, c: &u64| *h += c, |h: &u64| *h);
-
-let r: u64 = OwnedPipeline::new(graph, fld)
-    .run_from_node_once(&odom::FUSED, &5u64);
-//    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-//    consumes self — the pipeline is gone after this call.
+{{#include ../../../src/docs_examples.rs:owned_pipeline_example}}
 ```
+
+`run_from_node_once` consumes `self` — the pipeline can't be
+invoked again after this call.
 
 ## Relation to bare usage
 

@@ -30,7 +30,7 @@ digraph {
 
 ## Bringing them into scope
 
-```rust
+```text
 use hylic_pipeline::prelude::*;
 ```
 
@@ -65,7 +65,7 @@ providing a concrete `then_lift` — the actual work — and
 `self.lift()` before `then_lift_raw(...)`. So on a SeedPipeline
 you can call any Stage-2 sugar without ceremony:
 
-```rust
+```text
 let r = seed_pipeline
     .wrap_init(...)   // auto-lifts first
     .zipmap(...)      // composes at the tip
@@ -138,14 +138,19 @@ difference is which trait happens to be in scope via
 
 When you write generic code that takes "any Stage-2 pipeline":
 
-```rust
+```text
 fn augment<P, N, H, R>(p: P) -> P::With<ShapeLift<Shared, N, H, R, N, H, R>>
 where P: LiftedSugarsShared<N, H, R>,
       N: Clone + 'static, H: Clone + 'static, R: Clone + 'static,
+      // (plus the With<L2> where-clause bounds; see trait definition.)
 {
     p.wrap_init(|_n, orig| orig(_n))   // no-op, just proof of generic use
 }
 ```
+
+(Fence is `text` — the fully explicit `With<L2>` bounds make this
+signature long enough that a faithful example isn't small; the
+point is the *shape* of the signature.)
 
 The trait's associated type `With<L2>` carries the concrete
 output type that each implementor promises — a SeedPipeline after

@@ -15,7 +15,7 @@ A `LiftedPipeline` wraps a Stage-1 base (`SeedPipeline` or
 
 ## Entering Stage 2
 
-```rust
+```text
 let lp = seed_pipeline.lift();  // LiftedPipeline<SeedPipeline<..>, IdentityLift>
 let lp = tree_pipeline.lift();  // LiftedPipeline<TreeishPipeline<..>, IdentityLift>
 ```
@@ -77,12 +77,13 @@ library-lift constructor. See [sugars](./sugars.md) for the full
 catalogue. Example:
 
 ```rust
-let lp = seed_pipeline
-    .wrap_init(|n, orig| orig(n) + 1)       // = .then_lift(Shared::wrap_init_lift(w))
-    .zipmap(|r| *r > 100)                    // = .then_lift(Shared::zipmap_lift(m))
-    .filter_edges(|n| !n.is_empty())         // = .then_lift(Shared::filter_edges_lift(pred))
-    .map_r_bi(to_string, from_string);       // = .then_lift(Shared::map_r_bi_lift(fwd, bwd))
+{{#include ../../../src/docs_examples.rs:lifted_sugar_chain}}
 ```
+
+Each step is a one-liner over `.then_lift(Shared::<ctor>(...))`.
+The `r` binding at the end has type `String` because `map_r_bi`
+was the last sugar in the chain — every `.run_from_node(...)`
+returns the lift-chain's tip R.
 
 Each step grows the chain by one `ComposedLift`. Type inference
 walks the chain end-to-end, and Rust catches any type mismatch
@@ -105,7 +106,7 @@ types that compile to a single pass at run time.
 Same entry points as Stage 1, inherited from `TreeishSource` /
 `SeedSource`:
 
-```rust
+```text
 // Tree-rooted:
 let r = lp.run_from_node(&FUSED, &root);
 

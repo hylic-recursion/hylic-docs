@@ -28,20 +28,7 @@ If you need to resolve references (`Seed → N`), use
 ## Constructing one
 
 ```rust
-use hylic_pipeline::prelude::*;
-
-#[derive(Clone)]
-struct Node { value: u64, children: Vec<Node> }
-
-let tp: TreeishPipeline<Shared, Node, u64, u64> =
-    TreeishPipeline::new(
-        treeish(|n: &Node| n.children.clone()),  // N -> N*
-        &fold(
-            |n: &Node| n.value,
-            |h: &mut u64, c: &u64| *h += c,
-            |h: &u64| *h,
-        ),
-    );
+{{#include ../../../src/docs_examples.rs:treeish_pipeline_ctor}}
 ```
 
 ## Stage-1 reshape (inherent via trait)
@@ -60,22 +47,19 @@ trait (or `TreeishSugarsLocal` for the Local domain).
 Like SeedPipeline, Stage-2 sugars work directly:
 
 ```rust
-let r: u64 = tp
-    .wrap_init(|n, orig| orig(n) + 1)
-    .zipmap(|r| *r > 100)
-    .run_from_node(&FUSED, &root_node);
+{{#include ../../../src/docs_examples.rs:treeish_pipeline_chain}}
 ```
 
 `.wrap_init(...)` auto-lifts the TreeishPipeline and composes the
-sugar.
+sugar. The `r` return is `(u64, bool)` — `.zipmap` changed the R
+axis to carry both the original sum and the boolean derivative;
+`.run_from_node(...)` hands back the tip R verbatim.
 
 ## Running it
 
-Via `PipelineExec::run_from_node`:
-
-```rust
-let r: u64 = tp.run_from_node(&FUSED, &root_node);
-```
+Via `PipelineExec::run_from_node(&exec, &root)` — the return type
+reflects the tip R of the lift chain (or the base Fold's R, if no
+lifts are composed).
 
 No entry heap — unlike SeedPipeline, there's no synthetic Entry
 level to initialise. The first `init` call happens at `root_node`.
