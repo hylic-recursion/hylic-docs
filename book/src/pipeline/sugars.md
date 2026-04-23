@@ -1,64 +1,71 @@
 # Blanket sugar traits
 
 Every sugar method on a pipeline — `.wrap_init(w)`, `.zipmap(m)`,
-`.filter_seeds(p)` — comes from a trait, not an inherent impl.
-This has one observable payoff and one consequence.
+`.filter_seeds(p)` — is defined in a trait rather than as an
+inherent method. This choice has one observable benefit and one
+consequence.
 
-## The pattern, in one method
+## The pattern, in a single method
 
-Here's `wrap_init` on the Stage-2 Shared trait:
+The definition of `wrap_init` on the Stage-2 Shared trait is
+representative:
 
 ```rust
 {{#include ../../../../hylic-pipeline/src/sugars/lifted_shared.rs:wrap_init_default_body}}
 ```
 
-Three things to notice:
+Three points are worth noting:
 
-- The trait's type parameters are `N, H, R` — **not** `Self::N`,
-  `Self::H`, `Self::R`. If you write this with projections, Rust's
-  normaliser refuses to prove that `Self::N` equals the impl's
-  concrete `N` inside a default method body. Trait parameters
-  sidestep the rule entirely.
-- The body is a one-step delegate: `self.then_lift(<ctor>(wrapper))`.
-  Every sugar in the catalogue is this shape — a library lift
-  constructor wrapped around the user's closure, post-composed
-  onto the chain via the trait's sole primitive `then_lift`.
-- `Self::With<L2>` is an associated type each impl pins to a
-  specific output pipeline type. Three impls exist (below), each
-  with its own `With<L2>`.
+- The trait's type parameters are `N, H, R`, not `Self::N`,
+  `Self::H`, `Self::R`. Written with projections, Rust's
+  normaliser cannot prove that `Self::N` equals the
+  implementation's concrete `N` within a default method body.
+  Trait parameters avoid the rule entirely.
+- The body is a single-step delegation:
+  `self.then_lift(<ctor>(wrapper))`. Every sugar in the catalogue
+  has this shape — a library-lift constructor wrapped around the
+  user's closure, post-composed onto the chain through the
+  trait's sole primitive, `then_lift`.
+- `Self::With<L2>` is an associated type; each implementation
+  pins it to a specific output pipeline type. Three
+  implementations exist (below), each with its own
+  `With<L2>`.
 
-The rest of the trait follows the same shape method-by-method.
-Full source: [`hylic-pipeline/src/sugars/lifted_shared.rs`](../../../../hylic-pipeline/src/sugars/lifted_shared.rs).
+The remainder of the trait follows the same structure method by
+method. Full source:
+[`hylic-pipeline/src/sugars/lifted_shared.rs`](../../../../hylic-pipeline/src/sugars/lifted_shared.rs).
 
-## One trait, three impls
+## One trait, three implementations
 
-`LiftedSugarsShared` has three implementations, differing only in
-how `then_lift` works:
+`LiftedSugarsShared` is implemented for three types, distinguished
+only by how `then_lift` is realised:
 
-- **`SeedPipeline<Shared, …>`** — body is `self.lift().then_lift_raw(l)`.
-  The pipeline is at Stage 1; it auto-lifts to Stage 2 first.
-- **`TreeishPipeline<Shared, …>`** — same pattern; auto-lifts first.
-- **`LiftedPipeline<Base, L>`** — body is
-  `self.then_lift_raw(l)`. Already at Stage 2; just extends the
-  chain.
+- **`SeedPipeline<Shared, …>`** — body
+  `self.lift().then_lift_raw(l)`. The pipeline is at Stage 1 and
+  auto-lifts to Stage 2 first.
+- **`TreeishPipeline<Shared, …>`** — the same pattern; auto-lifts
+  first.
+- **`LiftedPipeline<Base, L>`** — body `self.then_lift_raw(l)`.
+  Already at Stage 2; the chain is merely extended.
 
-A user writes `seed_pipeline.wrap_init(w)` and dispatch finds the
-`SeedPipeline` impl automatically. The Stage 1 → Stage 2
-transition happens inside `then_lift` — no `.lift()` at the call
+When a user writes `seed_pipeline.wrap_init(w)`, dispatch finds
+the `SeedPipeline` implementation automatically. The Stage 1 →
+Stage 2 transition occurs inside `then_lift`, not at the call
 site.
 
-## The payoff: Shared and Local write identical code
+## Identical code for Shared and Local
 
-Before the trait refactor, Local pipelines had `wrap_init_local`,
-`zipmap_local`, etc. — `_local` suffixed because two inherent
-methods with the same name on a struct parameterised differently
-can't coexist under Rust's trait solver.
+Prior to the trait refactor, Local pipelines exposed
+`wrap_init_local`, `zipmap_local`, and similar — the `_local`
+suffix having been required because two inherent methods with
+the same name on a single struct, parameterised differently,
+cannot coexist under Rust's trait solver.
 
-With traits, each domain has its own trait (`LiftedSugarsShared` /
-`LiftedSugarsLocal`). Method names collide at the definition
-level but not at the dispatch level: Rust picks the impl whose
-domain parameter matches the concrete pipeline. User code reads
-the same across domains:
+With the trait approach, each domain has its own trait
+(`LiftedSugarsShared` and `LiftedSugarsLocal`). Method names
+coincide at the definition level but not at dispatch; Rust
+selects the implementation whose domain parameter matches the
+concrete pipeline. User code reads identically across domains:
 
 ```text
 // Shared and Local, same method names:
@@ -66,9 +73,10 @@ let r = shared_pipe.wrap_init(w).zipmap(m).run(...);
 let r = local_pipe .wrap_init(w).zipmap(m).run(...);
 ```
 
-## The consequence: Shared and Local files mirror each other
+## Consequence: Shared and Local files mirror each other
 
-Each Stage × domain gets one trait file. Five files total:
+Each Stage × domain requires a single trait file — five files
+in total:
 
 ```dot process
 digraph {
@@ -90,16 +98,16 @@ digraph {
 }
 ```
 
-Each pair (Shared, Local) differs only in `Arc` vs `Rc` storage
-and the `Send + Sync` bounds on user closures. The trait body
-shapes are line-for-line identical. This duplication is
+Each Shared/Local pair differs only in `Arc` versus `Rc` storage
+and in the `Send + Sync` bounds on user closures; the trait
+bodies are line-for-line identical. The duplication is
 [documented and accepted](../../../hylic/KB/.plans/finishing-up/post-split-review/ACCEPTED-DEBT.md):
 collapsing it cleanly would require macros, which the codebase
-declines.
+declines to adopt.
 
-`use hylic_pipeline::prelude::*;` imports every sugar trait, so
-every sugar method is callable on every pipeline type that
-qualifies.
+`use hylic_pipeline::prelude::*;` imports every sugar trait in
+scope, making every sugar method callable on every pipeline type
+that qualifies.
 
 ## Catalogue
 

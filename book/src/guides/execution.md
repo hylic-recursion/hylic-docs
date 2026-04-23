@@ -1,16 +1,17 @@
 # Execution: choosing the strategy
 
-The executor controls how the tree recursion is carried out. The fold
-and graph define what to compute and where the children are; the
-executor determines the traversal order, parallelism strategy, and
-resource lifecycle. Replacing the executor changes the performance
-characteristics without altering the fold or graph.
+The executor governs how the tree recursion is carried out. The
+fold and graph determine what is computed at each node and how
+children are found; the executor determines traversal order,
+parallelism, and resource lifecycle. Substituting one executor
+for another changes performance characteristics without
+modifying the fold or the graph.
 
 ## The interface
 
-Both sequential and parallel execution use the same `.run()` method
-on `Exec<D, S>`, which is an inherent method — no trait import
-required:
+Both sequential and parallel execution use the same `.run()`
+method on `Exec<D, S>`. The method is inherent; no trait import
+is required:
 
 ```rust
 use hylic::domain::shared as dom;
@@ -23,13 +24,13 @@ dom::FUSED.run(&fold, &graph, &root);
 dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
 ```
 
-The domain `D` is fixed by the executor constant or `exec()` call.
-The type parameters `N`, `H`, `R`, and the graph type `G` are all
-inferred from the arguments.
+The domain `D` is fixed by the executor instance or the
+`exec()` call. The type parameters `N`, `H`, `R`, and the graph
+type `G` are inferred from the arguments.
 
 ## Built-in executors
 
-hylic provides two executors. The choice between them is
+Two executors are provided. The choice between them is
 straightforward:
 
 ```dot process
@@ -40,7 +41,7 @@ digraph {
 
     start [label="Parallelism needed?", shape=diamond, fillcolor="#fff3cd"];
     fused [label="Fused\nsequential recursion\nall domains, all graph types", fillcolor="#d4edda"];
-    funnel [label="Funnel\nCPS work-stealing\nShared domain, Send+Sync graphs", fillcolor="#d4edda"];
+    funnel [label="Funnel\nparallel work-stealing\nShared domain, Send+Sync graphs", fillcolor="#d4edda"];
 
     start -> fused [label="no"];
     start -> funnel [label="yes"];
@@ -49,17 +50,18 @@ digraph {
 
 | Executor | Domain | Graph requirement | Characteristics |
 |----------|--------|-------------------|-----------------|
-| Fused | all | any `TreeOps<N>` | Sequential callback recursion |
-| Funnel | Shared | `TreeOps<N> + Send + Sync` | Parallel CPS with work-stealing |
+| Fused | all | any `TreeOps<N>` | Sequential direct recursion (single thread) |
+| Funnel | Shared | `TreeOps<N> + Send + Sync` | Parallel work-stealing across a scoped thread pool |
 
-Fused supports all domains and all graph types because it borrows
-everything on a single thread. Funnel requires Send+Sync on the graph
-because it shares the graph reference across a scoped thread pool.
+`Fused` operates on all domains and all graph types because it
+borrows everything on a single thread. `Funnel` requires
+`Send + Sync` on the graph because it shares the graph reference
+across a scoped thread pool.
 
 ## Using the Funnel executor
 
-The Funnel executor supports three usage tiers that trade convenience
-for control over resource lifetime:
+The `Funnel` executor supports three usage tiers, trading
+convenience for control over resource lifetime:
 
 **One-shot** — the pool is created and destroyed per call:
 
@@ -85,13 +87,14 @@ funnel::Pool::with(8, |pool| {
 });
 ```
 
-See [Policies and presets](../funnel/policies.md) for workload-specific
-configuration.
+See [Policies and presets](../funnel/policies.md) for
+workload-specific configuration.
 
 ## Defining a project-wide executor
 
-For projects that use a fixed funnel configuration, it is convenient
-to define the executor once and reference it throughout:
+For projects that use a fixed Funnel configuration, a common
+pattern is to define the executor once and reference it
+throughout:
 
 ```rust
 use hylic::domain::shared as dom;
@@ -115,26 +118,27 @@ pub fn exec() -> hylic::cata::exec::Exec<hylic::domain::Shared, funnel::Spec<MyP
 }
 ```
 
-Call sites then use `crate::exec().run(&fold, &graph, &root)` without
-naming the policy type.
+Call sites then use `crate::exec().run(&fold, &graph, &root)`
+without naming the policy type.
 
 ## Lift integration
 
 Lifts operate on the Shared domain. The `run_lifted` function in
-`cata::lift` applies a lift transformation and executes the result
-through any Shared-domain executor:
+`cata::lift` applies a lift transformation and executes the
+result through any Shared-domain executor:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:explainer_usage}}
 ```
 
-See [Lifts](./lifts.md) for the Explainer and other lift patterns.
+See [Lifts](../concepts/lifts.md) for the Explainer and other
+lift patterns.
 
 ## Further reading
 
 - [The Exec pattern](../executor-design/exec_pattern.md) — the
-  type-level design behind Spec, Session, and Exec
+  type-level design behind `Spec`, `Session`, and `Exec`.
 - [Policy traits](../executor-design/policy_traits.md) — how
-  Funnel's three behavioral axes compose
-- [Domain system](../design/domains.md) — how the domain parameter
-  selects fold storage
+  Funnel's three behavioural axes compose.
+- [The three domains](../concepts/domains.md) — how the domain
+  parameter selects fold storage.

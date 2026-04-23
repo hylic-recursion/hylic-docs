@@ -1,32 +1,34 @@
 # The three domains
 
-## The engineering problem
+## The underlying question
 
-The recursion boils down to three closures: a fold's `init`, its
-`accumulate`, its `finalize`, plus a graph's edge function and
-(in seed pipelines) a `grow`. hylic holds these closures for the
-duration of a run and hands them to executors, lifts, and user
-code. That raises a single question:
+A recursion is, at its heart, five closures — a fold's `init`,
+`accumulate`, and `finalize`, a graph's edge function, and (in
+seed pipelines) a `grow`. hylic retains these closures across
+the duration of a run and hands them to executors, lifts, and
+user code. A single question organises the design:
 
-> How do we *store* `dyn Fn(&N) -> H`?
+> How shall `dyn Fn(&N) -> H` be stored?
 
-Rust gives three realistic answers:
+Rust offers three practical answers:
 
-| Storage     | Clone?                    | Send + Sync?        |
-|-------------|---------------------------|---------------------|
+| Storage     | Clone?                    | `Send + Sync`?        |
+|-------------|---------------------------|-----------------------|
 | `Arc<dyn>`  | cheap (refcount bump)     | yes, if the closure is |
-| `Rc<dyn>`   | cheap (refcount bump)     | no (single-threaded)   |
-| `Box<dyn>`  | no (unique ownership)     | possible, but consumed on use |
+| `Rc<dyn>`   | cheap (refcount bump)     | no (single-threaded)  |
+| `Box<dyn>`  | not `Clone`               | possible, but consumed on use |
 
-Each one is a compromise. `Arc` pays an atomic on every clone but
-lets you run across threads. `Rc` is a plain counter — faster in
-the single-thread case, uncrossable in the multi-thread case.
-`Box` avoids the counter entirely but forces the transformation
-pipeline to *consume* each closure as it rewrites it.
+Each choice is a compromise. `Arc` pays an atomic instruction on
+every clone in exchange for the ability to cross thread
+boundaries. `Rc` uses a plain counter — faster single-threaded,
+incompatible with multi-threading. `Box` avoids any counter but
+forces transformation pipelines to *consume* the closure on each
+rewrite.
 
-Every closure in a recursion must make the same choice. So hylic
-picks *once*, at the top level, and propagates. That choice is
-the **domain**.
+Every closure in a recursion must agree on the choice. hylic
+therefore selects once at the top level and propagates the choice
+through the entire pipeline; that selection is what is called a
+**domain**.
 
 ## Three choices, three types
 
@@ -43,21 +45,23 @@ digraph {
 }
 ```
 
-- **`Shared`** stores closures behind `Arc` with `Send + Sync`
-  bounds. Paying the atomic clone buys you parallel executors
-  (Funnel, ParLazy, ParEager) and `Clone` on every pipeline.
-- **`Local`** stores closures behind `Rc` (no `Send`). You still
-  get cheap clones and ergonomic pipelines, but you're locked to
-  a single thread. In exchange, you can capture `Rc<_>`,
-  `RefCell<_>`, or anything that isn't `Send`.
-- **`Owned`** stores closures in `Box`. No cloning, no sharing —
-  each step of a pipeline consumes the previous one. Useful when
-  you're building a one-shot computation and don't want to pay
-  the reference-count overhead at all.
+- **`Shared`** stores closures behind `Arc` with
+  `Send + Sync` bounds. The atomic clone grants access to the
+  parallel executors (`Funnel`, `ParLazy`, `ParEager`) and makes
+  every pipeline `Clone`.
+- **`Local`** stores closures behind `Rc` (no `Send` bound).
+  Clones remain cheap and the pipeline interfaces are unchanged,
+  but execution is confined to a single thread. In return,
+  captures may include `Rc<_>`, `RefCell<_>`, or any
+  non-`Send` type.
+- **`Owned`** stores closures in `Box`. Clones and sharing are
+  both absent; each stage of a pipeline consumes its predecessor.
+  Appropriate for one-shot computations that should avoid
+  reference-counting overhead entirely.
 
-Shared is the conservative choice and what most code uses. Local
-is the escape hatch when you need `!Send` captures. Owned is the
-minimalist.
+`Shared` is the conservative default and serves most code. `Local`
+is the escape hatch for non-`Send` captures. `Owned` is the
+minimalist one-shot variant.
 
 ## The Domain trait
 
@@ -68,34 +72,34 @@ The three choices are encoded as marker types implementing the
 {{#include ../../../../hylic/src/domain/mod.rs:domain_trait}}
 ```
 
-A `Domain<N>` impl specifies:
+A `Domain<N>` implementation specifies:
 
-- which concrete `Fold<H, R>` type to use (closure storage lives
+- the concrete `Fold<H, R>` type in use (closure storage lives
   inside `Fold`),
-- which concrete `Graph` type to use,
-- which concrete `Grow<Seed, N>` type to use (for seed pipelines),
-- how to construct each of them generically (`make_fold`,
-  `make_graph`, `make_grow`).
+- the concrete `Graph` type,
+- the concrete `Grow<Seed, N>` type (for seed pipelines),
+- constructor methods (`make_fold`, `make_graph`, `make_grow`)
+  that build each of the above generically.
 
-Code generic over `D: Domain<N>` builds any of the three without
-knowing whether the storage is Arc, Rc, or Box — the constructor
-methods handle it.
+Code generic over `D: Domain<N>` constructs any of the three
+without knowing whether the underlying storage is `Arc`, `Rc`,
+or `Box`; the constructor methods handle the distinction.
 
-## Constructors in parallel
+## Constructors across domains
 
-Each domain exposes the same construction surface with different
-bounds:
+Each domain exposes the same construction surface, distinguished
+only by its bounds:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:domains_three_folds}}
 ```
 
-The `Shared` version demands `Fn + Send + Sync + 'static` on
-every closure; `Local` demands `Fn + 'static`; `Owned` is the
-same as `Local` but returns a `Box`-backed struct. The signatures
-match so that generic code compiles unchanged; the bounds
-diverge so that each domain is only constructible with closures
-it can actually store.
+The `Shared` constructor requires `Fn + Send + Sync + 'static`
+for every closure; `Local` requires `Fn + 'static`; `Owned` shares
+`Local`'s bounds but returns a `Box`-backed struct. The
+signatures are aligned so that generic code compiles without
+modification across domains; the bounds differ so that each
+domain accepts only those closures it is able to store.
 
 ## The Fold struct, three times
 
@@ -105,25 +109,26 @@ Because storage differs, each domain ships its own `Fold`:
 {{#include ../../../../hylic/src/domain/shared/fold.rs:fold_struct}}
 ```
 
-`Local` and `Owned` have identical shapes with `Rc` and `Box`
-replacing `Arc`. They're not interchangeable at the type level —
-a `Fused` executor reads the concrete `D::Fold<H, R>` the
-pipeline handed it. Crossing domains requires an explicit
-conversion (none is provided in the library; the ergonomic answer
-is "pick one domain per computation").
+`Local` and `Owned` share the same shape, with `Rc` and `Box`
+substituted for `Arc`. The three are not interchangeable at the
+type level: the `Fused` executor reads whichever concrete
+`D::Fold<H, R>` the pipeline provides, and crossing domain
+boundaries requires an explicit conversion that the library does
+not supply — the expected discipline is to select a single domain
+per computation.
 
 ## Parallelism
 
-Parallel executors (`Funnel`, `ParLazy`, `ParEager`) require
-[`ShareableLift`](./lifts.md), a capability that folds down to
-`D = Shared` plus `Send + Sync` on every payload (`N`, `H`, `R`).
-`Local` and `Owned` cannot run in parallel by construction —
-their storage types don't cross thread boundaries, and the
-`ShareableLift` bound won't compile.
+The parallel executors (`Funnel`, `ParLazy`, `ParEager`) require
+[`ShareableLift`](./lifts.md), a capability that reduces to
+`D = Shared` together with `Send + Sync` on every payload
+(`N`, `H`, `R`). `Local` and `Owned` cannot run in parallel by
+construction: their storage types do not cross thread boundaries,
+and the `ShareableLift` bound does not hold.
 
-The inverse is not true: Shared pipelines run happily under
-`Fused` too. Picking Shared costs you one atomic per closure
-clone and nothing else.
+The converse is not true — a `Shared` pipeline runs without issue
+under `Fused`. The price of choosing `Shared` is one atomic
+operation per closure clone, and nothing more.
 
 ## Picking one (decision tree)
 
@@ -147,13 +152,13 @@ digraph {
 }
 ```
 
-The short version: **Shared by default, Local for `!Send`
-captures, Owned for the one-shot minimal case.**
+In short: `Shared` by default, `Local` for non-`Send` captures,
+`Owned` for the one-shot minimal case.
 
 ## For library authors
 
-Write generic over `D: Domain<N>`. The three domain markers are
-not interchangeable at runtime, but almost all library code in
-hylic compiles once and works for all three. Reach for a
-concrete domain only when you actually need the capability it
-gates (`D = Shared` for parallel; `D = Owned` for consume-on-use).
+Prefer code generic over `D: Domain<N>`. The three domain
+markers are not interchangeable at runtime, but almost the whole
+of hylic compiles once and operates across all three. Select a
+concrete domain only where its specific capability is required
+(`D = Shared` for parallelism; `D = Owned` for consume-on-use).

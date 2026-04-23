@@ -1,18 +1,20 @@
 # Pipelines — overview
 
-The `hylic-pipeline` crate is a typestate-pipeline library over
-the lift primitives in `hylic`. At each stage, the available
-methods match the shape of the thing being built:
+The `hylic-pipeline` crate provides a typestate-driven builder
+over the lift primitives defined in `hylic`. Each stage exposes
+methods consistent with what is being constructed at that stage:
 
-- A builder surface (`.wrap_init(...).zipmap(...)`).
-- Two typestate boundaries (Stage 1 → Stage 2 via `.lift()`).
-- `SeedPipeline::run(...)` composes `SeedLift` onto the chain to
-  close the grow axis.
+- a builder surface (`.wrap_init(...).zipmap(...)`),
+- two typestate boundaries (Stage 1 → Stage 2 via `.lift()`),
+- `SeedPipeline::run(...)`, which composes `SeedLift` onto the
+  chain to close the grow axis.
 
-Compared to [bare lift application](#alternative-bare-lift-application)
-(a single `LiftBare::run_on` call over a `(treeish, fold)` pair),
-pipelines trade a little indirection for chainable method syntax
-and a typestate that names where you are.
+Compared to
+[bare lift application](#alternative-bare-lift-application) — a
+single `LiftBare::run_on` call over a `(treeish, fold)` pair —
+pipelines accept a small amount of indirection in return for
+chainable method syntax and a typestate that records the current
+stage.
 
 ```dot process
 digraph {
@@ -45,29 +47,29 @@ digraph {
 }
 ```
 
-## Which pipeline do I pick?
+## Choosing a pipeline
 
-| You have…                                                    | Use                    |
-|--------------------------------------------------------------|------------------------|
-| `Seed → N` grow + `N → Seed*` children, run from entry seeds | `SeedPipeline` (Stage 1) |
-| `N → N*` children directly (already a tree), run from a root | `TreeishPipeline` (Stage 1) |
-| An existing Stage-1 pipeline you want to post-compose a lift onto | `.lift()` → `LiftedPipeline` (Stage 2) |
-| One-shot, no Clone                                           | `OwnedPipeline` (out-of-band) |
+| Situation                                                          | Pipeline |
+|--------------------------------------------------------------------|----------|
+| `Seed → N` grow plus `N → Seed*` children, run from entry seeds    | `SeedPipeline` (Stage 1) |
+| `N → N*` children directly (tree already in hand), run from a root | `TreeishPipeline` (Stage 1) |
+| An existing Stage-1 pipeline onto which lifts are to be composed   | `.lift()` → `LiftedPipeline` (Stage 2) |
+| A one-shot computation without `Clone`                             | `OwnedPipeline` (out-of-band) |
 
 ## The two stages
 
-**Stage 1** holds the base slots directly — a coalgebra. Transforms
-are reshapes of those slots: `filter_seeds`, `wrap_grow`,
-`map_node_bi`, `map_seed_bi`.
+**Stage 1** retains the base slots directly — a coalgebraic form.
+Transforms at Stage 1 reshape those slots: `filter_seeds`,
+`wrap_grow`, `map_node_bi`, `map_seed_bi`.
 
-**Stage 2** stacks lifts on top of a Stage-1 base. Transforms
-compose ShapeLifts onto the chain: `wrap_init`, `zipmap`,
-`map_r_bi`, `memoize_by`, `explain`.
+**Stage 2** stacks lifts on top of a Stage-1 base. Transforms at
+Stage 2 compose `ShapeLift`s onto the chain: `wrap_init`,
+`zipmap`, `map_r_bi`, `memoize_by`, `explain`.
 
-`.lift()` crosses the boundary; Stage-2 sugars can then be
-chained. Stage-1 pipelines also expose Stage-2 sugars via
-auto-lift: `seed_pipeline.wrap_init(w)` lifts and composes in
-one call.
+`.lift()` moves a pipeline across the boundary; Stage-2 sugars
+may then be chained. Stage-1 pipelines also expose Stage-2 sugars
+via auto-lifting: `seed_pipeline.wrap_init(w)` lifts the pipeline
+and composes the sugar in a single call.
 
 ## Running a pipeline
 
@@ -103,48 +105,52 @@ that `grow` resolves via a registry:
 
 ## Alternative: bare lift application
 
-You don't have to use this crate to benefit from lifts. Any
-`Lift` implementation applies directly to a bare `(treeish, fold)`
-pair via the `LiftBare` blanket trait from `hylic`:
+The pipeline crate is not required in order to apply a lift. Any
+`Lift` implementation may be applied directly to a bare
+`(treeish, fold)` pair via the `LiftBare` blanket trait in
+`hylic`:
 
 ```rust
 {{#include ../../../../hylic/src/ops/lift/bare.rs:lift_bare_trait}}
 ```
 
-Two methods:
+The trait provides two methods:
 
 - **`apply_bare(treeish, fold)`** — returns the transformed
-  `(treeish', fold')` pair. You take it from there; run it via any
+  `(treeish', fold')` pair, which may then be run under any
   executor.
-- **`run_on(exec, treeish, fold, root)`** — apply + run. Returns
-  the lift's `MapR`.
+- **`run_on(exec, treeish, fold, root)`** — apply and run in one
+  call. Returns the lift's `MapR`.
 
 ```rust
 {{#include ../../../src/docs_examples.rs:bare_lift_wrap_init}}
 ```
 
-Pick bare over a pipeline when:
+Bare application is preferable when:
 
-- **A single lift, applied once** — pipeline machinery is dead weight.
-- **A library on top of hylic** that wants a thin dependency —
-  `hylic` alone (no `hylic-pipeline`) is enough.
-- **Benchmarking parallel lifts.** `ParLazy` and `ParEager` (in
-  `hylic-parallel-lifts`) are `Lift` impls; `run_on` measures
-  them without the pipeline in the way.
+- **Only a single lift is to be applied** — the pipeline
+  machinery adds no value.
+- **A library built on hylic** wishes to retain a narrow
+  dependency surface — the `hylic` crate alone is sufficient.
+- **Parallel lifts are being benchmarked.** `ParLazy` and
+  `ParEager` from `hylic-parallel-lifts` are `Lift`
+  implementations; `run_on` measures them without the pipeline
+  in the middle.
 
-Compose without a pipeline using `ComposedLift::compose`:
+Composition without a pipeline is available via
+`ComposedLift::compose`:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:bare_lift_composed}}
 ```
 
-Stage-2 `.then_lift(...)` calls the same primitive.
+Stage-2 `.then_lift(...)` calls the same primitive internally.
 
 ### The panic-grow
 
-`Lift::apply` takes `(grow, treeish, fold)`; the bare path has no
-grow (you start from `&root`). `LiftBare::apply_bare` synthesises
-one:
+`Lift::apply` takes `(grow, treeish, fold)`; the bare path has
+no grow, since execution begins from `&root`. `LiftBare::apply_bare`
+synthesises one:
 
 ```text
 let panic_grow = <D as Domain<N>>::make_grow::<(), N>(|_: &()| {
@@ -153,10 +159,11 @@ let panic_grow = <D as Domain<N>>::make_grow::<(), N>(|_: &()| {
 self.apply::<(), _>(panic_grow, treeish, fold, |_g, t, f| (t, f))
 ```
 
-No library `Lift` impl reads `grow` at runtime (only `SeedLift`
-does, and `SeedLift` doesn't run under `apply_bare`). A custom
-Lift that read grow would panic here instead of computing a wrong
-result silently.
+No library `Lift` implementation reads `grow` at runtime —
+`SeedLift` is the only one that does, and `SeedLift` does not
+run under `apply_bare`. A custom Lift that did read `grow` would
+panic here, making the omission visible rather than silently
+computing a wrong result.
 
 ## From here
 

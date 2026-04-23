@@ -1,24 +1,27 @@
 # Stage 2 — LiftedPipeline
 
 A `LiftedPipeline` wraps a Stage-1 base (a `SeedPipeline` or
-`TreeishPipeline`) with a **chain of lifts** and exposes it back
-through the `TreeishSource` trait so executors don't know the
-difference.
+`TreeishPipeline`) with a **chain of lifts**, presenting the
+resulting composition to the executor through the `TreeishSource`
+trait — the executor itself makes no distinction between the
+two stages.
 
 ```rust
 {{#include ../../../../hylic-pipeline/src/lifted/mod.rs:lifted_pipeline_struct}}
 ```
 
-Two fields: the base (Stage-1 source, or another `LiftedPipeline`)
-and a single `pre_lift: L`. The chain is not a `Vec<Lift>`; it's
-one lift that happens to be a `ComposedLift<Inner, Outer>` tree.
-Every `.then_lift(...)` or sugar call grows that tree by one node.
+There are two fields: the base — a Stage-1 source, or another
+`LiftedPipeline` — and a single `pre_lift: L`. The chain is not
+represented as a `Vec<Lift>`; it is a single lift that happens to
+be a `ComposedLift<Inner, Outer>` tree. Every `.then_lift(...)`
+call, and every sugar invocation, extends that tree by one node.
 
 ## How the type evolves
 
-The interesting thing about `LiftedPipeline` is that the *type*
-carries the entire chain shape. Start with a `TreeishPipeline<D,
-N, H, R>`; after three sugar calls, the type looks like this:
+A distinctive feature of `LiftedPipeline` is that the type
+carries the shape of the entire chain. Starting from a
+`TreeishPipeline<D, N, H, R>`, after three sugar calls the type
+has the following form:
 
 ```dot process
 digraph {
@@ -37,18 +40,18 @@ digraph {
 }
 ```
 
-The base stays constant. The lift tree grows outward: each new
-sugar wraps the previous lift in `ComposedLift<Previous, New>`.
-The type has to record the entire chain so the compiler can
-verify each junction — each lift's inputs must match the previous
-lift's outputs. In exchange for the deep types, every layer
-monomorphises and inlines together; there is no per-lift dispatch
-at runtime.
+The base remains unchanged; the lift tree grows outward, each
+sugar call wrapping the previous lift in
+`ComposedLift<Previous, New>`. The type must record the whole
+chain in order for the compiler to verify every junction — each
+lift's inputs must match the preceding lift's outputs. In return
+for the deep types, every layer monomorphises and inlines
+together, and no per-lift dispatch remains at runtime.
 
-Sugar call ordering matters for the type, but that's the point:
-changing the order changes the type chain, and the compiler
-catches you if a later sugar expects outputs that an earlier one
-doesn't produce.
+The ordering of sugar calls is type-significant — deliberately
+so. A different ordering yields a different chain, and the
+compiler reports a localised error when a later sugar expects
+outputs that an earlier one does not produce.
 
 ## Entering Stage 2
 
@@ -58,11 +61,12 @@ let lp = tree_pipeline.lift();  // LiftedPipeline<TreeishPipeline<..>, IdentityL
 ```
 
 Every Stage-2 sugar (`wrap_init`, `zipmap`, `filter_edges`, …)
-works *directly* on a Stage-1 pipeline via auto-lifting — the
+operates directly on a Stage-1 pipeline via auto-lifting: the
 `LiftedSugarsShared` trait is blanket-implemented for Stage-1
-sources, and its `then_lift` method calls `.lift()` under the
-hood. Explicit `.lift()` is only necessary when you want to pass
-a raw `Lift` impl to `then_lift` without going through a sugar.
+sources, and its `then_lift` method calls `.lift()` internally.
+An explicit `.lift()` is necessary only when a raw `Lift`
+implementation is to be passed to `then_lift` without going
+through a sugar.
 
 ## The two primitives
 
@@ -111,48 +115,53 @@ constructors (`map_n_bi_lift`, `map_r_bi_lift`, `n_lift`,
 ## Chaining sugars in practice
 
 Each Stage-2 sugar delegates to `then_lift` with a library-lift
-constructor. See [sugars](./sugars.md) for the full catalogue.
+constructor; see [sugars](./sugars.md) for the full catalogue.
 
 ```rust
 {{#include ../../../src/docs_examples.rs:lifted_sugar_chain}}
 ```
 
-The final `r` binding is `String` because `map_r_bi` was the last
-step; `run_from_node` returns the chain's tip `R`. Each step
-grows the chain by one `ComposedLift`; a type mismatch at any
-join (a wrapper expecting the wrong `H`, say) fails at the call
-site with a localised compile error.
+The final `r` binding has type `String` because `map_r_bi` was
+the last step; `run_from_node` returns the chain's tip `R`. Each
+sugar call extends the chain by one `ComposedLift`; a type
+mismatch at any junction — for example, a wrapper that expects a
+different `H` — is reported as a localised compile error at the
+call site.
 
-## Why the type nesting doesn't hurt
+## Cost of the type nesting
 
 The monomorphised chain inlines through every `ComposedLift`
-layer. The runtime shape is one tree walk producing one
+layer. The runtime shape is a single tree walk that produces one
 `(treeish, fold)` pair; the executor sees a plain `Fold<N', H',
-R'>` at the end. No per-lift dispatch, no per-lift allocation.
+R'>` at the end, without per-lift dispatch or per-lift
+allocation.
 
-The ergonomic cost is diagnostics: a mismatched sugar call prints
-the full nested type in the error message. Read them inside-out —
-the `Inner` of the innermost `ComposedLift` is the base, each
-outer layer is one `.then_lift`.
+The practical cost lies in diagnostics: a mismatched sugar call
+surfaces the full nested type in the error message. Such errors
+are read from the inside out — the `Inner` of the innermost
+`ComposedLift` is the base, each surrounding layer represents
+one `.then_lift`.
 
 ## Execution
 
 `.run_from_node(&exec, &root)` resolves the chain into a single
-`(treeish, fold)` pair and hands it to the executor. Same entry
-points as Stage 1, inherited from `TreeishSource` / `SeedSource`:
+`(treeish, fold)` pair and delegates to the executor. The entry
+points are inherited from Stage 1 via `TreeishSource` and
+`SeedSource`:
 
 ```text
 // Tree-rooted:
 let r = lp.run_from_node(&FUSED, &root);
 
-// Seed-rooted (if Base was a SeedPipeline):
+// Seed-rooted (if the base was a SeedPipeline):
 let r = lp.run_from_slice(&FUSED, &[entry_seed], initial_heap);
 ```
 
-Under the hood, the executor receives the concrete
-`(Treeish<N'>, Fold<N', H', R'>)` at the chain tip — the nested
-`ComposedLift` is just a compile-time record of how it was built.
+The executor ultimately receives the concrete
+`(Treeish<N'>, Fold<N', H', R'>)` at the chain tip; the nested
+`ComposedLift` is a compile-time record of how the pair was
+produced.
 
 For the continuation-passing internals that make this resolution
-work without materialising intermediate pairs, see
-[Lifts](../concepts/lifts.md).
+possible without materialising intermediate pairs, see
+[Lifts](../concepts/lifts.md#appendix-why-the-trait-takes-a-continuation).

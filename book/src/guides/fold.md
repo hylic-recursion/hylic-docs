@@ -1,19 +1,22 @@
 # Fold: shaping the computation
 
-A `Fold<N, H, R>` defines three phases: init, accumulate, finalize.
-Each phase is a closure stored in the domain's boxing strategy (Arc
-for Shared, Rc for Local, Box for Owned). Each can be transformed
-independently.
+A `Fold<N, H, R>` is defined by three phases: `init`,
+`accumulate`, and `finalize`. Each phase is a closure stored in
+the boxing strategy of the [domain](../concepts/domains.md) in
+use — `Arc` for Shared, `Rc` for Local, `Box` for Owned. Each
+phase may be transformed independently.
 
 ## Named-closures-first pattern
 
-Always extract closures before passing to the constructor:
+Closures should be extracted and named before being passed to the
+constructor:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:named_closures_pattern}}
 ```
 
-This makes closures reusable across domains and readable without nesting.
+This form allows closures to be reused across domains and read
+without nesting.
 
 ## Phase transformations
 
@@ -36,7 +39,7 @@ digraph {
 }
 ```
 
-### wrap_init — add side effects to initialization
+### wrap_init — adding side effects at initialisation
 
 <!-- -->
 
@@ -44,9 +47,10 @@ digraph {
 {{#include ../../../src/docs_examples.rs:fold_wrap_init}}
 ```
 
-The wrapper receives the node and the original init as a callable
-reference. Call it, modify the result, add side effects — or skip
-it entirely. Works across all three domains.
+The wrapper receives the node and the original `init` as a
+callable reference. The closure may invoke it, modify its result,
+add side effects, or bypass it entirely. The mechanism is
+available in all three domains.
 
 ## Result-type transformations
 
@@ -67,7 +71,7 @@ digraph {
 }
 ```
 
-### zipmap — augment with extra data
+### zipmap — augmenting the result
 
 <!-- -->
 
@@ -75,12 +79,13 @@ digraph {
 {{#include ../../../src/docs_examples.rs:fold_zipmap}}
 ```
 
-`zipmap` is the most common transformation — add extra computed data
-without changing the fold's core logic.
+`zipmap` is the most common transformation: additional computed
+data is attached to the result without altering the fold's core
+logic.
 
 ## Node-type transformations
 
-### contramap — change the input type
+### contramap — changing the input type
 
 <!-- -->
 
@@ -88,12 +93,15 @@ without changing the fold's core logic.
 {{#include ../../../src/docs_examples.rs:fold_contramap}}
 ```
 
-Only init sees the node. Contramap wraps init to transform the input.
-Accumulate and finalize are unchanged.
+Only `init` consumes the node directly. `contramap` wraps `init`
+to transform the input; `accumulate` and `finalize` are left
+unchanged. See also
+[Transforms and variance](../concepts/transforms.md#three-transforms-three-shapes)
+for the variance story that dictates the argument shape.
 
 ## Composition
 
-### product — two folds in one traversal
+### product — two folds, one traversal
 
 <!-- -->
 
@@ -101,9 +109,9 @@ Accumulate and finalize are unchanged.
 {{#include ../../../src/docs_examples.rs:fold_product}}
 ```
 
-The categorical product: each fold maintains its own heap, sees its
-own child results, produces its own output. One traversal, two results.
-No double-visiting.
+The categorical product: each fold maintains its own heap,
+observes its own child results, and produces its own output. One
+traversal yields two results; no node is visited twice.
 
 ## Domain parity
 
@@ -119,16 +127,19 @@ All three domains support the same transformation surface:
 | `contramap` | `&self` | `&self` | `self` | change node type N → N2 |
 | `product` | `&self` | `&self` | `self` | two folds, one traversal |
 
-Shared and Local borrow `&self` — the original fold is preserved.
-Owned consumes `self` — the original is moved into the result. All
-three call the same domain-independent combinator functions
-(`fold/combinators.rs`); auto-trait propagation ensures Send+Sync
-flows correctly for Shared.
+`Shared` and `Local` borrow `&self`, so the original fold is
+preserved; `Owned` consumes `self`, moving the original into the
+result. All three delegate to the same domain-independent
+combinator functions in `fold/combinators.rs`; auto-trait
+propagation ensures that `Send + Sync` flows correctly for
+`Shared`.
 
-All domains also expose `.init()`, `.accumulate()`, `.finalize()` as
-direct methods, in addition to the `FoldOps` trait implementation.
+All domains also expose `.init()`, `.accumulate()`, and
+`.finalize()` as direct methods, in addition to the `FoldOps`
+trait implementation.
 
-See [Domain system](../design/domains.md) for when to use which domain.
+See [The three domains](../concepts/domains.md) for guidance on
+when to select which domain.
 
 ## Working example
 

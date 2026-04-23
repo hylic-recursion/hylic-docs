@@ -1,20 +1,20 @@
 # Stage 1 — SeedPipeline
 
-A `SeedPipeline` has three base slots:
+A `SeedPipeline` carries three base slots:
 
 ```rust
 {{#include ../../../../hylic-pipeline/src/seed/mod.rs:seed_pipeline_struct}}
 ```
 
-- **`grow: Seed → N`** — resolve a reference (`Seed`) into a
+- **`grow: Seed → N`** — resolves a reference (a `Seed`) into a
   full node (`N`).
 - **`seeds_from_node: Edgy<N, Seed>`** — given a resolved node,
-  what references does it point to?
+  enumerates the references it points to.
 - **`fold: Fold<N, H, R>`** — the algebra over resolved nodes.
 
-The computation is coalgebraic: you hand it a *reference* (a
-Seed) at run time, and the pipeline grows the tree on demand
-by alternating `grow` and `seeds_from_node` until leaves.
+The pipeline operates lazily on demand: given a reference (a
+`Seed`) at run time, it grows the tree by alternating `grow` and
+`seeds_from_node` until each branch terminates at a leaf.
 
 ```dot process
 digraph {
@@ -45,14 +45,14 @@ digraph {
 
 ## When to pick this over TreeishPipeline
 
-Use `SeedPipeline` when your dependency graph speaks a different
-language from your nodes — file paths, module names, URLs,
-anything that needs resolving into a full data structure before
-you can see its children.
+Use `SeedPipeline` when the dependency graph speaks a different
+language from the nodes — file paths, module names, URLs, or any
+reference that must be resolved into a full data structure
+before its children can be examined.
 
-When you already have nodes whose children are other nodes
-(`N → N*`), use [TreeishPipeline](./treeish.md) — simpler, no
-grow slot.
+When the nodes themselves already enumerate their children as
+nodes of the same type (`N → N*`), [TreeishPipeline](./treeish.md)
+is simpler: no grow slot is needed.
 
 ## Constructing one
 
@@ -78,9 +78,10 @@ scope via `use hylic_pipeline::prelude::*;`.
 
 ## Transitioning to Stage 2
 
-Stage-2 sugars are ALSO available on a SeedPipeline directly via
-auto-lift. Any call to `.wrap_init(w)`, `.zipmap(m)`, etc.
-implicitly lifts the pipeline and composes the sugar:
+Stage-2 sugars are available on a `SeedPipeline` directly,
+through auto-lifting: any call to `.wrap_init(w)`, `.zipmap(m)`,
+and similar methods implicitly lifts the pipeline and composes
+the sugar.
 
 ```text
 // auto-lifting shape (pseudocode):
@@ -90,8 +91,8 @@ let lifted = pipeline
 // `lifted` is a LiftedPipeline<…, …> with tip R = (u64, bool).
 ```
 
-If you want the explicit lift (e.g. to pass a raw `Lift` impl
-via `then_lift`), use `.lift()`:
+An explicit lift — useful, for instance, when passing a raw
+`Lift` implementation to `then_lift` — is obtained via `.lift()`:
 
 ```text
 let lp = pipeline.lift();           // LiftedPipeline<SeedPipeline<...>, IdentityLift>
@@ -117,22 +118,23 @@ The second parameter is the initial heap at the `Entry`
 synthetic-root level — what the top-level accumulator starts as
 before any seed's result is folded in.
 
-## Internally: how `.run(...)` works
+## How `.run(...)` works internally
 
 `SeedPipeline::run(...)` composes a [`SeedLift`](../concepts/lifts.md)
-onto the chain, which wraps the treeish in the `LiftedNode<N>`
-type and dispatches:
+onto the chain. `SeedLift` wraps the treeish in a `LiftedNode<N>`
+type and dispatches on its variant:
 
-- `LiftedNode::Entry` visit → fans out to `LiftedNode::Node(grow(s))`
-  for each entry seed.
-- `LiftedNode::Node(n)` visit → delegates to the user's
+- `LiftedNode::Entry` visits fan out into
+  `LiftedNode::Node(grow(s))` for each entry seed.
+- `LiftedNode::Node(n)` visits delegate to the user's
   `seeds_from_node`, wrapping each seed-to-node step through
   `grow`.
 
-The fold is wrapped identically: init at `Entry` returns the
-user-supplied `entry_heap`; init at `Node(n)` delegates to the
-user's fold. Executor runs from `&LiftedNode::Entry`. The user
-never sees the `LiftedNode` variant names — they're internal.
+The fold is wrapped in the same manner: `init` at `Entry` returns
+the user-supplied `entry_heap`, while `init` at `Node(n)`
+delegates to the user's fold. The executor begins at
+`&LiftedNode::Entry`. The `LiftedNode` variant names are internal
+and do not appear in user code.
 
 ## Full example
 

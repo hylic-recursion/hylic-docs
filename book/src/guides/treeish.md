@@ -1,26 +1,27 @@
 # Graph: controlling traversal
 
-The graph — `Treeish<N>` or `Edgy<N, E>` — is a function from a node
-to its children. It determines what gets visited during the fold.
-The node type N can be any type: a struct, an integer index, a
-string key, a database identifier. The tree structure lives in the
-function, not in the data.
+The graph — `Treeish<N>`, or the more general `Edgy<N, E>` — is a
+function from a node to its children, and determines what is
+visited during the fold. The node type `N` may be any type: a
+struct, an integer index, a string key, a database identifier.
+The structure of the tree resides in the function, not in the
+data.
 
 ## Constructors
 
-Three ways to create a `Treeish<N>`:
+Three means of creating a `Treeish<N>`:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:treeish_constructors}}
 ```
 
-`treeish_visit` is the most general form — the callback receives
-each child without allocating a Vec. `treeish` wraps a Vec-returning
-function for convenience. `treeish_from` extracts a slice reference
-from a field.
+`treeish_visit` is the most general form; its callback receives
+each child without the allocation of a `Vec`. `treeish` wraps a
+`Vec`-returning function for convenience, and `treeish_from`
+extracts a slice reference from a field.
 
-For non-nested data (adjacency lists, maps, external lookups), use
-`treeish_visit` directly:
+For non-nested data — adjacency lists, maps, external lookups —
+`treeish_visit` is the appropriate constructor:
 
 ```rust
 // Adjacency list: nodes are indices
@@ -40,8 +41,9 @@ let graph = graph::treeish_visit(move |n: &String, cb: &mut dyn FnMut(&String)| 
 
 ## Edge transformations
 
-The `Edgy<N, E>` type generalizes `Treeish<N>` — edges and nodes
-can be different types. Combinators transform the edge or node type:
+The `Edgy<N, E>` type generalises `Treeish<N>` by allowing edges
+and nodes to be different types. Combinators transform the edge
+type or the node type:
 
 ```dot process
 digraph {
@@ -60,7 +62,7 @@ digraph {
 }
 ```
 
-### filter — prune children
+### filter — pruning children
 
 <!-- -->
 
@@ -68,22 +70,23 @@ digraph {
 {{#include ../../../src/docs_examples.rs:graph_filter}}
 ```
 
-The fold receives fewer children without knowing about the pruning.
+The fold sees fewer children without any awareness that pruning
+has occurred.
 
 ## Caching: memoize_treeish
 
-For DAGs where the same node is reachable from multiple parents,
-`memoize_treeish` caches the children computation:
+For DAGs in which the same node is reachable from multiple
+parents, `memoize_treeish` caches the child enumeration:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:memoize_example}}
 ```
 
-The first visit to a key computes and caches its children.
-Subsequent visits return the cached result.
+The first visit to a key computes and caches its children;
+subsequent visits return the cached result.
 
 ## Visit combinator
 
 `Edgy::at(node)` returns a `Visit<T, F>` — a push-based iterator
-with `map`, `filter`, `fold`, `count`, `collect_vec`. All
-callback-based internally.
+exposing `map`, `filter`, `fold`, `count`, and `collect_vec`. All
+combinators are callback-based internally.

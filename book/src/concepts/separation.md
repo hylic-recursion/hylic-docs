@@ -1,12 +1,14 @@
 # The recursive pattern
 
-Every recursive tree computation does the same thing. hylic
-makes that pattern explicit, separates its parts, and lets you
-transform each part independently.
+Recursive tree computations — regardless of domain — share a
+single underlying structure. hylic makes that structure explicit,
+names its parts, and allows each part to be transformed
+independently.
 
 ## One function
 
-This is the entire computation, from the fused executor:
+The entire computation, taken directly from the sequential
+executor:
 
 ```rust
 {{#include ../../../../hylic/src/exec/variant/fused/mod.rs:run_inner}}
@@ -14,13 +16,13 @@ This is the entire computation, from the fused executor:
 
 At each node:
 
-1. **init** — create a heap `H` from the node
+1. **init** — construct a heap `H` from the node
 2. **visit children** — for each child, recurse and accumulate the result
 3. **finalize** — produce the node's result `R` from the heap
 
-That's it. Every tree fold — fibonacci, dependency resolution,
-filesystem aggregation, AST evaluation — is this function with
-different `init`, `accumulate`, `finalize`, and different child
+Every tree fold — Fibonacci, dependency resolution, filesystem
+aggregation, AST evaluation — is this function instantiated with
+different choices for `init`, `accumulate`, `finalize`, and child
 structure.
 
 ```dot process
@@ -62,20 +64,20 @@ nodes and edges are the same type:
 {{#include ../../../../hylic/src/graph/edgy.rs:treeish_alias}}
 ```
 
-You construct one by providing a function from node to children:
+A `Treeish` is constructed from a function from node to children:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:treeish_constructor}}
 ```
 
-The callback-based signature (`Fn(&N, &mut dyn FnMut(&N))`) means
-zero allocation per visit. The `treeish()` constructor wraps a
+The callback-based signature `Fn(&N, &mut dyn FnMut(&N))` avoids
+any allocation per visit. The `treeish()` constructor wraps a
 `Vec`-returning function into this form.
 
-The node type N can be anything — a nested struct, an integer index
-into an adjacency list, a string key into a map, or a reference
-resolved through I/O. The tree structure lives in the treeish
-function, not in the data.
+The node type `N` may be anything — a nested struct, an integer
+index into an adjacency list, a string key into a map, or a
+reference resolved through I/O. The structure resides in the
+treeish function rather than in the data.
 
 **Fold** — the computation. In the Shared domain, three closures behind Arc:
 
@@ -108,16 +110,17 @@ finalize is clone:
 {{#include ../../../src/docs_examples.rs:exec_usage}}
 ```
 
-Two built-in executors:
+Two executors are provided:
 
 | Executor | Traversal | Domains |
 |---|---|---|
-| `dom::FUSED` | Callback (sequential) | all |
-| [Funnel](../funnel/overview.md) | CPS work-stealing (parallel) | Shared |
+| `dom::FUSED` | Direct sequential recursion | all |
+| [Funnel](../funnel/overview.md) | Parallel work-stealing | Shared |
 
-Each implements the `Executor<N, R, D, G>` trait — parameterized by
-a boxing [domain](../design/domains.md) and graph type.
-See [Executor architecture](../executor-design/exec_pattern.md) for details.
+Both implement the `Executor<N, R, D, G>` trait, parameterised by
+a [domain](../concepts/domains.md) and graph type. See
+[Executor architecture](../executor-design/exec_pattern.md) for
+details.
 
 ## The separation
 
@@ -142,16 +145,17 @@ digraph {
 }
 ```
 
-The fold doesn't know about the tree. The tree doesn't know about
-the fold. The executor connects them. The domain determines how
-closures are stored — but the fold and treeish don't carry it;
-the executor does.
+The fold carries no knowledge of the tree; the tree carries no
+knowledge of the fold; the executor connects them. The domain
+determines how closures are stored — the fold and treeish do not
+record this, the executor does.
 
-Everything in hylic reduces to `executor.run(&fold, &treeish, &root)`.
-When the tree is discovered lazily (seeds resolved on demand),
+Every computation in hylic reduces to
+`executor.run(&fold, &treeish, &root)`. When the tree is
+discovered lazily (seeds resolved on demand),
 [`SeedPipeline`](../pipeline/seed.md) constructs the treeish
-from a seed edge function + grow, and delegates to `executor.run`
-internally.
+from a seed edge function together with a `grow`, and delegates
+to `executor.run` internally.
 
 ## The operations traits
 
