@@ -838,7 +838,7 @@ use hylic::graph;
     #[test]
     fn custom_lift_note_visits() {
         use std::sync::{Arc, Mutex};
-        use hylic::domain::{Domain, Shared};
+        use hylic::domain::Shared;
         use hylic::domain::shared::fold::{self as sfold, Fold};
         use hylic::graph::Treeish;
         use hylic::ops::Lift;
@@ -857,18 +857,15 @@ use hylic::graph;
             type MapH = H;
             type MapR = R;
 
-            fn apply<Seed, T>(
+            fn apply<T>(
                 &self,
-                grow:    <Shared as Domain<N>>::Grow<Seed, N>,
                 treeish: Treeish<N>,
                 fold:    Fold<N, H, R>,
                 cont: impl FnOnce(
-                    <Shared as Domain<N>>::Grow<Seed, N>,
                     Treeish<N>,
                     Fold<N, H, R>,
                 ) -> T,
             ) -> T
-            where Seed: Clone + 'static,
             {
                 let fold_for_init = fold.clone();
                 let fold_for_acc  = fold.clone();
@@ -879,7 +876,7 @@ use hylic::graph;
                     move |h: &mut H, r: &R| fold_for_acc.accumulate(h, r),
                     move |h: &H| fold_for_fin.finalize(h),
                 );
-                cont(grow, treeish, wrapped)
+                cont(treeish, wrapped)
             }
         }
 
