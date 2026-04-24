@@ -531,7 +531,7 @@ use hylic::graph;
     // ANCHOR: seed_pipeline_example
     #[test]
     fn seed_pipeline_example() {
-        use hylic_pipeline::prelude::{SeedPipeline, PipelineExecSeed};
+        use hylic_pipeline::prelude::{SeedPipeline};
         use std::collections::HashMap;
 
         // The "registry" — flat data, not a tree
@@ -561,7 +561,7 @@ use hylic::graph;
             &fold,
         );
 
-        let result = pipeline.run_from_slice(
+        let result = pipeline.lift().run_from_slice(
             &dom::FUSED,
             &["app".to_string()],
             Vec::<String>::new(),
@@ -575,7 +575,7 @@ use hylic::graph;
     #[test]
     fn seed_pipeline_parallel() {
         use hylic::exec::funnel;
-        use hylic_pipeline::prelude::{SeedPipeline, PipelineExecSeed};
+        use hylic_pipeline::prelude::{SeedPipeline};
         use std::collections::HashMap;
 
         let mut modules: HashMap<String, Vec<String>> = HashMap::new();
@@ -600,7 +600,7 @@ use hylic::graph;
             &fold,
         );
 
-        let result = pipeline.run_from_slice(
+        let result = pipeline.lift().run_from_slice(
             &dom::exec(funnel::Spec::default(4)),
             &["app".to_string()],
             Vec::<String>::new(),
@@ -720,6 +720,7 @@ use hylic::graph;
 
         let r: u64 = sp
             .filter_seeds(|s: &String| !s.starts_with('_'))
+            .lift()
             .run_from_slice(&FUSED, &["app".to_string()], 0u64);
 
         // Reachable modules: app (cost 1) + db (cost 2) = 3.

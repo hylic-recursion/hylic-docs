@@ -7,7 +7,7 @@ mod tests {
     use std::collections::HashMap;
     use either::Either;
 
-    use hylic_pipeline::prelude::{SeedPipeline, PipelineExecSeed};
+    use hylic_pipeline::prelude::{SeedPipeline};
     use hylic::prelude::seeds_for_fallible;
     use hylic::domain::shared as dom;
     use hylic::graph;
@@ -95,7 +95,7 @@ mod tests {
         // Entry handled at the call site.
         let pipeline = SeedPipeline::new(grow, seeds_from_node, &collect);
 
-        let result = pipeline.run_from_slice(
+        let result = pipeline.lift().run_from_slice(
             &dom::FUSED,
             &["app".to_string()],
             Resolved { modules: vec![], errors: vec![] },
