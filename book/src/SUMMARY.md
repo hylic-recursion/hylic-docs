@@ -69,3 +69,4 @@
 - [Implementation notes](./design/implementation_notes.md)
 - [Theory](./design/theory.md)
 - [Algebra factorization](./design/milewski.md)
+- [Pipeline transformability](./design/pipeline_transformability.md)

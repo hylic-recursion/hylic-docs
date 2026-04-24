@@ -56,17 +56,26 @@ outputs that an earlier one does not produce.
 ## Entering Stage 2
 
 ```text
-let lp = seed_pipeline.lift();  // LiftedPipeline<SeedPipeline<..>, IdentityLift>
-let lp = tree_pipeline.lift();  // LiftedPipeline<TreeishPipeline<..>, IdentityLift>
+let lp  = tree_pipeline.lift();  // LiftedPipeline<TreeishPipeline<..>, IdentityLift>
+let lsp = seed_pipeline.lift();  // LiftedSeedPipeline<SeedPipeline<..>, IdentityLift>
 ```
 
-Every Stage-2 sugar (`wrap_init`, `zipmap`, `filter_edges`, …)
-operates directly on a Stage-1 pipeline via auto-lifting: the
-`LiftedSugarsShared` trait is blanket-implemented for Stage-1
-sources, and its `then_lift` method calls `.lift()` internally.
-An explicit `.lift()` is necessary only when a raw `Lift`
-implementation is to be passed to `then_lift` without going
-through a sugar.
+Two distinct Stage-2 types exist:
+
+- **`LiftedPipeline<Base, L>`** — chain `L` typed at the base node
+  type `N`. Used when `Base` is a `TreeishPipeline`, or an
+  already-lifted `LiftedPipeline` being extended.
+- **`LiftedSeedPipeline<Base, L>`** — chain `L` typed at
+  `LiftedNode<N>`. Used when `Base` is a `SeedPipeline`; see
+  [Stage 1 — SeedPipeline](./seed.md#why-a-separate-stage-2-type-from-lifted-pipelines).
+
+For a `TreeishPipeline`, every Stage-2 sugar (`wrap_init`,
+`zipmap`, `filter_edges`, …) also operates directly, via
+auto-lifting: the `LiftedSugarsShared` trait is blanket-implemented
+on `TreeishPipeline` and on `LiftedPipeline`, and its `then_lift`
+method calls `.lift()` internally where needed. For a
+`SeedPipeline`, auto-lifting is **not** provided — `.lift()` must
+be written explicitly to enter `LiftedSeedPipeline`.
 
 ## The two primitives
 
@@ -145,16 +154,19 @@ one `.then_lift`.
 ## Execution
 
 `.run_from_node(&exec, &root)` resolves the chain into a single
-`(treeish, fold)` pair and delegates to the executor. The entry
-points are inherited from Stage 1 via `TreeishSource` and
-`SeedSource`:
+`(treeish, fold)` pair and delegates to the executor. For a
+tree-rooted chain, the entry point is inherited from Stage 1 via
+`TreeishSource`:
 
 ```text
-// Tree-rooted:
 let r = lp.run_from_node(&FUSED, &root);
+```
 
-// Seed-rooted (if the base was a SeedPipeline):
-let r = lp.run_from_slice(&FUSED, &[entry_seed], initial_heap);
+Seed-rooted execution lives on `LiftedSeedPipeline` instead,
+which carries its own inherent `.run` / `.run_from_slice`:
+
+```text
+let r = lsp.run_from_slice(&FUSED, &[entry_seed], initial_heap);
 ```
 
 The executor ultimately receives the concrete

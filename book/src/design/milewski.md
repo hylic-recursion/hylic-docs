@@ -284,9 +284,10 @@ seeds_from_node: Edgy<N, Seed>             N → Seed*
 = treeish:       Edgy<N, N>               N → N*  (= Treeish<N>)
 ```
 
-In code: `SeedPipeline::reshape(...)` + `.with_seeded(cont)` hands
-the `(grow, seeds_from_node, fold)` triple to internal callers;
-the underlying combinator is `Edgy::map` — see
+In code: the `(grow, seeds_from_node)` pair is fused internally
+at run time via `Shared::fuse_grow_with_seeds`, producing the
+`Treeish<N>` that drives traversal past the entry. The underlying
+combinator is `Edgy::map` — see
 [`hylic/src/graph/edgy.rs`](../../../../hylic/src/graph/edgy.rs).
 
 **Chain 2: entry lifting.** The `SeedLift` constructs a

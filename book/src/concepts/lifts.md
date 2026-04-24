@@ -117,26 +117,29 @@ xforms. `wrap_init_lift` only rewrites Fold's init phase;
 all three; `explainer_lift` rewrites only Fold (but changes
 `MapH` and `MapR` to the explainer's wrapper types).
 
-**`SeedLift<N, Seed, H>`** — a finishing lift that closes a
+**`SeedLift<D, N, Seed, H>`** — a finishing lift that closes a
 SeedPipeline by turning the `(grow, seeds_from_node, fold)` triple
 into a runnable `(treeish, fold)` pair rooted at an `Entry`
-variant. Shared-pinned; used internally by
-`PipelineExecSeed::run(...)`.
+variant. Domain-generic (Shared + Local impls); assembled at
+run time inside `LiftedSeedPipeline::run(...)` from the base's
+`grow` plus the caller-supplied `root_seeds` and `entry_heap`,
+then composed as the **first** lift of the run-time chain.
 
 ```rust
 {{#include ../../../../hylic/src/ops/lift/seed_lift.rs:seed_lift_struct}}
 ```
 
-Its N2 is `LiftedNode<N>`:
+Its N2 is `LiftedNode<N>` — a sealed row type whose variants
+are library-internal; user code inspects via `is_entry()`,
+`as_node()`, `map_node(f)`. Two inhabitants: the synthetic
+Entry (root fan-out over entry seeds) and a resolved Node(N).
+`SeedLift` builds a `Treeish<LiftedNode<N>>` that dispatches on
+variant: Entry visits the entry seeds via grow, Node visits the
+user's treeish.
 
-```rust
-{{#include ../../../../hylic/src/ops/lift/lifted_node.rs:lifted_node_enum}}
-```
-
-`Entry` is the root fan-out over entry seeds; `Node(N)` is a
-resolved node. `SeedLift` builds a `Treeish<LiftedNode<N>>` that
-dispatches on variant: Entry visits the entry seeds via grow,
-Node visits the user's treeish.
+For an N-typed view of a seed-closed `.explain()` result, project
+via `SeedExplainerResult::from_lifted(raw)` — see
+[seed explainer result](../pipeline/seed.md#seed-explainer-result).
 
 ## Bare application
 

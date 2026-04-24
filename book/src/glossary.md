@@ -73,9 +73,28 @@ most Stage-2 sugars (`wrap_init`, `zipmap`, `filter_edges`, …).
 
 ### `SeedLift`
 
-The finishing lift that closes a `SeedPipeline`'s grow axis. Not
-something user code constructs directly — `SeedPipeline::run`
-composes it internally.
+The finishing lift that closes a `SeedPipeline`'s grow axis.
+Domain-generic (`SeedLift<D, N, Seed, H>`; impls for `Shared` and
+`Local`). Not something user code constructs directly —
+`LiftedSeedPipeline::run` assembles it at call time from
+`grow` + user-supplied `root_seeds` + `entry_heap` and composes
+it as the first lift of the run-time chain.
+
+### `LiftedNode<N>`
+
+Sealed row type with two library-internal variants: the
+synthetic `Entry` (a seed-closed chain's root row) and a
+resolved `Node(N)`. User code inspects via `is_entry`,
+`as_node`, `map_node`.
+
+### `SeedExplainerResult<N, H, R>`
+
+N-typed projection of a seed-closed explainer result. The Entry
+row is promoted into top-level fields (`entry_initial_heap`,
+`entry_working_heap`, `orig_result`); each root subtree becomes
+an `ExplainerResult<N, H, R>` — no `LiftedNode<N>` appears in
+the user-visible shape. Obtained via
+`SeedExplainerResult::from_lifted(raw)`.
 
 ### Pipeline
 
@@ -89,8 +108,11 @@ pair handed to an executor. See [Pipelines](./pipeline/overview.md).
 
 A pipeline method that delegates to `.then_lift(...)` with a
 library lift — `wrap_init`, `zipmap`, `filter_edges`, `explain`,
-etc. Sugars live on a blanket trait (`LiftedSugarsShared` /
-`LiftedSugarsLocal`) implemented once per Stage. See
+etc. Sugars on `TreeishPipeline` and `LiftedPipeline` live on a
+blanket trait (`LiftedSugarsShared` / `LiftedSugarsLocal`);
+`LiftedSeedPipeline` exposes an inherent mirror of the same
+surface (whose chain is typed at `LiftedNode<N>`, so it cannot
+share the trait's parameter shape). See
 [Blanket sugar traits](./pipeline/sugars.md).
 
 ### CPS (continuation-passing style)

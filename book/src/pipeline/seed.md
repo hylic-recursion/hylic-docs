@@ -78,51 +78,118 @@ scope via `use hylic_pipeline::prelude::*;`.
 
 ## Transitioning to Stage 2
 
-Stage-2 sugars are available on a `SeedPipeline` directly,
-through auto-lifting: any call to `.wrap_init(w)`, `.zipmap(m)`,
-and similar methods implicitly lifts the pipeline and composes
-the sugar.
+Stage-2 sugars are **not** available on `SeedPipeline` directly
+— an explicit `.lift()` is required, which yields a distinct
+Stage-2 type, [`LiftedSeedPipeline`](#why-a-separate-stage-2-type-from-lifted-pipelines).
 
-```text
-// auto-lifting shape (pseudocode):
-let lifted = pipeline
-    .wrap_init(|n, orig| orig(n) + 1)     // auto-lifts here
-    .zipmap(|r| *r > 100);                 // chains further
-// `lifted` is a LiftedPipeline<…, …> with tip R = (u64, bool).
+```rust
+{{#include ../../../../hylic-pipeline/src/lifted_seed/mod.rs:lifted_seed_pipeline_struct}}
 ```
 
-An explicit lift — useful, for instance, when passing a raw
-`Lift` implementation to `then_lift` — is obtained via `.lift()`:
-
 ```text
-let lp = pipeline.lift();           // LiftedPipeline<SeedPipeline<...>, IdentityLift>
-let lp = lp.then_lift(my_custom_lift);
+let lsp = pipeline.lift();          // LiftedSeedPipeline<SeedPipeline<...>, IdentityLift>
+let lsp = lsp
+    .wrap_init(|n, orig| orig(n) + 1)
+    .zipmap(|r| *r > 100);           // chain grows: tip R = (u64, bool)
 ```
+
+Each Stage-2 sugar method is inherent on `LiftedSeedPipeline`
+(not a trait), mirroring the `LiftedSugarsShared` catalogue on
+`LiftedPipeline`. User closures remain written in terms of the
+base node type `N`; internally each sugar dispatches on the
+`LiftedNode<N>` variant (see [below](#why-a-separate-stage-2-type-from-lifted-pipelines)).
 
 ## Running it
 
-Two entry points, both via the `PipelineExecSeed` trait:
+`.run_from_slice` and `.run` are inherent on `LiftedSeedPipeline`.
+The Stage-1 `SeedPipeline` itself is not runnable — `.lift()`
+must come first even when no sugar is applied:
 
 ```text
 // Entry seeds as a slice (convenience):
 let r: u64 = pipeline
+    .lift()
     .run_from_slice(&FUSED, &["app".to_string()], 0u64);
 
 // Entry seeds as a general Edgy<(), Seed>:
 let entry: Edgy<(), String> =
     edgy_visit(|_: &(), cb: &mut dyn FnMut(&String)| cb(&"app".to_string()));
-let r: u64 = pipeline.run(&FUSED, entry, 0u64);
+let r: u64 = pipeline.lift().run(&FUSED, entry, 0u64);
 ```
 
-The second parameter is the initial heap at the `Entry`
+The final parameter is the initial heap at the `Entry`
 synthetic-root level — what the top-level accumulator starts as
-before any seed's result is folded in.
+before any seed's result is folded in. It is always the **base**
+`H` type; the chain's own `MapH` is reached internally as the
+sugars promote from `H` outward.
+
+## Why a separate Stage-2 type from lifted pipelines
+
+A `LiftedPipeline<Base, L>` has its chain `L` typed at the base
+node type `N` because Stage-1 bases already present their nodes
+as `N`. A `LiftedSeedPipeline` is different: at run time,
+`SeedLift` is the **first** lift in the chain, and its output
+node type is `LiftedNode<N>` — a [sealed](#sealed-liftednode) row
+type with two inhabitants: the synthetic `Entry` and a resolved
+`Node(N)`. Every subsequent lift in the chain therefore has to be
+typed at `LiftedNode<N>`, not `N`. Because the chain type bound
+differs, the type cannot share `LiftedPipeline`'s trait-based
+sugar surface; each sugar on `LiftedSeedPipeline` is inherent,
+and internally adapts a user closure written over `N` to the
+`LiftedNode<N>`-typed slot.
+
+For the detailed reasoning and the architectural alternatives
+considered, see the
+[design doc — pipeline transformability](../design/pipeline_transformability.md).
+
+### Sealed LiftedNode
+
+`LiftedNode<N>` is exposed as a type name but its variants are
+library-internal. User code inspects via three accessors:
+
+- `is_entry() -> bool`
+- `as_node() -> Option<&N>`
+- `map_node<M>(f: FnOnce(&N) -> M) -> LiftedNode<M>`
+
+No pattern-match of `Entry` / `Node(N)` is possible from user
+code. The seal is motivated by the next point.
+
+### Where LiftedNode surfaces at the chain tip
+
+Some lifts propagate `N` into their output result type — e.g.
+`.explain()` gives `ExplainerResult<LiftedNode<N>, H, R>` at the
+chain tip, with the explainer's per-node `heap.node` carrying the
+lifted row. For a sealed N-typed view, project with
+[`SeedExplainerResult::from_lifted`](#seed-explainer-result):
+
+### Seed explainer result
+
+```text
+let raw: ExplainerResult<LiftedNode<N>, H, R> =
+    pipeline.lift().explain().run_from_slice(exec, seeds, h0);
+let sealed: SeedExplainerResult<N, H, R> =
+    SeedExplainerResult::from_lifted(raw);
+// sealed.{entry_initial_heap, entry_working_heap, orig_result} — Entry row
+// sealed.roots: Vec<ExplainerResult<N, H, R>>              — per-seed subtrees
+```
+
+The projection is total below the Entry row (every `Node(n)` is
+unwrapped). Entry's own information is promoted out of the tree
+as top-level fields; `LiftedNode<N>` no longer appears in the
+user-visible shape.
+
+Everyday Stage-2 sugar calls (`wrap_init`, `zipmap`, `map_n_bi`,
+…) already take closures over `N` — the variant dispatch is
+hidden in the sugar body.
 
 ## How `.run(...)` works internally
 
-`SeedPipeline::run(...)` composes a [`SeedLift`](../concepts/lifts.md)
-onto the chain. `SeedLift` wraps the treeish in a `LiftedNode<N>`
-type and dispatches on its variant:
+`LiftedSeedPipeline::run(...)` assembles a
+[`SeedLift`](../concepts/lifts.md) from the base `SeedPipeline`'s
+`grow` plus the user-supplied `root_seeds` and `entry_heap`. That
+`SeedLift` is composed as the **first** lift of the run-time
+chain; the stored chain `L` composes on top. The executor then
+begins at `&LiftedNode::Entry`.
 
 - `LiftedNode::Entry` visits fan out into
   `LiftedNode::Node(grow(s))` for each entry seed.
@@ -132,9 +199,7 @@ type and dispatches on its variant:
 
 The fold is wrapped in the same manner: `init` at `Entry` returns
 the user-supplied `entry_heap`, while `init` at `Node(n)`
-delegates to the user's fold. The executor begins at
-`&LiftedNode::Entry`. The `LiftedNode` variant names are internal
-and do not appear in user code.
+delegates to the user's fold.
 
 ## Full example
 

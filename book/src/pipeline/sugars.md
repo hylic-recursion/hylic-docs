@@ -35,23 +35,33 @@ The remainder of the trait follows the same structure method by
 method. Full source:
 [`hylic-pipeline/src/sugars/lifted_shared.rs`](../../../../hylic-pipeline/src/sugars/lifted_shared.rs).
 
-## One trait, three implementations
+## One trait, two implementations (plus one parallel inherent set)
 
-`LiftedSugarsShared` is implemented for three types, distinguished
+`LiftedSugarsShared` is implemented for two types, distinguished
 only by how `then_lift` is realised:
 
-- **`SeedPipeline<Shared, …>`** — body
+- **`TreeishPipeline<Shared, …>`** — body
   `self.lift().then_lift_raw(l)`. The pipeline is at Stage 1 and
   auto-lifts to Stage 2 first.
-- **`TreeishPipeline<Shared, …>`** — the same pattern; auto-lifts
-  first.
 - **`LiftedPipeline<Base, L>`** — body `self.then_lift_raw(l)`.
   Already at Stage 2; the chain is merely extended.
 
-When a user writes `seed_pipeline.wrap_init(w)`, dispatch finds
-the `SeedPipeline` implementation automatically. The Stage 1 →
+`SeedPipeline<Shared, …>` is deliberately **not** a third impl.
+Its Stage-2 type is
+[`LiftedSeedPipeline`](./seed.md#why-a-separate-stage-2-type-from-lifted-pipelines),
+whose chain is typed at `LiftedNode<N>` rather than at `N`;
+`LiftedSugarsShared`'s parameter shape doesn't accommodate that.
+Instead, `LiftedSeedPipeline` exposes an **inherent** set of
+methods mirroring the trait's surface. User closures are still
+written over `N`; each inherent sugar internally dispatches on
+the `LiftedNode<N>` variant so the user never mentions `Entry` or
+`Node(…)` at the call site.
+
+When a user writes `tree_pipeline.wrap_init(w)`, dispatch finds
+the `TreeishPipeline` implementation automatically. The Stage 1 →
 Stage 2 transition occurs inside `then_lift`, not at the call
-site.
+site. When a user writes `seed_pipeline.lift().wrap_init(w)`, the
+inherent method on `LiftedSeedPipeline` runs.
 
 ## Identical code for Shared and Local
 
@@ -75,8 +85,8 @@ let r = local_pipe .wrap_init(w).zipmap(m).run(...);
 
 ## Consequence: Shared and Local files mirror each other
 
-Each Stage × domain requires a single trait file — five files
-in total:
+Each Stage × domain requires a single trait file — four trait
+files plus the `LiftedSeedPipeline` inherent-methods file:
 
 ```dot process
 digraph {
@@ -94,6 +104,7 @@ digraph {
         label="Stage 2"; style=dashed; color="#888";
         lss [label="LiftedSugarsShared\nwrap_init, wrap_accumulate,\nwrap_finalize, zipmap,\nmap_r_bi, filter_edges,\nwrap_visit, memoize_by,\nexplain", fillcolor="#fff3cd"];
         lsl [label="LiftedSugarsLocal\n(same, Local bounds)", fillcolor="#fff3cd"];
+        lsp [label="LiftedSeedPipeline\ninherent methods\n(same surface; chain over LiftedNode<N>)", fillcolor="#ffe0b2"];
     }
 }
 ```
@@ -129,8 +140,7 @@ that qualifies.
 | `map_node_bi(co, contra)`  | `TreeishPipeline<D, N2, H, R>`  |
 
 **Stage 2 — `LiftedSugarsShared` / `LiftedSugarsLocal`** on
-anything with a `LiftedSugars<N, H, R>` impl (Stage-1 pipelines
-via auto-lift, or `LiftedPipeline` directly):
+`TreeishPipeline` (via auto-lift) and on `LiftedPipeline`:
 
 | method                     | what the lift does                    |
 |----------------------------|---------------------------------------|
@@ -139,12 +149,23 @@ via auto-lift, or `LiftedPipeline` directly):
 | `wrap_finalize(w)`         | intercept `finalize`                  |
 | `zipmap(m)`                | extend R: `R → (R, Extra)`            |
 | `map_r_bi(fwd, bwd)`       | change R bijectively                  |
+| `map_n_bi(co, contra)`     | change N bijectively                  |
 | `filter_edges(pred)`       | drop edges from the graph             |
 | `wrap_visit(w)`            | intercept graph `visit`               |
 | `memoize_by(key)`          | cache subtree results by key          |
 | `explain()`                | wrap fold with per-node trace         |
 
-N-change at Stage 2 is deliberately absent: on a `LiftedPipeline`,
-write `.then_lift(Shared::map_n_bi_lift(co, contra))` explicitly.
-This keeps the Stage-1 `map_node_bi` (which stays at Stage 1 by
-reshape, cheaper) unambiguous against a Stage-2 variant.
+**Stage 2 — inherent methods** on
+`LiftedSeedPipeline<SeedPipeline<D, N, Seed, H, R>, L>`: the
+same catalogue by name and signature (closures written over
+`N`), with internal `LiftedNode<N>` dispatch. `.explain()`
+yields `ExplainerResult<LiftedNode<N>, H, R>` at the chain tip,
+sealable via
+[`SeedExplainerResult::from_lifted`](./seed.md#seed-explainer-result)
+for an N-typed view.
+
+Stage-1 reshape `map_node_bi` and Stage-2 sugar `map_n_bi` share
+a purpose (change N) but are different operations: Stage 1
+rewrites the base slots in-place (cheaper when no lift chain is
+present); Stage 2 composes a `ShapeLift` onto the chain and is
+available after `.lift()`.
