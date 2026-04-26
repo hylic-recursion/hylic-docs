@@ -53,7 +53,7 @@ given a seed edge function (`Edgy<N, Seed>`) and a grow function
 (`Fn(&Seed) → N`), it constructs the treeish by composing
 `seeds_from_node.map(grow)` and handles the entry transition.
 Internally, `SeedLift` implements `Lift` to express the
-`LiftedNode<Seed, N>` indirection as a fold transformation.
+`SeedNode<N>` indirection as a fold transformation.
 
 ## Histomorphism (fold with history)
 
@@ -75,9 +75,9 @@ transforms the carrier types through two GATs (`MapH<H, R>`,
 `MapR<H, R>`) and can change the node type (`N → N2`) by extending
 the tree structure with new constructors.
 
-The SeedLift extends the tree with relay and entry constructors
-(`LiftedNode<Seed, N>`: Entry, Seed, Node) — seed nodes pass their
-single child's result through unchanged. The Explainer enriches the heap with trace data
+The SeedLift extends the tree with an entry-root constructor
+(`SeedNode<N>`: EntryRoot, Node) — the EntryRoot row's children
+are the per-seed grown nodes. The Explainer enriches the heap with trace data
 without changing the node type. Both are algebra morphisms: they
 transform the `F R → R` algebra into a different `F' R' → R'`
 algebra over a richer domain.

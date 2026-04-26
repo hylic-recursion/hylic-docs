@@ -32,8 +32,8 @@ digraph {
     subgraph cluster_s2 {
         label="Stage 2  (algebra — chained lifts)";
         style=dashed; color="#888";
-        lsp [label="LiftedSeedPipeline<Base, L>\n(chain over LiftedNode<N>)", fillcolor="#ffcc80"];
-        lp  [label="LiftedPipeline<Base, L>\n(chain over N)",             fillcolor="#ffcc80"];
+        lsp [label="Stage2Pipeline<\n  SeedPipeline<…>, L\n>\n(chain over SeedNode<N>)", fillcolor="#ffcc80"];
+        lp  [label="Stage2Pipeline<\n  TreeishPipeline<…>, L\n>\n(chain over N)",        fillcolor="#ffcc80"];
     }
 
     ob [label="OwnedPipeline<N, H, R>  (out-of-band)", fillcolor="#f8bbd0"];
@@ -54,8 +54,8 @@ digraph {
 
 | Situation                                                          | Pipeline |
 |--------------------------------------------------------------------|----------|
-| `Seed → N` grow plus `N → Seed*` children, run from entry seeds    | `SeedPipeline` (Stage 1) → `.lift()` → `LiftedSeedPipeline` |
-| `N → N*` children directly (tree already in hand), run from a root | `TreeishPipeline` (Stage 1) → `.lift()` → `LiftedPipeline` |
+| `Seed → N` grow plus `N → Seed*` children, run from entry seeds    | `SeedPipeline` (Stage 1) → `.lift()` → `Stage2Pipeline<SeedPipeline<…>, L>` |
+| `N → N*` children directly (tree already in hand), run from a root | `TreeishPipeline` (Stage 1) → `.lift()` → `Stage2Pipeline<TreeishPipeline<…>, L>` |
 | A one-shot computation without `Clone`                             | `OwnedPipeline` (out-of-band) |
 
 ## The two stages
@@ -73,8 +73,8 @@ may then be chained. A `TreeishPipeline` also exposes Stage-2
 sugars via auto-lifting: `tree_pipeline.wrap_init(w)` lifts the
 pipeline and composes the sugar in a single call. A
 `SeedPipeline` requires an explicit `.lift()`, which yields
-`LiftedSeedPipeline` (distinct Stage-2 type — see the
-[reason](./seed.md#why-a-separate-stage-2-type-from-lifted-pipelines)).
+`Stage2Pipeline<SeedPipeline<…>, IdentityLift>` — see the
+[seed-rooted Stage-2 notes](./seed.md#seed-rooted-stage-2-and-the-seednode-row).
 
 ## Running a pipeline
 
@@ -84,13 +84,13 @@ The run entry points:
   to `cont`. Internal; callers use `PipelineExec::run_from_node`.
 - `PipelineExec::run_from_node(&exec, &root)` — execute from a
   known root node. All `TreeishSource` pipelines get this via
-  blanket impl; this covers `TreeishPipeline`, `LiftedPipeline`,
-  and `OwnedPipeline`.
-- `LiftedSeedPipeline::run(&exec, entry_seeds, entry_heap)` —
-  execute a Seed-rooted lifted pipeline. Inherent method;
+  blanket impl; this covers `TreeishPipeline`,
+  treeish-rooted `Stage2Pipeline`s, and `OwnedPipeline`.
+- `Stage2Pipeline<SeedPipeline<…>, L>::run(&exec, entry_seeds, entry_heap)`
+  — execute a seed-rooted Stage-2 pipeline. Inherent method;
   internally composes `SeedLift` as the first lift in the chain
   to close the grow axis.
-- `LiftedSeedPipeline::run_from_slice(&exec, &[s1, s2], entry_heap)`
+- `Stage2Pipeline<SeedPipeline<…>, L>::run_from_slice(&exec, &[s1, s2], entry_heap)`
   — convenience sugar over `run`.
 
 ## Example shape of a pipeline
@@ -176,7 +176,7 @@ computing a wrong result.
 
 - [Stage 1 — SeedPipeline](./seed.md)
 - [Stage 1 — TreeishPipeline](./treeish.md)
-- [Stage 2 — LiftedPipeline](./lifted.md)
+- [Stage 2 — Stage2Pipeline](./lifted.md)
 - [Blanket sugar traits](./sugars.md)
 - [One-shot — OwnedPipeline](./owned.md)
 - [Writing a custom Lift](./custom_lift.md)

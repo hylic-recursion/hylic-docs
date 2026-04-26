@@ -26,7 +26,7 @@
 - [Overview](./pipeline/overview.md)
 - [Stage 1 — SeedPipeline](./pipeline/seed.md)
 - [Stage 1 — TreeishPipeline](./pipeline/treeish.md)
-- [Stage 2 — LiftedPipeline](./pipeline/lifted.md)
+- [Stage 2 — Stage2Pipeline](./pipeline/lifted.md)
 - [Blanket sugar traits](./pipeline/sugars.md)
 - [One-shot — OwnedPipeline](./pipeline/owned.md)
 - [Writing a custom Lift](./pipeline/custom_lift.md)

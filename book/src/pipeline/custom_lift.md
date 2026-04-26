@@ -117,9 +117,9 @@ structure.
 
 Three representative cases from the ecosystem:
 
-- **`SeedLift`** — Shared-pinned, stateful (carrying `grow`,
+- **`SeedLift`** — domain-parametric, stateful (carrying `grow`,
   `entry_seeds`, `entry_heap_fn`), N-changing, with per-variant
-  dispatch on `LiftedNode`. Structurally incompatible with
+  dispatch on `SeedNode`. Structurally incompatible with
   `ShapeLift` because it must *consume* the upstream `grow`
   rather than wrap it.
 

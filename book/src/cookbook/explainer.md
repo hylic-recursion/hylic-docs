@@ -26,18 +26,18 @@ recorded history.
 ## Usage
 
 Via the sugar method `.explain()` on any Stage-2 pipeline — a
-`LiftedPipeline`, a `LiftedSeedPipeline`, or a `TreeishPipeline`
-via auto-lift. A `SeedPipeline` requires an explicit `.lift()`
-first (to enter `LiftedSeedPipeline`):
+treeish-rooted `Stage2Pipeline`, a seed-rooted `Stage2Pipeline`,
+or a `TreeishPipeline` via auto-lift. A `SeedPipeline` requires
+an explicit `.lift()` first:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:explainer_usage}}
 ```
 
 The return type is `ExplainerResult<N', H, R>` where `N'` is the
-chain's current node type — `N` on a `LiftedPipeline`, but
-`LiftedNode<N>` on a `LiftedSeedPipeline` (since the seed chain's
-node type is `LiftedNode<N>` from `.lift()` onward). Access
+chain's current node type — `N` on a treeish-rooted chain, but
+`SeedNode<N>` on a seed-rooted chain (since the seed chain's
+node type is `SeedNode<N>` from `.lift()` onward). Access
 `.orig_result` for the original computation's output:
 
 ```rust
@@ -46,18 +46,17 @@ node type is `LiftedNode<N>` from `.lift()` onward). Access
 
 ### Sealed view on the seed path
 
-For an N-typed view of the trace that hides `LiftedNode` entirely,
-project via `SeedExplainerResult::from_lifted`:
+For an N-typed view of the trace that hides `SeedNode` entirely,
+project via the standard `From` conversion:
 
 ```text
 use hylic::prelude::SeedExplainerResult;
 
-let raw: ExplainerResult<LiftedNode<N>, H, R> =
+let raw: ExplainerResult<SeedNode<N>, H, R> =
     pipeline.lift().explain().run_from_slice(&FUSED, &seeds, h0);
-let sealed: SeedExplainerResult<N, H, R> =
-    SeedExplainerResult::from_lifted(raw);
+let sealed: SeedExplainerResult<N, H, R> = raw.into();
 
-// sealed.entry_initial_heap, entry_working_heap, orig_result — Entry row promoted out
+// sealed.entry_initial_heap, entry_working_heap, orig_result — EntryRoot row promoted out
 // sealed.roots: Vec<ExplainerResult<N, H, R>>                — per-seed subtrees
 ```
 

@@ -291,10 +291,10 @@ combinator is `Edgy::map` — see
 [`hylic/src/graph/edgy.rs`](../../../../hylic/src/graph/edgy.rs).
 
 **Chain 2: entry lifting.** The `SeedLift` constructs a
-`Treeish<LiftedNode<N>>` with two variants: `Node(n)` visits the
-original treeish (wrapping children as `Node`), and `Entry` fans
-out the entry seeds by running `grow(seed)` on each and wrapping
-the result as `Node`.
+`Treeish<SeedNode<N>>` with two variants: `Node(n)` visits the
+original treeish (wrapping children as `Node`), and `EntryRoot`
+fans out the entry seeds by running `grow(seed)` on each and
+wrapping the result as `Node`.
 
 The relevant struct and its `Lift` impl:
 
@@ -303,17 +303,17 @@ The relevant struct and its `Lift` impl:
 ```
 
 ```rust
-{{#include ../../../../hylic/src/ops/lift/lifted_node.rs:lifted_node_enum}}
+{{#include ../../../../hylic/src/ops/lift/seed_node.rs:seed_node_enum}}
 ```
 
-`Node(n)` delegates to the inner treeish. `Entry` has no children
-of its own in the treeish — its children come from the entry
-seeds provided at run time.
+`Node(n)` delegates to the inner treeish. `EntryRoot` has no
+children of its own in the treeish — its children come from the
+entry seeds provided at run time.
 
-(Historical note: an earlier design had a third `Seed(s)` variant
-that deferred grow. The current design grows inline at
-Entry-visit time, so no deferred-grow state is ever observable —
-retired as dead code during the 2026-04 refactor.)
+(Historical note: earlier designs had a third `Seed(s)` variant
+that deferred grow, and the row was originally named `LiftedNode`.
+The current design grows inline at EntryRoot-visit time, and the
+row is named `SeedNode<N>` after the seed-pipeline-unification.)
 
 ```dot process
 digraph seed_bridge {
@@ -345,8 +345,8 @@ digraph seed_bridge {
         label="SeedLift extends"; labeljust=l; style="rounded,filled";
         fillcolor="#fafafa"; color=grey80; fontname="sans-serif"; fontsize=9;
 
-        lt [label="Treeish<LiftedNode<Seed, N>>\nper-variant dispatch", fillcolor="#dcedc8"];
-        lf [label="Fold<LiftedNode<Seed, N>,\n     LiftedHeap<H,R>, R>", fillcolor="#dcedc8"];
+        lt [label="Treeish<SeedNode<N>>\nper-variant dispatch", fillcolor="#dcedc8"];
+        lf [label="Fold<SeedNode<N>,\n     H, R>", fillcolor="#dcedc8"];
     }
 
     t -> lt [label="lift_treeish"];
@@ -356,7 +356,7 @@ digraph seed_bridge {
         label="entry"; labeljust=l; style="rounded,filled";
         fillcolor="#fafafa"; color=grey80; fontname="sans-serif"; fontsize=9;
 
-        entry_point [label="Entry", fillcolor="#e1bee7"];
+        entry_point [label="EntryRoot", fillcolor="#e1bee7"];
         entry_seed [label="Seed(s)", fillcolor="#ffccbc"];
         entry_node [label="Node(grow(s))", fillcolor="#c8e6c9"];
         entry_rest [label="original treeish + fold\ndrive all further traversal", fillcolor="#c8e6c9"];
@@ -370,9 +370,10 @@ digraph seed_bridge {
 }
 ```
 
-After the `Entry → Seed → Node` transition, the original coalgebra
-and algebra drive all further recursion. The `LiftedNode` type, the
-`LiftedHeap`, and the composed treeish are internal to the pipeline.
+After the `EntryRoot → Node(grow(s))` transition, the original
+coalgebra and algebra drive all further recursion. The
+`SeedNode<N>` row and the composed treeish are internal to the
+pipeline.
 
 Entry seeds are supplied at run time via `Edgy<(), Seed>` passed to
 `pipeline.run(exec, entry_seeds, initial_heap)`, or via

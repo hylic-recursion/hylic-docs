@@ -1,9 +1,9 @@
 # Pipeline transformability
 
-This chapter explains how pipelines and lifted pipelines compose,
-why there are two Stage-2 types (`LiftedPipeline` and
-`LiftedSeedPipeline`), and how the transformation layers fit
-together.
+This chapter explains how pipelines and Stage-2 pipelines compose,
+why the seed-rooted Stage-2 form has its own sugar surface even
+though it shares the `Stage2Pipeline<Base, L>` type, and how the
+transformation layers fit together.
 
 The core mechanics are in scope for every user; the two
 appendices at the end are flagged **interested user only** and
@@ -32,8 +32,8 @@ digraph {
     subgraph cluster_s2 {
         label="Stage 2 — lift chains";
         style=dashed; color="#888";
-        lsp [label="LiftedSeedPipeline<SeedPipeline<..>, L>\nchain L over LiftedNode<N>", fillcolor="#ffcc80"];
-        lp  [label="LiftedPipeline<Base, L>\nchain L over N",                            fillcolor="#ffcc80"];
+        lsp [label="Stage2Pipeline<SeedPipeline<..>, L>\nchain L over SeedNode<N>", fillcolor="#ffcc80"];
+        lp  [label="Stage2Pipeline<TreeishPipeline<..>, L>\nchain L over N",       fillcolor="#ffcc80"];
     }
 
     sp -> lsp [label=".lift()"];
@@ -99,41 +99,46 @@ continuation-return type threads through composition.
 See [Lifts — cross-axis transforms](../concepts/lifts.md) for the
 full catalogue and the atom-level reference.
 
-## Two Stage-2 types
+## One Stage-2 type, two Base configurations
 
-Stage 2 has two distinct pipeline types; they differ in exactly
-one thing — the chain's node type.
+Stage 2 has a single pipeline type — `Stage2Pipeline<Base, L>` —
+but its sugar surface bifurcates by Base because the chain `L`
+operates over a different node type in each configuration.
 
-### LiftedPipeline (tree-rooted)
+### Treeish-rooted: `Stage2Pipeline<TreeishPipeline<…>, L>`
 
-`LiftedPipeline<Base, L>` exists when the base is a
-`TreeishPipeline` (or another `LiftedPipeline` being extended).
-The chain `L: Lift<D, N, H, R>` operates over the base's `N`
-directly. All sugars come from the blanket trait
-`LiftedSugarsShared` / `LiftedSugarsLocal`.
+When the base is a `TreeishPipeline` (or another treeish-rooted
+`Stage2Pipeline` being extended), the chain `L: Lift<D, N, H, R>`
+operates over the base's `N` directly. All sugars come from the
+blanket trait `LiftedSugarsShared` / `LiftedSugarsLocal`.
 
-### LiftedSeedPipeline (seed-rooted)
+### Seed-rooted: `Stage2Pipeline<SeedPipeline<…>, L>`
 
-`LiftedSeedPipeline<Base, L>` exists when the base is a
-`SeedPipeline`. At `.run()` time, `SeedLift` is assembled from
-the base's `grow` plus the caller-supplied `root_seeds` and
-`entry_heap`, and composed as the **first** lift in the run-time
-chain. `SeedLift`'s output node type is `LiftedNode<N>`, so every
-lift in the stored chain `L` must be typed at `LiftedNode<N>` —
-not `N`. The chain-bound difference prevents sharing the
-`LiftedSugarsShared` trait with `LiftedPipeline`; each Stage-2
-sugar on `LiftedSeedPipeline` is therefore an inherent method.
+When the base is a `SeedPipeline`, `SeedLift` is assembled at
+`.run()` time from the base's `grow` plus the caller-supplied
+`root_seeds` and `entry_heap`, and composed as the **first** lift
+in the run-time chain. `SeedLift`'s output node type is
+`SeedNode<N>`, so every lift in the stored chain `L` must be
+typed at `SeedNode<N>` — not `N`. The chain-bound difference
+prevents the trait-based blanket sugars from covering this
+configuration uniformly; each Stage-2 sugar on the seed-rooted
+form is therefore an inherent method.
 
 Sugars hide the variant dispatch. User closures are written over
 base `N`; internally each sugar wraps the user's closure to
-dispatch on `LiftedNode::Entry` / `LiftedNode::Node(n)`. See
+dispatch on `SeedNode::EntryRoot` / `SeedNode::Node(n)`. See
 [Stage 1 — SeedPipeline](../pipeline/seed.md) for the
-user-facing semantics of each variant dispatch (Entry passes
-through `wrap_init`, `filter_edges` always admits Entry, etc.).
+user-facing semantics of each variant dispatch (EntryRoot passes
+through `wrap_init`, `filter_edges` always admits EntryRoot, etc.).
+
+The seed-pipeline-unification (one cycle ago) collapsed the
+historical two struct types `LiftedPipeline` and
+`LiftedSeedPipeline` into the single `Stage2Pipeline<Base, L>`.
+The two old names remain as deprecated type aliases.
 
 ## Run composition: how `.run()` actually produces a result
 
-For a `LiftedPipeline`:
+For a treeish-rooted `Stage2Pipeline<TreeishPipeline<…>, L>`:
 
 ```
 1. Base = TreeishPipeline: yield (treeish, fold) over (N, H, R).
@@ -142,7 +147,7 @@ For a `LiftedPipeline`:
 3. Executor: run(&fold', &treeish', &root) → MapR.
 ```
 
-For a `LiftedSeedPipeline`:
+For a seed-rooted `Stage2Pipeline<SeedPipeline<…>, L>`:
 
 ```
 1. Base = SeedPipeline: hold (grow, seeds_from_node, fold) over (N, Seed, H, R).
@@ -152,12 +157,12 @@ For a `LiftedSeedPipeline`:
 
 3. SeedLift::apply (the first, innermost lift):
    (treeish_base, fold_base) over (N, H, R)
-   → (treeish_lifted, fold_lifted) over (LiftedNode<N>, H, R).
+   → (treeish_lifted, fold_lifted) over (SeedNode<N>, H, R).
 
-4. Chain L applied: (treeish_lifted, fold_lifted) over (LiftedNode<N>, H, R)
-                  → (treeish', fold') over (LiftedNode<N2>, MapH, MapR).
+4. Chain L applied: (treeish_lifted, fold_lifted) over (SeedNode<N>, H, R)
+                  → (treeish', fold') over (SeedNode<N2>, MapH, MapR).
 
-5. Executor: run(&fold', &treeish', &LiftedNode::Entry) → MapR.
+5. Executor: run(&fold', &treeish', &SeedNode::entry_root()) → MapR.
 ```
 
 The critical design point in step 3 is that `SeedLift` is applied
@@ -189,16 +194,18 @@ Two deliberate asymmetries exist in the current surface:
 1. **Auto-lift on `TreeishPipeline` but not on `SeedPipeline`.**
    `tp.wrap_init(w)` works directly; `sp.wrap_init(w)` is a
    compile error — write `sp.lift().wrap_init(w)` explicitly.
-   Reason: the chain-bound mismatch between `LiftedPipeline` and
-   `LiftedSeedPipeline` prevents a single blanket sugar trait
-   covering both.
+   Reason: the chain-bound mismatch between treeish-rooted and
+   seed-rooted Stage-2 forms (chain over `N` versus chain over
+   `SeedNode<N>`) prevents a single blanket sugar trait covering
+   both.
 
-2. **Parallel inherent-methods surface on `LiftedSeedPipeline`.**
-   `LiftedSeedPipeline`'s Stage-2 sugars are not shared with
-   `LiftedSugarsShared/Local`; each is written once per domain
-   as an inherent method. Mechanical duplication; accepted because
-   collapsing would require trait-level parameters that Rust
-   cannot express without macros, and the library declines macros.
+2. **Parallel inherent-methods surface on the seed-rooted form.**
+   `Stage2Pipeline<SeedPipeline<…>, L>`'s Stage-2 sugars are not
+   shared with `LiftedSugarsShared/Local`; each is written once
+   per domain as an inherent method. Mechanical duplication;
+   accepted because collapsing would require trait-level
+   parameters that Rust cannot express without macros, and the
+   library declines macros.
 
 ---
 
@@ -233,39 +240,39 @@ entry seeds (`root_seeds: Edgy<(), Seed>`) and an initial heap
 the executor can descend from, and (b) a top-level accumulation
 protocol for the children's results.
 
-### The Entry-as-node compromise
+### The EntryRoot-as-node compromise
 
 The executor's `run` method takes a single root: `run(fold,
 treeish, &N) → R`. To handle a **forest** of entry seeds under a
 single-root executor, the library invents a synthetic root row:
 
 ```rust
-{{#include ../../../../hylic/src/ops/lift/lifted_node.rs:lifted_node_enum}}
+{{#include ../../../../hylic/src/ops/lift/seed_node.rs:seed_node_enum}}
 ```
 
 `SeedLift` wraps the treeish so that:
-- `LiftedNode::Entry.visit` fans out to `LiftedNode::Node(grow(s))` for each entry seed.
-- `LiftedNode::Node(n).visit` delegates to the base treeish.
+- `SeedNode::EntryRoot.visit` fans out to `SeedNode::Node(grow(s))` for each entry seed.
+- `SeedNode::Node(n).visit` delegates to the base treeish.
 
 And wraps the fold so that:
-- `init(LiftedNode::Entry) = entry_heap_fn()` — returns the user's `entry_heap`.
-- `init(LiftedNode::Node(n)) = base.init(n)`.
+- `init(SeedNode::EntryRoot) = entry_heap_fn()` — returns the user's `entry_heap`.
+- `init(SeedNode::Node(n)) = base.init(n)`.
 - `accumulate` / `finalize` are uniform.
 
-The executor then begins at `&LiftedNode::Entry` and walks
-normally. At the value level the Entry row participates in the
-fold like any other node — it receives children's R via
+The executor then begins at `&SeedNode::entry_root()` and walks
+normally. At the value level the EntryRoot row participates in
+the fold like any other node — it receives children's R via
 `accumulate`, has its own `finalize`, and produces the final R.
 
 This is a **compromise**, not the most principled shape: a
 native-forest executor (one that accepts `run_forest(fold,
 treeish, roots: &[N], initial_heap: H) → R` directly) would
-eliminate `LiftedNode<N>` entirely from the chain's node type
-and strip the leak from user-visible result types. The refactor
+eliminate `SeedNode<N>` entirely from the chain's node type and
+strip the leak from user-visible result types. The refactor
 cost is significant (touches the `Executor` trait, every
 executor impl, and the accumulation protocol) and was deferred.
-See [Sealed LiftedNode](../pipeline/seed.md#sealed-liftednode)
-for how the current shape is sealed at the user surface.
+See [Sealed SeedNode](../pipeline/seed.md#sealed-seednode) for
+how the current shape is sealed at the user surface.
 
 ### Why SeedLift is composed first (not last)
 
@@ -275,7 +282,7 @@ sits relative to the stored user chain `L`.
 **Option A (rejected).** `SeedLift` as the **outermost** lift,
 wrapped around the user's chain. The user's chain operates over
 plain `N`; `SeedLift` wraps the result to introduce
-`LiftedNode<N>` at the outside.
+`SeedNode<N>` at the outside.
 
 Under this arrangement, N-changing lifts inside the user's chain
 would produce an `N2` that needs to be re-introduced as the
@@ -288,16 +295,17 @@ invariance had to be broken.
 
 **Option B (shipped).** `SeedLift` as the **innermost** lift,
 composed first at run time. The user's chain operates over
-`LiftedNode<N>` from `.lift()` onward. N-changing lifts inside
-the chain change `LiftedNode<N>` → `LiftedNode<N2>`, which is
-natural — the chain sees Entry as part of the structure and any
-N-transform that preserves Entry works.
+`SeedNode<N>` from `.lift()` onward. N-changing lifts inside
+the chain change `SeedNode<N>` → `SeedNode<N2>`, which is
+natural — the chain sees EntryRoot as part of the structure and
+any N-transform that preserves EntryRoot works.
 
-The cost Option B pays is the `LiftedNode<N>` leak into
-chain-tip types (visible in `ExplainerResult<LiftedNode<N>, H,
+The cost Option B pays is the `SeedNode<N>` leak into
+chain-tip types (visible in `ExplainerResult<SeedNode<N>, H,
 R>`). That cost is bounded: the sugar layer hides the variant in
-user closures (Entry is auto-routed), and `SeedExplainerResult`
-projects the trace to N-typed when the user wants a sealed view.
+user closures (EntryRoot is auto-routed), and
+`SeedExplainerResult` (via `From`) projects the trace to N-typed
+when the user wants a sealed view.
 
 ### Why SeedLift is assembled at run time, not at `.lift()`
 
@@ -314,9 +322,9 @@ projects the trace to N-typed when the user wants a sealed view.
 (b) as parameters to `.run()`, letting Stage-2 chains be
    composed and reused across different `(seeds, h0)` inputs.
 
-The library chose (b): a `LiftedSeedPipeline` is a reusable
-computation; seeds + initial heap vary per call. This lets
-patterns like:
+The library chose (b): a seed-rooted `Stage2Pipeline` is a
+reusable computation; seeds + initial heap vary per call. This
+lets patterns like:
 
 ```text
 let lsp = pipe.lift().wrap_init(w).zipmap(m);
@@ -326,25 +334,25 @@ let r2 = lsp.run_from_slice(&exec, &seeds2, h0);
 
 work without reconstructing the chain.
 
-### The default semantics of Entry-dispatch in sugars
+### The default semantics of EntryRoot-dispatch in sugars
 
-Each user-closure sugar on `LiftedSeedPipeline` makes a
-per-sugar decision about Entry:
+Each user-closure sugar on the seed-rooted `Stage2Pipeline` makes a
+per-sugar decision about EntryRoot:
 
-| Sugar                | Entry behaviour                                              |
-|----------------------|--------------------------------------------------------------|
-| `wrap_init(w)`       | Entry bypasses `w`; original init (returns `entry_heap`) runs |
-| `wrap_accumulate(w)` | applied uniformly (no N-signature to dispatch on)             |
-| `wrap_finalize(w)`   | applied uniformly                                              |
-| `filter_edges(p)`    | Entry always admits its children; `p(&CurN)` applied to Nodes |
-| `memoize_by(k)`      | Entry uncached (keyed `None`); Nodes keyed `Some(k(n))`       |
-| `zipmap(m)` / `map_r_bi`(fwd,bwd) | applied uniformly                                   |
-| `map_n_bi(co, contra)` | Entry → Entry; Node(n) ↔ Node(f(n))                         |
-| `explain()`          | Entry is a fold row with its own trace                        |
+| Sugar                | EntryRoot behaviour                                                |
+|----------------------|--------------------------------------------------------------------|
+| `wrap_init(w)`       | EntryRoot bypasses `w`; original init (returns `entry_heap`) runs  |
+| `wrap_accumulate(w)` | applied uniformly (no N-signature to dispatch on)                  |
+| `wrap_finalize(w)`   | applied uniformly                                                  |
+| `filter_edges(p)`    | EntryRoot always admits its children; `p(&CurN)` applied to Nodes  |
+| `memoize_by(k)`      | EntryRoot uncached (keyed `None`); Nodes keyed `Some(k(n))`        |
+| `zipmap(m)` / `map_r_bi`(fwd,bwd) | applied uniformly                                     |
+| `map_n_bi(co, contra)` | EntryRoot → EntryRoot; Node(n) ↔ Node(f(n))                      |
+| `explain()`          | EntryRoot is a fold row with its own trace                         |
 
 Users who need different defaults — e.g., `filter_edges` that
-excludes Entry's fan-out — use
-`.then_lift(Domain::xxx_lift::<LiftedNode<CurN>, …>(pred))`
+excludes EntryRoot's fan-out — use
+`.then_lift(Domain::xxx_lift::<SeedNode<CurN>, …>(pred))`
 directly. The sugars hide the common case; the raw surface
 remains available for specialisation.
 
@@ -432,47 +440,47 @@ library has
 [declined](../../../../hylic/KB/.plans/finishing-up/post-split-review/ACCEPTED-DEBT.md)
 to adopt macros, preferring readable duplicate files.
 
-The same pattern repeats for `LiftedSeedPipeline`: the chain-bound
-mismatch with `LiftedSugarsShared/Local` forces a separate
-inherent-method surface, and that surface has its own
+The same pattern repeats for the seed-rooted Stage-2 form: the
+chain-bound mismatch with `LiftedSugarsShared/Local` forces a
+separate inherent-method surface, and that surface has its own
 `sugars_shared.rs` + `sugars_local.rs` pair.
 
-### Why `LiftedNode<N>` cannot be fully hidden in chain-tip types
+### Why `SeedNode<N>` cannot be fully hidden in chain-tip types
 
 `Lift`'s associated type `N2` is the chain's output node type,
 which appears in every type parameter of every chain-tip result
 the user sees. On the seed path, `SeedLift` sets `N2 =
-LiftedNode<N>`; any later lift that preserves N preserves
-`LiftedNode<N>`; any later lift that changes N via `map_n_bi`
-produces `LiftedNode<N2>`. Concretely: `ExplainerResult`'s first
+SeedNode<N>`; any later lift that preserves N preserves
+`SeedNode<N>`; any later lift that changes N via `map_n_bi`
+produces `SeedNode<N2>`. Concretely: `ExplainerResult`'s first
 type parameter — the per-node "heap.node" field — ends up being
-`LiftedNode<N>`.
+`SeedNode<N>`.
 
 Hiding this would require either:
 
 1. **A projection pre-baked into each lift's output** (each lift
-   carries a "strip LiftedNode" step). This would require the
+   carries a "strip SeedNode" step). This would require the
    library to know at composition time whether the input was a
    SeedPipeline — a structural property the `Lift` trait
    doesn't expose.
 
-2. **A seal at the value-variant level** (LiftedNode's variants
+2. **A seal at the value-variant level** (SeedNode's variants
    become non-matchable). The current design does this: variants
-   are `pub(crate)`, user code inspects via `is_entry`,
+   are `pub(crate)`, user code inspects via `is_entry_root`,
    `as_node`, `map_node`. The type name still appears in
    chain-tip result types, but the enum-nature is sealed.
 
 The library ships (2) plus a projection helper
-(`SeedExplainerResult::from_lifted`) for users who want the
-type-name seal on the explainer result. (1) would be cleaner but
-requires trait-level machinery that's not currently on the
-roadmap.
+(`SeedExplainerResult::from`) for users who want the type-name
+seal on the explainer result. (1) would be cleaner but requires
+trait-level machinery that's not currently on the roadmap.
 
-### Why the `LiftedSeedPipeline` sugar catalogue is inherent, not trait-based
+### Why the seed-rooted sugar catalogue is inherent, not trait-based
 
-Given the chain-bound mismatch (`Lift<D, LiftedNode<N>, H, R>`
+Given the chain-bound mismatch (`Lift<D, SeedNode<N>, H, R>`
 versus `Lift<D, N, H, R>`), a single trait `LiftedSugars<N, H,
-R>` cannot cover both types. Options considered:
+R>` cannot cover both Stage-2 configurations uniformly. Options
+considered:
 
 - **Generalise the trait** over the chain's "effective N type"
   with some associated-type-level bridging (the chain's N-slot
@@ -485,11 +493,10 @@ R>` cannot cover both types. Options considered:
   both traits' impl domain.
 
 - **Duplicate as inherent** (shipped). The catalogue is written
-  once on `LiftedSeedPipeline<SeedPipeline<Shared, …>, L>` (plus
-  its Local twin). Imports become simpler — no extra trait in
-  scope — at the cost of ~200 LOC of inherent methods per
-  domain that mirror the trait. Ergonomic wins, maintenance
-  cost accepted.
+  once on `Stage2Pipeline<SeedPipeline<Shared, …>, L>` (plus its
+  Local twin). Imports become simpler — no extra trait in scope
+  — at the cost of ~200 LOC of inherent methods per domain that
+  mirror the trait. Ergonomic wins, maintenance cost accepted.
 
 ### Summary of accepted debts on the typing front
 
@@ -500,13 +507,13 @@ R>` cannot cover both types. Options considered:
    normalisation in rustc.
 3. Shared/Local duplication — every sugar trait has two mirror
    files; macros could collapse; refused.
-4. LiftedSeedPipeline inherent-method catalogue — parallel to
+4. Seed-rooted Stage-2 inherent-method catalogue — parallel to
    `LiftedSugarsShared/Local`; necessary because the chain-bound
    differs; could be unified by a trait-level redesign that
    Rust's type system doesn't currently admit cleanly.
-5. `LiftedNode<N>` sealed but not eliminated from chain-tip
-   types — elimination requires native forest execution, a
-   deferred `Executor`-trait refactor.
+5. `SeedNode<N>` sealed but not eliminated from chain-tip types
+   — elimination requires native forest execution, a deferred
+   `Executor`-trait refactor.
 
 Each debt has a clear architectural "out" that would require
 either a Rust language feature (GATs normalising, HKT-ish trait

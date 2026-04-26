@@ -190,8 +190,9 @@ the tree is discovered lazily from *seed* references rather than
 known upfront. The user provides a seed edge function
 (`Edgy<N, Seed>`) and a `grow` function (`Fn(&Seed) -> N`); the
 pipeline constructs the treeish, handles the entry transition, and
-runs the fold. Internally it uses a lift (`SeedLift`), but the
-`LiftedNode<N>` type is hidden entirely.
+runs the fold. Internally it uses a lift (`SeedLift`), and the
+`SeedNode<N>` row type is hidden behind sugar-time Node/EntryRoot
+dispatch.
 
 ## Cookbook
 

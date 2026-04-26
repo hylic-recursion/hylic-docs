@@ -74,45 +74,76 @@ most Stage-2 sugars (`wrap_init`, `zipmap`, `filter_edges`, …).
 ### `SeedLift`
 
 The finishing lift that closes a `SeedPipeline`'s grow axis.
-Domain-generic (`SeedLift<D, N, Seed, H>`; impls for `Shared` and
-`Local`). Not something user code constructs directly —
-`LiftedSeedPipeline::run` assembles it at call time from
+Domain-parametric over `ShapeCapable`: a single
+`SeedLift<D, N, Seed, H>` struct, with per-domain `Lift` impls
+because the fold-construction closures' Send+Sync discipline
+differs by domain. Not something user code constructs directly —
+seed-rooted `Stage2Pipeline::run` assembles it at call time from
 `grow` + user-supplied `root_seeds` + `entry_heap` and composes
 it as the first lift of the run-time chain.
 
-### `LiftedNode<N>`
+### `SeedNode<N>`
 
 Sealed row type with two library-internal variants: the
-synthetic `Entry` (a seed-closed chain's root row) and a
-resolved `Node(N)`. User code inspects via `is_entry`,
-`as_node`, `map_node`.
+synthetic `EntryRoot` (a seed-closed chain's root row) and a
+resolved `Node(N)`. User code inspects via `is_entry_root`,
+`as_node`, `map_node`. Renamed from `LiftedNode` (alias kept as
+deprecated for one cycle).
 
 ### `SeedExplainerResult<N, H, R>`
 
-N-typed projection of a seed-closed explainer result. The Entry
-row is promoted into top-level fields (`entry_initial_heap`,
-`entry_working_heap`, `orig_result`); each root subtree becomes
-an `ExplainerResult<N, H, R>` — no `LiftedNode<N>` appears in
-the user-visible shape. Obtained via
-`SeedExplainerResult::from_lifted(raw)`.
+N-typed projection of a seed-closed explainer result. The
+EntryRoot row is promoted into top-level fields
+(`entry_initial_heap`, `entry_working_heap`, `orig_result`);
+each root subtree becomes an `ExplainerResult<N, H, R>` — no
+`SeedNode<N>` appears in the user-visible shape. Obtained via
+`raw.into()` (or `SeedExplainerResult::from(raw)`).
 
 ### Pipeline
 
 A typestate-chained builder over lifts. `SeedPipeline` and
-`TreeishPipeline` are Stage 1 (base slots); `LiftedPipeline` is
-Stage 2 (base + lift chain); `OwnedPipeline` is a one-shot
-variant. Every pipeline ultimately resolves to a `(treeish, fold)`
-pair handed to an executor. See [Pipelines](./pipeline/overview.md).
+`TreeishPipeline` are Stage 1 (base slots);
+`Stage2Pipeline<Base, L>` is the unified Stage-2 form (base +
+lift chain), distinguished by its Base. `OwnedPipeline` is a
+one-shot variant. Every pipeline ultimately resolves to a
+`(treeish, fold)` pair handed to an executor. See
+[Pipelines](./pipeline/overview.md).
+
+### `Stage2Pipeline<Base, L>`
+
+The single Stage-2 type. `Base` is a Stage-1 pipeline implementing
+`Stage2Base`; `L` is a `Lift` chain. Treeish-rooted pipelines
+(`Stage2Pipeline<TreeishPipeline<…>, L>`) and seed-rooted
+pipelines (`Stage2Pipeline<SeedPipeline<…>, L>`) compose Stage-2
+sugars uniformly. The `LiftedPipeline` and `LiftedSeedPipeline`
+type aliases are retained for one cycle as deprecated.
+
+### `Wrap` / `Stage2Base`
+
+`Wrap` is the dispatch trait that maps a Stage-2 sugar's user-facing
+`&N` parameter type to the chain-tip's actual type — `Identity`
+when the chain runs over `N`, `SeedWrap` when it runs over
+`SeedNode<N>`. `Stage2Base` is the trait implemented by Stage-1
+pipelines that can root a `Stage2Pipeline`; it carries the
+associated `Wrap` implementation.
+
+### `ShapeCapable::EntryHeap<H>`
+
+The per-domain GAT giving a domain its `Fn() -> H` storage
+discipline. `Arc<dyn Fn() -> H + Send + Sync>` on `Shared`,
+`Rc<dyn Fn() -> H>` on `Local`. Used by `SeedLift` for the
+EntryRoot init thunk in place of a hand-rolled domain
+discriminator enum.
 
 ### Sugar
 
 A pipeline method that delegates to `.then_lift(...)` with a
 library lift — `wrap_init`, `zipmap`, `filter_edges`, `explain`,
-etc. Sugars on `TreeishPipeline` and `LiftedPipeline` live on a
+etc. Sugars on `TreeishPipeline` and `Stage2Pipeline` live on a
 blanket trait (`LiftedSugarsShared` / `LiftedSugarsLocal`);
-`LiftedSeedPipeline` exposes an inherent mirror of the same
-surface (whose chain is typed at `LiftedNode<N>`, so it cannot
-share the trait's parameter shape). See
+seed-rooted `Stage2Pipeline`s additionally carry inherent
+sugars whose chain is typed at `SeedNode<N>` (Node/EntryRoot
+dispatch is internal). See
 [Blanket sugar traits](./pipeline/sugars.md).
 
 ### CPS (continuation-passing style)
