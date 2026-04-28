@@ -27,7 +27,9 @@
 - [Stage 1 — SeedPipeline](./pipeline/seed.md)
 - [Stage 1 — TreeishPipeline](./pipeline/treeish.md)
 - [Stage 2 — Stage2Pipeline](./pipeline/lifted.md)
-- [Blanket sugar traits](./pipeline/sugars.md)
+- [Sugars — the chainable surface](./pipeline/sugars.md)
+- [Wrap dispatch — reaching both Bases](./pipeline/wrap_dispatch.md)
+- [SeedNode — the seed-rooted row type](./pipeline/seednode.md)
 - [One-shot — OwnedPipeline](./pipeline/owned.md)
 - [Writing a custom Lift](./pipeline/custom_lift.md)
 
@@ -70,3 +72,4 @@
 - [Theory](./design/theory.md)
 - [Algebra factorization](./design/milewski.md)
 - [Pipeline transformability](./design/pipeline_transformability.md)
+- [The type-level landscape](./design/type_level.md)

@@ -62,19 +62,20 @@ digraph {
 
 **Stage 1** retains the base slots directly — a coalgebraic form.
 Transforms at Stage 1 reshape those slots: `filter_seeds`,
-`wrap_grow`, `map_node_bi`, `map_seed_bi`.
+`wrap_grow`, `map_node_bi`, `map_seed_bi` — see [sugars](./sugars.md).
 
 **Stage 2** stacks lifts on top of a Stage-1 base. Transforms at
 Stage 2 compose `ShapeLift`s onto the chain: `wrap_init`,
-`zipmap`, `map_r_bi`, `memoize_by`, `explain`.
+`zipmap`, `map_r_bi`, `memoize_by`, `explain`. The chain is one
+`Stage2Pipeline<Base, L>` regardless of which Stage-1 base you started
+from.
 
-`.lift()` moves a pipeline across the boundary; Stage-2 sugars
-may then be chained. A `TreeishPipeline` also exposes Stage-2
-sugars via auto-lifting: `tree_pipeline.wrap_init(w)` lifts the
-pipeline and composes the sugar in a single call. A
-`SeedPipeline` requires an explicit `.lift()`, which yields
-`Stage2Pipeline<SeedPipeline<…>, IdentityLift>` — see the
-[seed-rooted Stage-2 notes](./seed.md#seed-rooted-stage-2-and-the-seednode-row).
+`.lift()` moves a pipeline across the boundary. `TreeishPipeline`
+auto-lifts: `tree_pipeline.wrap_init(w)` lifts and composes in one call.
+`SeedPipeline` does not auto-lift — `.lift()` is required, because the
+Stage-2 chain operates over [`SeedNode<N>`](./seednode.md) rather than
+`N`, and an implicit transition would surface that asymmetry without
+warning.
 
 ## Running a pipeline
 

@@ -1,37 +1,30 @@
-# Stage 2 — Stage2Pipeline
+# Stage 2 — `Stage2Pipeline`
 
 A `Stage2Pipeline<Base, L>` wraps a Stage-1 base (a `SeedPipeline` or
-`TreeishPipeline`) with a **chain of lifts**, presenting the
-resulting composition to the executor through the `TreeishSource`
-trait — the executor itself makes no distinction between the two
-stages.
+`TreeishPipeline`) with a chain of lifts:
 
 ```rust
 {{#include ../../../../hylic-pipeline/src/stage2/pipeline.rs:stage2_pipeline_struct}}
 ```
 
-There are two fields: the base — a Stage-1 source, or another
-`Stage2Pipeline` — and a single `pre_lift: L`. The chain is not
-represented as a `Vec<Lift>`; it is a single lift that happens to be
-a `ComposedLift<Inner, Outer>` tree. Every `.then_lift(...)` call,
-and every sugar invocation, extends that tree by one node.
+Two fields. `base` is the Stage-1 source (or another `Stage2Pipeline` —
+chains compose). `pre_lift` is one lift. The chain of lifts is *not* a
+`Vec` — it's a single value of type `ComposedLift<Inner, Outer>`, a
+right-associated tree. Each `.then_lift(...)` call (and every Stage-2
+sugar) extends the tree by one node.
 
-The seed-pipeline-unification reduced the historical pair of Stage-2
-types (`LiftedPipeline` and `LiftedSeedPipeline`) into the single
-`Stage2Pipeline<Base, L>`. The two old names remain as deprecated
-type aliases for one cycle:
+The chain's runtime input N depends on the Base:
 
-```rust
-#[deprecated] pub type LiftedPipeline<Base, L>     = Stage2Pipeline<Base, L>;
-#[deprecated] pub type LiftedSeedPipeline<Base, L> = Stage2Pipeline<Base, L>;
-```
+- `Base = TreeishPipeline<…, N, …>` ⇒ chain operates over `N`.
+- `Base = SeedPipeline<…, N, Seed, …>` ⇒ chain operates over `SeedNode<N>`,
+  because [`SeedLift`](../concepts/lifts.md) is composed at the chain head
+  at `.run` time. See [`SeedNode<N>`](./seednode.md) for the mechanics and
+  for how the row is sealed against user code.
 
 ## How the type evolves
 
-A distinctive feature of `Stage2Pipeline` is that the type carries
-the shape of the entire chain. Starting from a
-`TreeishPipeline<D, N, H, R>`, after three sugar calls the type has
-the following form:
+`Stage2Pipeline`'s type carries the entire chain shape. After three sugar
+calls on a `TreeishPipeline<Shared, u64, u64, u64>`:
 
 ```dot process
 digraph {
@@ -50,145 +43,110 @@ digraph {
 }
 ```
 
-The base remains unchanged; the lift tree grows outward, each sugar
-call wrapping the previous lift in `ComposedLift<Previous, New>`.
-The type must record the whole chain in order for the compiler to
-verify every junction — each lift's inputs must match the preceding
-lift's outputs. In return for the deep types, every layer
-monomorphises and inlines together, and no per-lift dispatch remains
-at runtime.
+The base is unchanged; the lift tree grows outward. Recording the whole
+chain at the type level is what lets the compiler verify each junction —
+each lift's inputs must match the previous lift's outputs. In return,
+every layer monomorphises and inlines together: no per-lift dispatch at
+runtime, no per-lift allocation. The runtime cost of a deep type is
+zero.
 
-The ordering of sugar calls is type-significant — deliberately so. A
-different ordering yields a different chain, and the compiler reports
-a localised error when a later sugar expects outputs that an earlier
-one does not produce.
+The cost is in error messages. A mismatched sugar surfaces the full
+nested type. Such errors read inside-out — the `Inner` of the innermost
+`ComposedLift` is the base; each surrounding layer is one `.then_lift`.
 
 ## Entering Stage 2
 
 ```text
-let lp  = tree_pipeline.lift();  // Stage2Pipeline<TreeishPipeline<..>, IdentityLift>
-let lsp = seed_pipeline.lift();  // Stage2Pipeline<SeedPipeline<..>, IdentityLift>
+let lp  = tree_pipeline.lift();   // Stage2Pipeline<TreeishPipeline<..>, IdentityLift>
+let lsp = seed_pipeline.lift();   // Stage2Pipeline<SeedPipeline<..>,    IdentityLift>
 ```
 
-Both forms produce the same `Stage2Pipeline` type, distinguished only
-by their `Base`. The chain `L`'s node-axis differs:
-
-- **Treeish-rooted** (`Base = TreeishPipeline<…>`): chain runs over
-  the base node type `N`.
-- **Seed-rooted** (`Base = SeedPipeline<…>`): chain runs over
-  `SeedNode<N>`. The `SeedLift` is composed at run time as the
-  natural chain head; user-facing sugars dispatch the `&N` parameter
-  type via the `Wrap` trait so user closures still see plain `&N`
-  for real Nodes (EntryRoot is handled internally).
-
-For a `TreeishPipeline`, every Stage-2 sugar (`wrap_init`, `zipmap`,
-`filter_edges`, …) also operates directly via auto-lifting: the
-`LiftedSugarsShared` trait is blanket-implemented on
-`TreeishPipeline` and on `Stage2Pipeline`, and its `then_lift` method
-calls `.lift()` internally where needed. For a `SeedPipeline`,
-auto-lifting is **not** provided — `.lift()` must be written
-explicitly to enter Stage 2.
+Both sites produce the same `Stage2Pipeline` type, distinguished only by
+their `Base`. `TreeishPipeline` also auto-lifts: `tree_pipeline.wrap_init(w)`
+calls `.lift()` internally. `SeedPipeline` does not — `.lift()` must be
+written explicitly, because the Stage-2 chain's N differs from the Stage-1
+N (`SeedNode<N>` versus `N`), and an implicit transition would surface
+that asymmetry in error messages without warning.
 
 ## The two primitives
 
-### `then_lift` — post-compose
+### `then_lift` — append
 
 ```rust
 {{#include ../../../../hylic-pipeline/src/stage2/primitives.rs:then_lift_primitive}}
 ```
 
-`L2`'s inputs must match the current chain tip's *outputs*. The new
-tip type becomes `(L2::N2, L2::MapH, L2::MapR)`.
+`L2`'s inputs must match the chain tip's outputs. The new tip becomes
+`(L2::N2, L2::MapH, L2::MapR)`.
 
-```dot process
-digraph {
-    rankdir=LR;
-    node [shape=box, style="rounded,filled", fontname="monospace", fontsize=10];
-    edge [fontname="sans-serif", fontsize=9];
-    b  [label="Base\n(N, H, R)", fillcolor="#e8f5e9"];
-    l1 [label="L1\n→ (L1::N2, L1::MapH, L1::MapR)", fillcolor="#fff3cd"];
-    l2 [label="L2\n→ (L2::N2, L2::MapH, L2::MapR)", fillcolor="#e3f2fd"];
-    b -> l1 [label="then_lift(L1)"];
-    l1 -> l2 [label="then_lift(L2)"];
-}
-```
+`then_lift` is **unconstrained** at the struct-method level. Pure
+construction. Validity is enforced where the chain is consumed —
+`.run_from_node`, `.run`, the `TreeishSource` impl on the result. This is
+a deliberate choice: chain-validity bounds belong at the consumption
+boundary, not at every chain extension. The chain's deep type stays
+buildable even when intermediate steps would not, on their own, be
+runnable; the runnable check fires once, at `.run`.
 
-`then_lift` is unconstrained at construction (pure struct
-manipulation); validity is enforced where the chain is consumed
-(`.run_*`, `TreeishSource`). It builds a `ComposedLift<L, L2>` (see
-[Lifts chapter](../concepts/lifts.md)).
-
-### `before_lift` — pre-compose, type-preserving only
+### `before_lift` — prepend
 
 ```rust
 {{#include ../../../../hylic-pipeline/src/stage2/primitives.rs:before_lift_primitive}}
 ```
 
-Prepends a lift before the existing chain. The existing chain already
-expects specific input types (Base's N/H/R), so the prepended `L0`
-must be **type-preserving** — its outputs must equal Base's inputs.
-In practice that means `filter_edges_lift`, `wrap_visit_lift`, or
-`memoize_by_lift`: lifts that don't change any axis.
+Treeish-rooted only. Prepend `L0` before the existing chain. `L0` must be
+type-preserving — its outputs must equal the Base's inputs, otherwise the
+existing chain's first lift no longer has a matching input. This rules
+out N-changing or H-changing pre-lifts; in practice `L0` is one of
+`filter_edges_lift`, `wrap_visit_lift`, `memoize_by_lift`. For
+axis-changing pre-adaptation, build the chain in the desired order with
+`.then_lift` from the start.
 
-For axis-selective pre-adaptation use the variance-aware constructors
-(`map_n_bi_lift`, `map_r_bi_lift`, `n_lift`, `phases_lift`) and
-compose them with `then_lift` instead.
+Seed-rooted chains have no `before_lift`: the natural chain head is
+`SeedLift` (composed at `.run` time), and there's no semantic position
+"before" it. See the
+[design notes](../design/pipeline_transformability.md#why-seedlift-is-composed-first-not-last).
 
-`before_lift` is treeish-rooted-only — pre-composing before the
-seed-rooted chain head (`SeedLift`) is not a sensible position.
+## Sugars
 
-## Chaining sugars in practice
+Every Stage-2 sugar (`wrap_init`, `zipmap`, `map_n_bi`, `explain`, …)
+delegates to `then_lift` with a library-built `ShapeLift`. The dispatch
+that produces the correct lift for the chain's actual N (= `UN` or
+`SeedNode<UN>`) lives in the [`Wrap` machinery](./wrap_dispatch.md). For
+the user, sugars are typed at `&UN` regardless of Base; for the library,
+the dispatch through `<<Base::Wrap as Wrap>::Of<UN>>` is the single
+point where treeish-rooted and seed-rooted converge.
 
-Each Stage-2 sugar delegates to `then_lift` with a library-lift
-constructor; see [sugars](./sugars.md) for the full catalogue.
+A representative sugar chain:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:lifted_sugar_chain}}
 ```
 
-The final `r` binding has type `String` because `map_r_bi` was the
-last step; `run_from_node` returns the chain's tip `R`. Each sugar
-call extends the chain by one `ComposedLift`; a type mismatch at any
-junction — for example, a wrapper that expects a different `H` — is
-reported as a localised compile error at the call site.
+The chain-tip `R` is the type of the closure on the rightmost sugar — here
+a `String`, set by `map_r_bi`. `run_from_node` returns that.
 
-## Cost of the type nesting
-
-The monomorphised chain inlines through every `ComposedLift` layer.
-The runtime shape is a single tree walk that produces one
-`(treeish, fold)` pair; the executor sees a plain
-`Fold<N', H', R'>` at the end, without per-lift dispatch or per-lift
-allocation.
-
-The practical cost lies in diagnostics: a mismatched sugar call
-surfaces the full nested type in the error message. Such errors are
-read from the inside out — the `Inner` of the innermost
-`ComposedLift` is the base, each surrounding layer represents one
-`.then_lift`.
+For the full sugar catalogue, see [Sugars](./sugars.md).
 
 ## Execution
 
-For a treeish-rooted chain, `.run_from_node(&exec, &root)` resolves
-the chain into a single `(treeish, fold)` pair and delegates to the
-executor; the entry point is inherited from Stage 1 via
-`TreeishSource`:
+For treeish-rooted chains, the result is a `TreeishSource`; the executor
+takes it through `PipelineExec::run_from_node`:
 
 ```text
 let r = lp.run_from_node(&FUSED, &root);
 ```
 
-For a seed-rooted chain, `.run` / `.run_from_slice` capture the
-`root_seeds` and `entry_heap` at call time and synthesise the
-`SeedLift` at the chain head before dispatching to the executor:
+For seed-rooted chains, `.run` and `.run_from_slice` are inherent on
+`Stage2Pipeline<SeedPipeline<…>, L>`. The library composes `SeedLift` at
+the chain head from the captured `root_seeds` and `entry_heap`, then
+dispatches:
 
 ```text
 let r = lsp.run_from_slice(&FUSED, &[entry_seed], initial_heap);
 ```
 
-The executor ultimately receives the concrete
-`(Treeish<N'>, Fold<N', H', R'>)` at the chain tip; the nested
-`ComposedLift` is a compile-time record of how the pair was produced.
-
-For the continuation-passing internals that make this resolution
-possible without materialising intermediate pairs, see
-[Lifts](../concepts/lifts.md#appendix-why-the-trait-takes-a-continuation).
+The executor sees a single `(treeish, fold)` pair; the nested
+`ComposedLift` is a compile-time record of how the pair was produced. For
+the continuation-passing internals that make this resolution possible
+without materialising intermediate pairs, see the
+[Lifts chapter](../concepts/lifts.md#appendix-why-the-trait-takes-a-continuation).

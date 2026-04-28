@@ -87,8 +87,7 @@ it as the first lift of the run-time chain.
 Sealed row type with two library-internal variants: the
 synthetic `EntryRoot` (a seed-closed chain's root row) and a
 resolved `Node(N)`. User code inspects via `is_entry_root`,
-`as_node`, `map_node`. Renamed from `LiftedNode` (alias kept as
-deprecated for one cycle).
+`as_node`, `map_node`. See [SeedNode](./pipeline/seednode.md).
 
 ### `SeedExplainerResult<N, H, R>`
 
@@ -115,8 +114,7 @@ The single Stage-2 type. `Base` is a Stage-1 pipeline implementing
 `Stage2Base`; `L` is a `Lift` chain. Treeish-rooted pipelines
 (`Stage2Pipeline<TreeishPipeline<…>, L>`) and seed-rooted
 pipelines (`Stage2Pipeline<SeedPipeline<…>, L>`) compose Stage-2
-sugars uniformly. The `LiftedPipeline` and `LiftedSeedPipeline`
-type aliases are retained for one cycle as deprecated.
+sugars uniformly via [Wrap dispatch](./pipeline/wrap_dispatch.md).
 
 ### `Wrap` / `Stage2Base`
 
@@ -139,12 +137,11 @@ discriminator enum.
 
 A pipeline method that delegates to `.then_lift(...)` with a
 library lift — `wrap_init`, `zipmap`, `filter_edges`, `explain`,
-etc. Sugars on `TreeishPipeline` and `Stage2Pipeline` live on a
-blanket trait (`LiftedSugarsShared` / `LiftedSugarsLocal`);
-seed-rooted `Stage2Pipeline`s additionally carry inherent
-sugars whose chain is typed at `SeedNode<N>` (Node/EntryRoot
-dispatch is internal). See
-[Blanket sugar traits](./pipeline/sugars.md).
+etc. The sugar traits are split across stages and domains:
+`SeedSugars*` and `TreeishSugars*` for Stage 1 reshape;
+`Stage2SugarsShared`/`Stage2SugarsLocal` for Stage 2 (one trait
+per domain, blanket-implemented across both Bases). See
+[Sugars](./pipeline/sugars.md).
 
 ### CPS (continuation-passing style)
 

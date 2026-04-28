@@ -110,7 +110,7 @@ operates over a different node type in each configuration.
 When the base is a `TreeishPipeline` (or another treeish-rooted
 `Stage2Pipeline` being extended), the chain `L: Lift<D, N, H, R>`
 operates over the base's `N` directly. All sugars come from the
-blanket trait `LiftedSugarsShared` / `LiftedSugarsLocal`.
+blanket trait `Stage2SugarsShared` / `Stage2SugarsLocal`.
 
 ### Seed-rooted: `Stage2Pipeline<SeedPipeline<…>, L>`
 
@@ -201,7 +201,7 @@ Two deliberate asymmetries exist in the current surface:
 
 2. **Parallel inherent-methods surface on the seed-rooted form.**
    `Stage2Pipeline<SeedPipeline<…>, L>`'s Stage-2 sugars are not
-   shared with `LiftedSugarsShared/Local`; each is written once
+   shared with `Stage2SugarsShared/Local`; each is written once
    per domain as an inherent method. Mechanical duplication;
    accepted because collapsing would require trait-level
    parameters that Rust cannot express without macros, and the
@@ -441,7 +441,7 @@ library has
 to adopt macros, preferring readable duplicate files.
 
 The same pattern repeats for the seed-rooted Stage-2 form: the
-chain-bound mismatch with `LiftedSugarsShared/Local` forces a
+chain-bound mismatch with `Stage2SugarsShared/Local` forces a
 separate inherent-method surface, and that surface has its own
 `sugars_shared.rs` + `sugars_local.rs` pair.
 
@@ -508,7 +508,7 @@ considered:
 3. Shared/Local duplication — every sugar trait has two mirror
    files; macros could collapse; refused.
 4. Seed-rooted Stage-2 inherent-method catalogue — parallel to
-   `LiftedSugarsShared/Local`; necessary because the chain-bound
+   `Stage2SugarsShared/Local`; necessary because the chain-bound
    differs; could be unified by a trait-level redesign that
    Rust's type system doesn't currently admit cleanly.
 5. `SeedNode<N>` sealed but not eliminated from chain-tip types
