@@ -1,38 +1,36 @@
 # hylic-docs
 
-mdBook source for the hylic documentation site.
+Source for the
+[hylic documentation site](https://hylic-recursion.github.io/hylic-docs/).
 
-The published book covers the [`hylic`](../hylic/) core,
-[`hylic-pipeline`](../hylic-pipeline/) typestate builder, the Funnel
-executor's policy axes, and the cookbook of recipes.
+mdBook sources live under `book/`. The site rebuilds and
+publishes to GitHub Pages on every push to master via
+`.github/workflows/pages.yml`.
 
-## Layout
+The site covers
+[`hylic`](https://github.com/hylic-recursion/hylic) (the fold /
+treeish / executor decomposition) and
+[`hylic-pipeline`](https://github.com/hylic-recursion/hylic-pipeline)
+(chainable typestate over hylic), the Funnel executor's design,
+an interactive benchmark viewer, and a worked-example cookbook.
 
-```
-book/                 ← mdBook source (SUMMARY.md, src/, theme/)
-src/                  ← Rust crate that holds doc-tested code samples
-                       (cargo test -p hylic-docs covers the examples)
-target/book/          ← `mdbook build` output (gitignored)
-Makefile              ← `make hylic-docs-build`, `…serve`, `…check-anchors`
-```
-
-## Building
-
-From this directory:
+## Building locally
 
 ```bash
-cd book && mdbook build      # output → target/book/
-cd book && mdbook serve      # local preview at http://localhost:3000/
+cd book && mdbook build      # → ../target/book/
+cd book && mdbook serve      # preview at http://localhost:3000/
 ```
 
-`mdbook` and `mdbook-graphviz` must be installed
-(`cargo install --locked mdbook mdbook-graphviz`); `graphviz` itself
-is required at the system level.
+`mdbook` and `mdbook-graphviz` are required; `graphviz` at the
+system level. Code samples use `{{#include}}` directives that
+pull from sibling crates, so a local build expects the
+workspace layout (`hylic/` and `hylic-pipeline/` next to this
+crate).
 
-The book embeds `{{#include ../../../hylic*/src/...}}` snippets that
-get type-checked when `cargo test -p hylic-docs --lib` runs.
+A `src/` directory holds doc-tested code samples; `cargo test
+-p hylic-docs` compiles every snippet the book embeds.
+Internal: not published to crates.io.
 
-## Status
+## License
 
-Auxiliary crate. Not published to crates.io. The mdBook output may
-be deployed to GitHub Pages.
+Licensed under the [MIT License](./LICENSE).
