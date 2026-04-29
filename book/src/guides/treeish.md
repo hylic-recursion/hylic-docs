@@ -23,21 +23,24 @@ extracts a slice reference from a field.
 For non-nested data — adjacency lists, maps, external lookups —
 `treeish_visit` is the appropriate constructor:
 
-```rust
+```rust,ignore
 // Adjacency list: nodes are indices
 let adj: Vec<Vec<usize>> = vec![vec![1, 2], vec![3], vec![], vec![]];
-let graph = graph::treeish_visit(move |n: &usize, cb: &mut dyn FnMut(&usize)| {
+let graph = treeish_visit(move |n: &usize, cb: &mut dyn FnMut(&usize)| {
     for &c in &adj[*n] { cb(&c); }
 });
 
 // HashMap-backed graph: nodes are string keys
 let edges: HashMap<String, Vec<String>> = /* ... */;
-let graph = graph::treeish_visit(move |n: &String, cb: &mut dyn FnMut(&String)| {
+let graph = treeish_visit(move |n: &String, cb: &mut dyn FnMut(&String)| {
     if let Some(children) = edges.get(n) {
         for c in children { cb(c); }
     }
 });
 ```
+
+For a runnable adjacency-list example, see
+[`intro_flat_example`](../intro.md#a-first-example).
 
 ## Edge transformations
 

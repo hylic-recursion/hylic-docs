@@ -110,20 +110,22 @@ The pool is the executor's **Resource** (defined by the `Resource`
 GAT on `ExecutorSpec`). It can be provided explicitly via `.attach()`,
 or created internally by `.run()` / `.session()`:
 
-```rust
+```rust,no_run
+use hylic::prelude::*;
+
 // One-shot: pool created + destroyed per fold
-dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
+exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
 
 // Session: pool shared across folds
-dom::exec(funnel::Spec::default(8)).session(|s| {
+exec(funnel::Spec::default(8)).session(|s| {
     s.run(&fold, &graph, &root);
     s.run(&fold, &graph, &root);
 });
 
 // Explicit attach: manual pool, multiple policies
 funnel::Pool::with(8, |pool| {
-    let pw = dom::exec(funnel::Spec::default(8)).attach(pool);
-    let sh = dom::exec(funnel::Spec::for_wide_light(8)).attach(pool);
+    let pw = exec(funnel::Spec::default(8)).attach(pool);
+    let sh = exec(funnel::Spec::for_wide_light(8)).attach(pool);
     pw.run(&fold, &graph, &root);
     sh.run(&fold, &graph, &root);
 });

@@ -117,7 +117,7 @@ the allocating thread is the reading thread.
 In the `Cont::Slot` arm, the accumulation strategy is resolved at
 compile time:
 
-```rust
+```rust,ignore
 let delivered = P::Accumulate::deliver(&node.chain, slot, result, fold);
 ```
 

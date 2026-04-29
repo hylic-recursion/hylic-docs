@@ -9,7 +9,7 @@ The three functions in a `Fold<N, H, R>` (init, accumulate, finalize)
 are stored as type-erased closures behind `Arc`:
 
 ```rust
-pub(crate) impl_init: Arc<dyn Fn(&N) -> H + Send + Sync>,
+{{#include ../../../../hylic/src/domain/shared/fold.rs:fold_struct}}
 ```
 
 **Why type erasure (`dyn Fn`):** Without it, every `Fold` produced by
@@ -35,7 +35,7 @@ the structs only store `Arc`/`Edgy`/`Fold` which are always cloneable.
 `Edgy<N, E>` (and `Treeish<N>`) stores:
 
 ```rust
-impl_visit: Arc<dyn Fn(&NodeT, &mut dyn FnMut(&EdgeT)) + Send + Sync>
+{{#include ../../../../hylic/src/graph/edgy.rs:edgy_struct}}
 ```
 
 **Why callbacks, not `Vec` return:** The original design used
@@ -93,8 +93,10 @@ domain-independent combinator functions used internally by the three
 domain Fold implementations.
 
 Each domain owns its Fold type in `domain/{shared,local,owned}/fold.rs`.
-`cata/` and `ops/` are public — `cata` for executors and lifts,
-`ops` for the FoldOps/TreeOps traits.
+`exec/` and `ops/` are public — `exec` for executors (`Executor`,
+`Exec`, `fused`, `funnel`), `ops` for the operations traits
+(`FoldOps`, `TreeOps`) and the lift atoms (`Lift`, `ShapeLift`,
+`SeedLift`, …).
 
 ## The `prelude` module
 

@@ -95,7 +95,7 @@ mod tests {
         // Entry handled at the call site.
         let pipeline = SeedPipeline::new(grow, seeds_from_node, &collect);
 
-        let result = pipeline.lift().run_from_slice(
+        let result = pipeline.run_from_slice(
             &dom::FUSED,
             &["app".to_string()],
             Resolved { modules: vec![], errors: vec![] },

@@ -36,7 +36,7 @@ let r = local_pipe.wrap_init(w).zipmap(m).run(...);
 ```
 
 The duplication is one of three [accepted-debt
-items](../../../hylic/KB/.plans/finishing-up/post-split-review/ACCEPTED-DEBT.md)
+items](../../../KB/hylic/legacy-plans/finishing-up/post-split-review/ACCEPTED-DEBT.md)
 in the codebase. Collapsing it cleanly would require macros, which the
 codebase declines.
 

@@ -1,95 +1,89 @@
 # Zero-cost performance
 
-The closure-based API (`dom::Fold`, `graph::Treeish`) is the ergonomic
-default. For performance-critical paths, you can eliminate all
-framework overhead by implementing the operations traits directly.
+The closure-based API (`Fold` from a domain module, plus `Treeish`)
+is the ergonomic default. For performance-critical paths, the
+graph side admits user-defined `TreeOps` implementations whose
+`visit` method monomorphises directly. The fold side does not — the
+executor signature pins the fold type to `D::Fold<H, R>` (the
+closure-based wrapper). The two `ops` traits are nevertheless the
+right vocabulary for thinking about per-node cost.
 
 ## The overhead budget
 
 Per node with K children, the fused executor makes these calls
 through the closure-based API:
 
-| Call site | Count | Dispatch |
-|---|---|---|
-| `fold.init(node)` | 1 | `dyn Fn` via Arc/Rc/Box |
-| `graph.visit(node, cb)` | 1 | `dyn Fn` via Arc/Rc/Box |
-| `cb(child)` inside visit | K | `&mut dyn FnMut` callback |
-| `fold.accumulate(heap, &r)` | K | `dyn Fn` via Arc/Rc/Box |
-| `fold.finalize(heap)` | 1 | `dyn Fn` via Arc/Rc/Box |
-| **Total** | **3 + 2K** | |
+| Call site                       | Count   | Dispatch                       |
+|---------------------------------|---------|--------------------------------|
+| `fold.init(node)`               | 1       | `dyn Fn` via Arc/Rc/Box        |
+| `graph.visit(node, cb)`         | 1       | `dyn Fn` via Arc/Rc/Box        |
+| `cb(child)` inside visit        | K       | `&mut dyn FnMut` callback      |
+| `fold.accumulate(heap, &r)`     | K       | `dyn Fn` via Arc/Rc/Box        |
+| `fold.finalize(heap)`           | 1       | `dyn Fn` via Arc/Rc/Box        |
+| **Total**                       | **3+2K**|                                |
 
-Measured: ~0.47ns per indirect call (branch predictor handles well).
-On noop (bf=8, 200 nodes): ~1.8us above hand-written recursion.
-On any real workload (>10us/node): overhead drops below noise.
-
-## Eliminating fold dispatch: implement FoldOps
-
-Instead of closures, implement `FoldOps` on a concrete struct:
-
-```rust
-use hylic::ops::FoldOps;
-
-struct SumFold;
-
-impl FoldOps<TreeNode, u64, u64> for SumFold {
-    fn init(&self, node: &TreeNode) -> u64 { node.value }
-    fn accumulate(&self, heap: &mut u64, result: &u64) { *heap += result; }
-    fn finalize(&self, heap: &u64) -> u64 { *heap }
-}
-```
-
-The fused executor's recursion engine takes `&impl FoldOps<N, H, R>`
-internally. When a concrete `FoldOps` struct is wrapped in a
-domain fold (via `dom::fold()`) or when the executor is used through
-a domain-generic path, the compiler monomorphizes through the trait
-impl. All fold method calls become direct, inlineable function calls.
-
-The domain fold types (`shared::Fold`, `local::Fold`, `owned::Fold`)
-implement `FoldOps` by delegating to their closures. A user-defined
-`FoldOps` struct eliminates that layer entirely.
+Measured: ~0.47 ns per indirect call (well-predicted by the
+branch predictor). On a noop workload (bf=8, 200 nodes): ~1.8 µs
+above hand-written recursion. On any real workload (>10 µs/node)
+the overhead drops below the noise floor.
 
 ## Eliminating graph dispatch: implement TreeOps
 
-```rust
-use hylic::ops::TreeOps;
+The executor's graph parameter is generic — `G: TreeOps<N>` —
+so any concrete impl is monomorphised at the call site:
 
-struct AdjGraph<'a> {
-    adj: &'a [Vec<usize>],
-    nodes: &'a [TreeNode],
+```rust
+{{#include ../../../src/docs_examples.rs:zero_cost_treeops}}
+```
+
+`AdjGraph::visit` is a direct, inlinable loop. Only the callback
+`cb: &mut dyn FnMut` is still indirect — K calls per node. The
+closure-based fold is still in the picture because executors take
+`&D::Fold<H, R>`; replacing it requires a custom executor (below).
+
+## The shape of the trait
+
+`FoldOps` and `TreeOps` are the operation traits any user code
+can target:
+
+```rust,ignore
+pub trait FoldOps<N, H, R> {
+    fn init(&self, node: &N) -> H;
+    fn accumulate(&self, heap: &mut H, result: &R);
+    fn finalize(&self, heap: &H) -> R;
 }
 
-impl<'a> TreeOps<TreeNode> for AdjGraph<'a> {
-    fn visit(&self, node: &TreeNode, cb: &mut dyn FnMut(&TreeNode)) {
-        for &child_id in &self.adj[node.id] {
-            cb(&self.nodes[child_id]);
-        }
-    }
+pub trait TreeOps<N> {
+    fn visit(&self, node: &N, cb: &mut dyn FnMut(&N));
 }
 ```
 
-`TreeOps::visit` is monomorphized for `AdjGraph`. The visit body is a
-direct, inlineable loop. **But** the callback `cb: &mut dyn FnMut` is
-still dynamic dispatch — K indirect calls per node.
+The closure-based domain folds (`shared::Fold`, `local::Fold`,
+`owned::Fold`) implement `FoldOps` by delegating to their stored
+closures. A user-defined `FoldOps` struct is callable from any
+custom executor that drives the recursion through the trait —
+bypassing the closure layer entirely. The shipped `Fused`
+executor's inner loop is exactly this:
 
-## The tradeoff
+```rust
+{{#include ../../../../hylic/src/exec/variant/fused/mod.rs:run_inner}}
+```
 
-| Path | Ergonomics | Per-node overhead | When to use |
-|---|---|---|---|
-| Closure-based (`dom::Fold` + `graph::Treeish`) | Best — closures, combinators, map/zip | 3+2K indirect calls | Always, unless profiling shows overhead |
-| `FoldOps` struct | Good — one impl block | K+1 indirect calls (visit cb only) | Hot inner loops, millions of nodes |
-| `FoldOps` + `TreeOps` | Manual — two impl blocks | K indirect calls (visit cb) | Maximum control, known hot path |
+## When the budget matters
 
-The closure-based API and the trait-based API compose freely. A user
-can mix: closure-based Fold with trait-based TreeOps, or vice versa.
-The executor doesn't care — it takes `&impl FoldOps` and
-`&impl TreeOps`.
+| Path                                    | Per-node overhead   | When to use |
+|-----------------------------------------|---------------------|-------------|
+| Closure-based Fold + Treeish            | 3+2K indirect calls | Default — combinators, lifts, sugars |
+| Closure-based Fold + custom TreeOps     | K+1 indirect calls  | Adjacency lists or graph types where the visit path is the hot side |
+| Custom executor over `FoldOps + TreeOps`| K indirect calls    | Maximum control; sacrifices the lift / pipeline machinery for one specific shape |
 
 ## Why LTO doesn't help
 
-LLVM cannot devirtualize Rust `dyn Fn` calls. Rust does not emit the
-`!vcall_visibility` metadata that LLVM's whole-program devirtualization
-needs. Neither thin LTO nor fat LTO changes this. The `FoldOps` /
-`TreeOps` approach is the only reliable way to eliminate dispatch.
+LLVM cannot devirtualise Rust `dyn Fn` calls. Rust does not emit
+the `!vcall_visibility` metadata that LLVM's whole-program
+devirtualisation would need. Neither thin LTO nor fat LTO changes
+this. The trait-based path is the only reliable way to eliminate
+dispatch.
 
-See [Benchmarks](./benchmarks.md) for the full performance comparison
+See [Benchmarks](./benchmarks.md) for the measured comparison
 across all execution modes.

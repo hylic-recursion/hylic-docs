@@ -18,15 +18,14 @@ internally creates the resource, binds it, runs the fold, and
 destroys the resource. For executors that need nothing (Fused), the
 same `.run()` just runs.
 
-```rust
-use hylic::domain::shared as dom;
-use hylic::cata::exec::funnel;
+```rust,no_run
+use hylic::prelude::*;
 
 // Sequential — no resource needed:
-dom::FUSED.run(&fold, &graph, &root);
+FUSED.run(&fold, &graph, &root);
 
 // Parallel — resource created + destroyed internally:
-dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
+exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
 ```
 
 The call shape is identical. Resource management is an internal
@@ -127,15 +126,15 @@ digraph {
 **One-shot** — the common case. Each `.run()` manages resources
 internally:
 
-```rust
-dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
+```rust,no_run
+exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
 ```
 
 **Session scope** — amortized multi-run. The resource (thread pool)
 is created once, shared across folds:
 
-```rust
-dom::exec(funnel::Spec::default(8)).session(|s| {
+```rust,no_run
+exec(funnel::Spec::default(8)).session(|s| {
     s.run(&fold1, &graph1, &root1);
     s.run(&fold2, &graph2, &root2);
 });
@@ -144,9 +143,9 @@ dom::exec(funnel::Spec::default(8)).session(|s| {
 **Explicit attach** — manual resource management. You provide the
 resource; the Spec binds to it:
 
-```rust
+```rust,no_run
 funnel::Pool::with(8, |pool| {
-    dom::exec(funnel::Spec::default(8)).attach(pool).run(&fold, &graph, &root);
+    exec(funnel::Spec::default(8)).attach(pool).run(&fold, &graph, &root);
 });
 ```
 
@@ -171,7 +170,7 @@ Sessions do NOT implement `ExecutorSpec` — they're the output of
 
 Fused is a zero-sized Spec exposed as a domain-bound const:
 
-```rust
+```rust,ignore
 pub const FUSED: Exec<Shared, fused::Spec> = Exec::new(fused::Spec);
 ```
 
@@ -185,7 +184,7 @@ The `Executor` trait is the single generic bound. The graph type `G`
 is a trait-level parameter — each executor impl declares its own
 bounds on `G`:
 
-```rust
+```rust,ignore
 fn measure<G: TreeOps<NodeId> + 'static, S: Executor<NodeId, u64, Shared, G>>(
     exec: &Exec<Shared, S>, fold: &shared::Fold<NodeId, u64, u64>, graph: &G, root: &NodeId,
 ) -> u64 {

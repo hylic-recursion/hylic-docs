@@ -1,8 +1,9 @@
 # `SeedNode<N>` — the seed-rooted row type
 
-A `SeedPipeline` carries no concept of "the chain root" until execution: at
-`.lift().run(...)` time, the library synthesises one. The cost is a single
-extra inhabitant in the chain's node type — the synthetic `EntryRoot`.
+A `SeedPipeline` carries no concept of "the chain root" until execution:
+at `.run(...)` time (or `.lift().run(...)` time, when Stage-2 sugars are
+chained), the library synthesises one. The cost is a single extra
+inhabitant in the chain's node type — the synthetic `EntryRoot`.
 
 ```rust
 {{#include ../../../../hylic/src/ops/lift/seed_node.rs:seed_node_enum}}

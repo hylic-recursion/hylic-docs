@@ -5,14 +5,14 @@ sequentially through callback-based recursion. The Funnel executor
 parallelizes the same fold across a scoped thread pool. Both are
 invoked through the same `.run()` method.
 
-## Sequential: `dom::FUSED`
+## Sequential: `FUSED`
 
 Callback-based recursion on a single thread, with no overhead beyond
 the fold closures themselves:
 
-```rust
-use hylic::domain::shared as dom;
-dom::FUSED.run(&fold, &graph, &root);
+```rust,no_run
+use hylic::prelude::*;
+FUSED.run(&fold, &graph, &root);
 ```
 
 ## Parallel: Funnel
@@ -23,11 +23,9 @@ intermediate tree is built.
 
 ### One-shot
 
-```rust
-use hylic::cata::exec::funnel;
-use hylic::domain::shared as dom;
-
-dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
+```rust,no_run
+use hylic::prelude::*;
+exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
 ```
 
 `Spec::default(n)` uses the Robust policy preset. `.run()` creates
@@ -38,8 +36,8 @@ returning.
 
 For repeated folds, amortize pool creation:
 
-```rust
-dom::exec(funnel::Spec::default(8)).session(|s| {
+```rust,no_run
+exec(funnel::Spec::default(8)).session(|s| {
     s.run(&fold1, &graph1, &root1);
     s.run(&fold2, &graph2, &root2);
 });
@@ -51,10 +49,10 @@ The pool lives for the closure. Each `.run()` inside is cheap.
 
 Provide the pool yourself:
 
-```rust
+```rust,no_run
 funnel::Pool::with(8, |pool| {
-    let pw = dom::exec(funnel::Spec::default(8)).attach(pool);
-    let sh = dom::exec(funnel::Spec::for_wide_light(8)).attach(pool);
+    let pw = exec(funnel::Spec::default(8)).attach(pool);
+    let sh = exec(funnel::Spec::for_wide_light(8)).attach(pool);
     pw.run(&fold, &graph, &root);
     sh.run(&fold, &graph, &root);
 });

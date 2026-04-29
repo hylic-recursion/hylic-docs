@@ -99,7 +99,7 @@ Every named preset is a transformation of `Spec::default(n)`.
 Default values live in ONE place — the `default()` constructor.
 Presets compose axis builders on top:
 
-```rust
+```rust,ignore
 // WideLight = default + Shared queue + OnArrival accumulation
 fn for_wide_light(n: usize) -> Spec<WideLight> {
     Spec::default(n)

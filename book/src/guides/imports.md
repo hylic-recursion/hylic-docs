@@ -1,102 +1,110 @@
 # Import patterns
 
-hylic organizes its public surface into a small number of modules.
-A typical program requires two imports: a domain module for fold
-construction, and the graph module for tree structure.
+Two preludes cover everything most users need:
 
-## The standard imports
+- `hylic::prelude::*` — core: domain markers (`Shared` / `Local` /
+  `Owned`), Shared-default `Fold` and `Treeish` constructors,
+  executor helpers (`FUSED`, `exec`), every lift atom (`Lift`,
+  `IdentityLift`, `ComposedLift`, `ShapeLift`, `SeedLift`,
+  `LiftBare`, `SeedNode`), and explainer/format helpers.
+- `hylic_pipeline::prelude::*` — re-exports the core prelude **plus**
+  pipeline typestates (`SeedPipeline`, `TreeishPipeline`,
+  `Stage2Pipeline`, `OwnedPipeline`), source traits
+  (`TreeishSource`, `PipelineExec`, `PipelineExecOnce`,
+  `PipelineSourceOnce`), and the sugar trait families
+  (`SeedSugars*`, `TreeishSugars*`, `Stage2Sugars*`).
 
-```rust
-use hylic::domain::shared as dom;   // fold constructors, exec(), FUSED
-use hylic::graph;                    // graph constructors, composition types
+A complete program — fold + graph + executor — needs exactly one
+prelude line:
+
+```rust,no_run
+use hylic::prelude::*;
+
+let fold  = fold(|n: &i32| *n as u64,
+                 |h: &mut u64, c: &u64| *h += c,
+                 |h: &u64| *h);
+let graph = treeish(|n: &i32| if *n > 1 { vec![n - 1, n - 2] } else { vec![] });
+let total = FUSED.run(&fold, &graph, &5);
 ```
 
-A complete example using both:
-
-```rust
-use hylic::domain::shared as dom;
-use hylic::graph;
-
-let fold  = dom::fold(|n: &i32| *n as u64, |h: &mut u64, c: &u64| *h += c, |h: &u64| *h);
-let graph = graph::treeish(|n: &i32| if *n > 1 { vec![n - 1, n - 2] } else { vec![] });
-let result = dom::FUSED.run(&fold, &graph, &5);
-```
-
-The `.run()` method is inherent on `Exec<D, S>`, so no trait import
-is needed for basic usage.
-
-## What each module provides
-
-**Domain modules** (`domain::shared`, `domain::local`, `domain::owned`)
-export the fold type and its constructors, plus executor binding:
-
-| Export | Purpose |
-|--------|---------|
-| `Fold`, `fold()` | Fold type and constructor |
-| `FUSED` | Sequential executor (all domains) |
-| `exec(spec)` | Bind a parallel executor to this domain |
-
-**The graph module** (`hylic::graph`) exports graph types and
-constructors. These are domain-independent — the same `Treeish` works
-with any domain's executor:
-
-| Export | Purpose |
-|--------|---------|
-| `Treeish`, `Edgy` | Arc-based graph types with combinators |
-| `treeish()`, `treeish_visit()`, `treeish_from()` | Treeish constructors |
-| `edgy()`, `edgy_visit()` | General edge function constructors |
-| `Graph`, `Edgy` combinators | Graph composition |
+`FUSED` is the sequential executor, available as a const on the
+Shared domain. `fold` and `treeish` are the Shared-default
+constructors — for Local or Owned, take the per-domain path
+(below).
 
 ## Switching domains
 
-To switch the fold domain, change the domain import. The graph import
-and the closure definitions remain the same:
+For `Local` or `Owned` construction, address the domain module
+directly. The closures don't change; only the constructor and the
+executor binding do:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:domain_switching}}
 ```
 
-The closures are domain-independent — only the fold constructor and
-the executor constant change.
+## Parallel execution
 
-## Additional imports
+Funnel comes in through the prelude as the `funnel` module:
 
-For parallel execution, import the Funnel executor:
-
-```rust
-use hylic::cata::exec::funnel;
-
-dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
-
-// Or with a session scope for amortized pool reuse:
-dom::exec(funnel::Spec::default(8)).session(|s| {
-    s.run(&fold, &graph, &root);
-});
+```rust,no_run
+use hylic::prelude::*;
+let total = exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
 ```
 
-For prelude utilities (Explainer, common folds, formatting):
+Spec presets (`default`, `for_wide_light`, `for_deep_narrow`, …)
+are documented in [Funnel policies](../funnel/policies.md). For
+amortised pool reuse across many folds, use
+`.session(|s| s.run(...))`.
 
-```rust
-use hylic::prelude::{Explainer, depth_fold, TreeFormatCfg};
+## Pipeline programs
+
+Pipelines layer on the same imports — switch to the pipeline
+prelude:
+
+```rust,no_run
+use hylic_pipeline::prelude::*;
 ```
 
-For the operations traits (needed in generic code that accepts
-arbitrary folds or graphs as parameters):
+That single line brings the core prelude with it; users do not
+import `hylic::prelude` separately. From there, every Stage-1
+constructor (`SeedPipeline::new`, `TreeishPipeline::new`,
+`OwnedPipeline::new`) and every sugar (`.lift()`, `.then_lift(…)`,
+`.zipmap(…)`, `.wrap_init(…)`, `.explain()`, `.run(…)`) is in
+scope.
 
-```rust
-use hylic::ops::{FoldOps, TreeOps};
-```
+A full pipeline example is at the end of
+[Pipelines — overview](../pipeline/overview.md).
 
-For the Executor trait (needed when writing functions that accept
-any executor):
+## When you need bare module paths
 
-```rust
-use hylic::cata::exec::Executor;
-```
+The preludes cover normal usage. The bare module paths are useful
+for
 
-## Import hierarchy
+- **Generic code over executors or operations**
 
-The typical progression from simple to advanced usage:
+  ```rust,no_run
+  use hylic::ops::{FoldOps, TreeOps};
+  use hylic::exec::Executor;
+  ```
+
+- **Per-domain primitives** (e.g. when you keep
+  `hylic::prelude` *and* want `Local` constructors visible at the
+  same names): import the domain module under an alias —
+
+  ```rust,no_run
+  use hylic::domain::local as ldom;
+  let lf = ldom::fold(|n: &i32| *n as u64,
+                      |h: &mut u64, c: &u64| *h += c,
+                      |h: &u64| *h);
+  ldom::FUSED.run(&lf, &graph, &root);
+  ```
+
+- **Crate-internal lift atoms not in the prelude**: `Traced`,
+  `memoize_treeish`, `VecFold`, etc. live one level under
+  `hylic::prelude::*` (they are public modules but excluded from
+  the wildcard re-export). Import explicitly.
+
+## Module map
 
 ```dot process
 digraph {
@@ -104,13 +112,15 @@ digraph {
     node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="sans-serif", fontsize=11];
     edge [fontname="sans-serif", fontsize=10];
 
-    core [label="hylic::domain::shared as dom\nhylic::graph", fillcolor="#d4edda"];
-    funnel [label="hylic::cata::exec::funnel\nfor parallel execution", fillcolor="#fff3cd"];
-    prelude [label="hylic::prelude\nExplainer, common folds", fillcolor="#fff3cd"];
-    ops [label="hylic::ops\nFoldOps, TreeOps traits", fillcolor="#f8d7da"];
+    prelude [label="hylic::prelude\nfold, treeish, FUSED, exec, funnel,\nSeedNode, lift atoms, explainer", fillcolor="#d4edda"];
+    pp      [label="hylic_pipeline::prelude\n=  hylic::prelude\n + pipeline types & sugars",   fillcolor="#cce5ff"];
+    ops     [label="hylic::ops\nFoldOps, TreeOps", fillcolor="#fff3cd"];
+    exec    [label="hylic::exec\nExecutor, Exec, fused, funnel", fillcolor="#fff3cd"];
+    dom     [label="hylic::domain::{shared,local,owned}\nFold, edgy, FUSED, exec", fillcolor="#fff3cd"];
 
-    core -> funnel [label="parallel", style=dashed];
-    core -> prelude [label="utilities", style=dashed];
-    core -> ops [label="generic code", style=dashed];
+    pp -> prelude [label="re-exports"];
+    prelude -> exec [label="re-exports public surface", style=dashed];
+    prelude -> dom  [label="Shared by default", style=dashed];
+    prelude -> ops  [label="not re-exported (generic code only)", style=dotted];
 }
 ```

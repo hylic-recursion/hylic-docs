@@ -1,118 +1,48 @@
 # Quick Start
 
-This page walks through constructing and running a fold, first over
-a nested struct, then over a flat adjacency list — same fold, same
-result, different data representation.
-
-## Define a node type
-
-Any Rust type can serve as a node. The tree structure is defined
-externally by a `Treeish` function, not by the data itself. For this
-first example, the node type is a struct with a children field:
+A complete fold — definition, tree structure, sequential execution
+— is one prelude line and three closures:
 
 ```rust
-use hylic::domain::shared as dom;
-use hylic::graph;
-
-#[derive(Clone)]
-struct Dir {
-    name: String,
-    size: u64,
-    children: Vec<Dir>,
-}
+{{#include ../../src/docs_examples.rs:intro_dir_example}}
 ```
 
-## Describe the tree structure
+`fold(...)` builds a Shared-domain `Fold<Dir, u64, u64>` from three
+closures: `init` produces a per-node heap from a `&Dir`,
+`accumulate` folds each child's result into the heap, and
+`finalize` extracts the result. `treeish(...)` wraps a children
+function as a `Treeish<Dir>`. `FUSED` is the sequential executor
+constant — callback-based recursion, no overhead beyond the fold
+closures.
 
-A `Treeish<Dir>` is a function from a node to its children. The
-`treeish` constructor wraps a `Vec`-returning function; `treeish_visit`
-accepts a callback form that avoids the intermediate allocation.
+The Funnel executor swaps in without touching the fold or graph:
 
 ```rust
-let graph = graph::treeish(|d: &Dir| d.children.clone());
+{{#include ../../src/docs_examples.rs:quickstart_funnel}}
 ```
 
-## Define the fold
+`Spec::default(n)` picks the Robust preset over `n` worker threads;
+see [Funnel policies](./funnel/policies.md) for the alternatives.
 
-A fold has three phases: `init` produces a heap value from a node,
-`accumulate` incorporates each child's result into the heap, and
-`finalize` extracts the result. Here the heap type equals the
-result type, so the finalize step is just an identity extraction:
+For repeated folds, pool creation amortises in a session scope:
 
 ```rust
-let init = |d: &Dir| d.size;
-let acc = |heap: &mut u64, child: &u64| *heap += child;
-let fold = dom::fold(init, acc, |heap: &u64| *heap);
-```
-
-## Run it
-
-`dom::FUSED` is the sequential executor — callback-based recursion,
-no overhead beyond the fold closures.
-
-```rust
-let tree = Dir {
-    name: "root".into(), size: 10,
-    children: vec![
-        Dir { name: "src".into(), size: 100, children: vec![
-            Dir { name: "main.rs".into(), size: 50, children: vec![] },
-        ]},
-        Dir { name: "docs".into(), size: 30, children: vec![] },
-    ],
-};
-
-let total = dom::FUSED.run(&fold, &graph, &tree);
-assert_eq!(total, 190); // 10 + 100 + 50 + 30
+{{#include ../../src/docs_examples.rs:quickstart_session}}
 ```
 
 ## The same fold over flat data
 
-The tree need not be nested. Here the same summation fold runs over
-a `Vec<Vec<usize>>` adjacency list, where nodes are integer indices:
+The tree need not live inside the data. The same summation fold
+runs over a `Vec<Vec<usize>>` adjacency list, where nodes are
+integer indices:
 
 ```rust
-let children = vec![vec![1, 2], vec![3], vec![], vec![]];
-let sizes = vec![10u64, 100, 50, 30];
-
-let graph = graph::treeish_visit(move |n: &usize, cb: &mut dyn FnMut(&usize)| {
-    for &c in &children[*n] { cb(&c); }
-});
-let fold = dom::fold(
-    move |n: &usize| sizes[*n],
-    |heap: &mut u64, child: &u64| *heap += child,
-    |heap: &u64| *heap,
-);
-
-let total = dom::FUSED.run(&fold, &graph, &0);
-assert_eq!(total, 190); // same tree, same result
+{{#include ../../src/docs_examples.rs:intro_flat_example}}
 ```
 
-The fold logic is identical — only the node type and the treeish
-change. This separation is the foundation of hylic's composability.
-
-## Switch to parallel execution
-
-The Funnel executor uses the same fold and graph. It creates a
-scoped thread pool internally, distributes subtrees across workers
-via CPS work-stealing, and joins before returning.
-
-```rust
-use hylic::cata::exec::funnel;
-
-let total = dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &tree);
-assert_eq!(total, 190);
-```
-
-For repeated folds, pool creation can be amortized by entering a
-session scope:
-
-```rust
-dom::exec(funnel::Spec::default(8)).session(|s| {
-    let total1 = s.run(&fold, &graph, &tree);
-    let total2 = s.run(&fold, &graph, &tree);
-    // The thread pool is shared across both folds.
-});
-```
+Only the node type and the Treeish change — the fold logic is
+identical. This separation is the foundation of hylic's
+composability.
 
 ## Further reading
 

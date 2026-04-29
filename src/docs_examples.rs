@@ -417,13 +417,13 @@ use hylic::graph;
     // ANCHOR: intro_dir_example
     #[test]
     fn intro_dir_example() {
-        use hylic::exec::funnel;
+        use hylic::prelude::*;
 
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
 
-        let graph = graph::treeish(|d: &Dir| d.children.clone());
-        let fold = dom::fold(
+        let graph = treeish(|d: &Dir| d.children.clone());
+        let fold = fold(
             |d: &Dir| d.size,
             |heap: &mut u64, child: &u64| *heap += child,
             |heap: &u64| *heap,
@@ -438,11 +438,11 @@ use hylic::graph;
         };
 
         // Sequential:
-        let total = dom::FUSED.run(&fold, &graph, &tree);
+        let total = FUSED.run(&fold, &graph, &tree);
         assert_eq!(total, 260);
 
         // Parallel — same fold, same graph:
-        let total = dom::exec(funnel::Spec::default(4)).run(&fold, &graph, &tree);
+        let total = exec(funnel::Spec::default(4)).run(&fold, &graph, &tree);
         assert_eq!(total, 260);
     }
     // ANCHOR_END: intro_dir_example
@@ -450,18 +450,20 @@ use hylic::graph;
     // ANCHOR: intro_flat_example
     #[test]
     fn intro_flat_example() {
+        use hylic::prelude::*;
+
         // Flat adjacency list — nodes are indices, children are looked up
         let children: Vec<Vec<usize>> = vec![
             vec![1, 2],  // node 0 → children 1, 2
             vec![],      // node 1 → leaf
             vec![],      // node 2 → leaf
         ];
-        let graph = graph::treeish_visit(move |n: &usize, cb: &mut dyn FnMut(&usize)| {
+        let graph = treeish_visit(move |n: &usize, cb: &mut dyn FnMut(&usize)| {
             for &c in &children[*n] { cb(&c); }
         });
-        let fold = dom::fold(|n: &usize| *n as u64, |h: &mut u64, c: &u64| *h += c, |h| h.clone());
+        let fold = fold(|n: &usize| *n as u64, |h: &mut u64, c: &u64| *h += c, |h| h.clone());
 
-        let total = dom::FUSED.run(&fold, &graph, &0);
+        let total = FUSED.run(&fold, &graph, &0);
         assert_eq!(total, 3); // 0 + 1 + 2
     }
     // ANCHOR_END: intro_flat_example
@@ -471,13 +473,13 @@ use hylic::graph;
     // ANCHOR: quickstart_funnel
     #[test]
     fn quickstart_funnel() {
-        use hylic::exec::funnel;
+        use hylic::prelude::*;
 
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
 
-        let graph = graph::treeish(|d: &Dir| d.children.clone());
-        let fold = dom::fold(
+        let graph = treeish(|d: &Dir| d.children.clone());
+        let fold = fold(
             |d: &Dir| d.size,
             |heap: &mut u64, child: &u64| *heap += child,
             |heap: &u64| *heap,
@@ -491,7 +493,7 @@ use hylic::graph;
             ],
         };
 
-        let total = dom::exec(funnel::Spec::default(4)).run(&fold, &graph, &tree);
+        let total = exec(funnel::Spec::default(4)).run(&fold, &graph, &tree);
         assert_eq!(total, 18);
     }
     // ANCHOR_END: quickstart_funnel
@@ -499,13 +501,13 @@ use hylic::graph;
     // ANCHOR: quickstart_session
     #[test]
     fn quickstart_session() {
-        use hylic::exec::funnel;
+        use hylic::prelude::*;
 
         #[derive(Clone)]
         struct Dir { name: String, size: u64, children: Vec<Dir> }
 
-        let graph = graph::treeish(|d: &Dir| d.children.clone());
-        let fold = dom::fold(
+        let graph = treeish(|d: &Dir| d.children.clone());
+        let fold = fold(
             |d: &Dir| d.size,
             |heap: &mut u64, child: &u64| *heap += child,
             |heap: &u64| *heap,
@@ -518,7 +520,7 @@ use hylic::graph;
             ],
         };
 
-        dom::exec(funnel::Spec::default(4)).session(|s| {
+        exec(funnel::Spec::default(4)).session(|s| {
             let r1 = s.run(&fold, &graph, &tree);
             let r2 = s.run(&fold, &graph, &tree);
             assert_eq!(r1, r2);
@@ -561,7 +563,7 @@ use hylic::graph;
             &fold,
         );
 
-        let result = pipeline.lift().run_from_slice(
+        let result = pipeline.run_from_slice(
             &dom::FUSED,
             &["app".to_string()],
             Vec::<String>::new(),
@@ -600,7 +602,7 @@ use hylic::graph;
             &fold,
         );
 
-        let result = pipeline.lift().run_from_slice(
+        let result = pipeline.run_from_slice(
             &dom::exec(funnel::Spec::default(4)),
             &["app".to_string()],
             Vec::<String>::new(),
@@ -720,7 +722,6 @@ use hylic::graph;
 
         let r: u64 = sp
             .filter_seeds(|s: &String| !s.starts_with('_'))
-            .lift()
             .run_from_slice(&FUSED, &["app".to_string()], 0u64);
 
         // Reachable modules: app (cost 1) + db (cost 2) = 3.
@@ -946,4 +947,51 @@ use hylic::graph;
         assert!(flag);
     }
     // ANCHOR_END: bare_lift_composed
+
+    // ── cookbook/zero_cost_performance.md ───────────────
+
+    // ANCHOR: zero_cost_treeops
+    #[test]
+    fn zero_cost_treeops() {
+        use hylic::prelude::*;
+        use hylic::ops::TreeOps;
+
+        #[derive(Clone)]
+        struct TreeNode { id: usize, value: u64 }
+
+        struct AdjGraph {
+            adj:   Vec<Vec<usize>>,
+            nodes: Vec<TreeNode>,
+        }
+        impl TreeOps<TreeNode> for AdjGraph {
+            fn visit(&self, node: &TreeNode, cb: &mut dyn FnMut(&TreeNode)) {
+                for &child_id in &self.adj[node.id] {
+                    cb(&self.nodes[child_id]);
+                }
+            }
+        }
+
+        let graph = AdjGraph {
+            adj: vec![vec![1, 2], vec![], vec![]],
+            nodes: vec![
+                TreeNode { id: 0, value: 1 },
+                TreeNode { id: 1, value: 2 },
+                TreeNode { id: 2, value: 3 },
+            ],
+        };
+
+        // The fold side still goes through the closure-based wrapper —
+        // executors take `&D::Fold<H, R>`, not `&impl FoldOps`. Only the
+        // Treeish side admits a user-defined ops type via the executor's
+        // generic `G: TreeOps<N>` parameter.
+        let f = fold(
+            |n: &TreeNode| n.value,
+            |h: &mut u64, r: &u64| *h += r,
+            |h: &u64| *h,
+        );
+        let root = graph.nodes[0].clone();
+        let total = FUSED.run(&f, &graph, &root);
+        assert_eq!(total, 6);
+    }
+    // ANCHOR_END: zero_cost_treeops
 }

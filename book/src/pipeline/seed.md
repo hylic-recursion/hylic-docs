@@ -96,25 +96,42 @@ Bases through one body.
 
 ## Running
 
-`.run` and `.run_from_slice` are inherent on the seed-rooted
-`Stage2Pipeline<SeedPipeline<…>, L>`. The Stage-1 `SeedPipeline` itself
-is not runnable — `.lift()` must come first even when no sugar is applied:
+Two equivalent surfaces:
+
+- **Direct on `SeedPipeline`** — `.run(exec, entry_seeds, entry_heap)`
+  and `.run_from_slice(exec, &[seeds], entry_heap)` are inherent on
+  `SeedPipeline<D, …>` itself. They forward through
+  `self.clone().lift()` internally; ergonomic shorthand for the common
+  case where no Stage-2 sugars are chained.
+- **On `Stage2Pipeline<SeedPipeline<…>, L>`** — same method names, same
+  arguments. Used after `.lift()` plus any chain of Stage-2 sugars.
 
 ```text
-// Entry seeds as a slice (convenience):
+// Entry seeds as a slice (convenience), no sugars — direct on SeedPipeline:
+let r: u64 = pipeline.run_from_slice(&FUSED, &["app".to_string()], 0u64);
+
+// Entry seeds as a general Edgy<(), Seed>, no sugars:
+let entry = edgy_visit(|_: &(), cb| cb(&"app".to_string()));
+let r: u64 = pipeline.run(&FUSED, entry, 0u64);
+
+// With Stage-2 sugars — `.lift()` is the explicit transition:
 let r: u64 = pipeline
     .lift()
+    .wrap_init(|n: &Mod, orig: &dyn Fn(&Mod) -> u64| orig(n) + 1)
     .run_from_slice(&FUSED, &["app".to_string()], 0u64);
-
-// Entry seeds as a general Edgy<(), Seed>:
-let entry = edgy_visit(|_: &(), cb| cb(&"app".to_string()));
-let r: u64 = pipeline.lift().run(&FUSED, entry, 0u64);
 ```
 
-The third argument is the initial heap at the synthetic root level —
+The last argument is the initial heap at the synthetic root level —
 what the top-level accumulator starts with before any seed's result is
 folded in. It is always the **base** `H` type; the chain's own `MapH`
 is reached internally as the sugars promote from `H` outward.
+
+`.lift()` itself is preserved as the explicit Stage-1 → Stage-2
+transition. The shorthand on `SeedPipeline` exists to elide the
+empty-`.lift()` ceremony at call sites that do not chain sugars; when
+sugars are involved, `.lift()` makes the row-type transition (chain
+input becoming `SeedNode<N>`) traceable to a single line in the
+user's source.
 
 ## Full example
 

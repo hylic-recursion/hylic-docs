@@ -87,12 +87,16 @@ The run entry points:
   known root node. All `TreeishSource` pipelines get this via
   blanket impl; this covers `TreeishPipeline`,
   treeish-rooted `Stage2Pipeline`s, and `OwnedPipeline`.
+- `SeedPipeline::run(&exec, entry_seeds, entry_heap)` /
+  `::run_from_slice(&exec, &[s1, s2], entry_heap)` — direct
+  shorthand on the Stage-1 seed pipeline. Forwards through
+  `self.clone().lift()` internally; the empty `.lift()` ceremony
+  is elided when no Stage-2 sugars are added.
 - `Stage2Pipeline<SeedPipeline<…>, L>::run(&exec, entry_seeds, entry_heap)`
-  — execute a seed-rooted Stage-2 pipeline. Inherent method;
-  internally composes `SeedLift` as the first lift in the chain
-  to close the grow axis.
-- `Stage2Pipeline<SeedPipeline<…>, L>::run_from_slice(&exec, &[s1, s2], entry_heap)`
-  — convenience sugar over `run`.
+  / `::run_from_slice(...)` — same method names, same shape. Used
+  after `.lift()` plus chained Stage-2 sugars. Internally composes
+  `SeedLift` as the first lift in the chain to close the grow axis;
+  see [Stage-2 base](./../design/pipeline_transformability.md#one-stage-2-type-two-base-configurations).
 
 ## Example shape of a pipeline
 

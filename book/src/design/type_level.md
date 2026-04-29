@@ -206,7 +206,7 @@ the build dispatcher per domain: `WrapShared`/`WrapLocal`,
 `Stage2SugarsShared`/`Stage2SugarsLocal`,
 `SeedSugarsShared`/`SeedSugarsLocal`. The trait bodies read identically
 line for line; only the bound differs. This is one of three
-[accepted-debt items](../../../hylic/KB/.plans/finishing-up/post-split-review/ACCEPTED-DEBT.md).
+[accepted-debt items](../../../KB/hylic/legacy-plans/finishing-up/post-split-review/ACCEPTED-DEBT.md).
 
 ## Bounds at consumption, not construction
 
@@ -301,7 +301,7 @@ one per phase, each taking the prior phase and producing the next.
 
 - [Crichton, "GATs are HOFs"](https://willcrichton.net/notes/gats-are-hofs/)
   for the GAT framing.
-- [`hylic/KB/.plans/seed-pipeline-transforms/PRINCIPLES.md`](../../../hylic/KB/.plans/seed-pipeline-transforms/PRINCIPLES.md)
+- [`KB/hylic/legacy-plans/seed-pipeline-transforms/PRINCIPLES.md`](../../../KB/hylic/legacy-plans/seed-pipeline-transforms/PRINCIPLES.md)
   for the "every specific transform should derive from a general one"
   principle.
 - [Lifts](../concepts/lifts.md) for the trait shape and the four atoms.

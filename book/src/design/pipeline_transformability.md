@@ -118,23 +118,37 @@ When the base is a `SeedPipeline`, `SeedLift` is assembled at
 `.run()` time from the base's `grow` plus the caller-supplied
 `root_seeds` and `entry_heap`, and composed as the **first** lift
 in the run-time chain. `SeedLift`'s output node type is
-`SeedNode<N>`, so every lift in the stored chain `L` must be
-typed at `SeedNode<N>` — not `N`. The chain-bound difference
-prevents the trait-based blanket sugars from covering this
-configuration uniformly; each Stage-2 sugar on the seed-rooted
-form is therefore an inherent method.
+`SeedNode<N>`, so every lift in the stored chain `L` operates over
+`SeedNode<N>` — not the user's `N`.
 
-Sugars hide the variant dispatch. User closures are written over
-base `N`; internally each sugar wraps the user's closure to
-dispatch on `SeedNode::EntryRoot` / `SeedNode::Node(n)`. See
-[Stage 1 — SeedPipeline](../pipeline/seed.md) for the
-user-facing semantics of each variant dispatch (EntryRoot passes
-through `wrap_init`, `filter_edges` always admits EntryRoot, etc.).
+Even though the chain runs over `SeedNode<N>`, Stage-2 sugars on
+this form take user closures over `&N`. The translation is done
+by [Wrap dispatch](../pipeline/wrap_dispatch.md): one
+`Stage2SugarsShared` / `Stage2SugarsLocal` trait covers both Bases,
+peeling `&SeedNode<N>` to `&N` on the seed-rooted side and acting
+as a pass-through on the treeish-rooted side. EntryRoot defaults
+are encoded in the per-sugar peel routines (EntryRoot passes
+through `wrap_init`, `filter_edges` always admits its children,
+etc.) — see the table later in this chapter for the full set.
 
-The seed-pipeline-unification (one cycle ago) collapsed the
-historical two struct types `LiftedPipeline` and
-`LiftedSeedPipeline` into the single `Stage2Pipeline<Base, L>`.
-The two old names remain as deprecated type aliases.
+The seed-pipeline-unification (one cycle ago) collapsed the two
+historical struct types `LiftedPipeline` and `LiftedSeedPipeline`
+into the single `Stage2Pipeline<Base, L>`, and reduced the
+parallel-but-separate sugar catalogues into one Wrap-dispatched
+trait per domain. The old type names no longer exist.
+
+The follow-on `stage2-base-run-unification` cycle did the same
+operation on the **run** path: a single
+`Stage2Pipeline::run_with_inputs` body lives in
+`stage2/run/mod.rs`, generic over `Base: Stage2Base`. The base
+contributes a `RunInputs<'i, CurN>` GAT, a `PreLift` lift, and a
+`provide_run_essentials` callback that builds the pre-chain lift
+from inputs and yields the descend-root reference at the
+post-chain type. The two former per-domain run files
+(`stage2/run/seed_shared.rs`, `stage2/run/seed_local.rs`) were
+retired; the per-domain residue lives in `seed/stage2_base_*.rs`,
+where the `Domain<N>::Grow<Seed, N>` GAT non-normalisation forces
+a per-domain pinning of the `SeedLift` constructor.
 
 ## Run composition: how `.run()` actually produces a result
 
@@ -189,23 +203,26 @@ categorical picture.
 
 ## Where the abstractions stop
 
-Two deliberate asymmetries exist in the current surface:
+One deliberate asymmetry remains in the current surface:
 
-1. **Auto-lift on `TreeishPipeline` but not on `SeedPipeline`.**
-   `tp.wrap_init(w)` works directly; `sp.wrap_init(w)` is a
-   compile error — write `sp.lift().wrap_init(w)` explicitly.
-   Reason: the chain-bound mismatch between treeish-rooted and
-   seed-rooted Stage-2 forms (chain over `N` versus chain over
-   `SeedNode<N>`) prevents a single blanket sugar trait covering
-   both.
+**Auto-lift on `TreeishPipeline` but not on `SeedPipeline`.**
+`tp.wrap_init(w)` works directly (the Stage-1 → Stage-2
+transition is implicit); `sp.wrap_init(w)` is a compile error —
+write `sp.lift().wrap_init(w)` explicitly. The asymmetry is
+intentional: a treeish-rooted Stage-2 chain operates over the
+same `N` as the base, so the lift is invisible to the user; a
+seed-rooted Stage-2 chain operates over `SeedNode<N>`, and
+silencing that transition would surface in any lift whose output
+type mentions `N` (the explainer being the canonical example).
+Forcing `.lift()` makes the row type's appearance traceable to a
+single line in the user's source.
 
-2. **Parallel inherent-methods surface on the seed-rooted form.**
-   `Stage2Pipeline<SeedPipeline<…>, L>`'s Stage-2 sugars are not
-   shared with `Stage2SugarsShared/Local`; each is written once
-   per domain as an inherent method. Mechanical duplication;
-   accepted because collapsing would require trait-level
-   parameters that Rust cannot express without macros, and the
-   library declines macros.
+The historical second asymmetry — a parallel inherent-methods
+catalogue on the seed-rooted form — was eliminated by the
+seed-pipeline-unification. Stage-2 sugars are now one trait per
+domain (`Stage2SugarsShared` / `Stage2SugarsLocal`), blanket
+implemented over both Bases, with `Wrap` doing the per-Base type
+projection. See [Wrap dispatch](../pipeline/wrap_dispatch.md).
 
 ---
 
@@ -378,7 +395,7 @@ cannot thread the unnamed types through composition.
 
 The CPS form threads the caller's `T` outward:
 
-```rust
+```rust,ignore
 fn apply<T>(
     &self,
     treeish: Graph<D, N>,
@@ -396,7 +413,7 @@ at each junction without needing a named alias.
 
 The `Domain<N>` trait exposes three GATs:
 
-```rust
+```rust,ignore
 type Fold<H, R>;
 type Graph<E>;
 type Grow<Seed, NOut>;
@@ -415,7 +432,7 @@ scope.
 The library works around this via **free helper functions** that
 pin the domain:
 
-```rust
+```rust,ignore
 fn shared_grow_as_arc<Seed, NOut>(
     g: <Shared as Domain<NOut>>::Grow<Seed, NOut>,
 ) -> Arc<dyn Fn(&Seed) -> NOut + Send + Sync> { g }
@@ -426,10 +443,9 @@ and the GAT normalises. The function is a no-op at runtime (the
 same value, type-coerced in), but makes the type checker happy
 in a context that was about to timeout.
 
-`lifted_seed/gat_helpers.rs` collects six such helpers for
-Shared and six more for Local. Every crossing of the generic-impl
-boundary uses one. Not elegant; necessary until Rust's GAT
-normalisation improves.
+`stage2/run/gat_helpers.rs` collects the helpers (a Shared set
+and a Local set), one per GAT crossing point. Not elegant;
+necessary until Rust's GAT normalisation improves.
 
 ### The trait-twin Shared/Local pattern
 
@@ -437,13 +453,8 @@ Every sugar file has a `_shared.rs` and a `_local.rs` version.
 Bodies are line-for-line identical; only `Arc` vs `Rc`, `Send +
 Sync` vs nothing differ. A macro could collapse these; the
 library has
-[declined](../../../../hylic/KB/.plans/finishing-up/post-split-review/ACCEPTED-DEBT.md)
+[declined](../../../../KB/hylic/legacy-plans/finishing-up/post-split-review/ACCEPTED-DEBT.md)
 to adopt macros, preferring readable duplicate files.
-
-The same pattern repeats for the seed-rooted Stage-2 form: the
-chain-bound mismatch with `Stage2SugarsShared/Local` forces a
-separate inherent-method surface, and that surface has its own
-`sugars_shared.rs` + `sugars_local.rs` pair.
 
 ### Why `SeedNode<N>` cannot be fully hidden in chain-tip types
 
@@ -475,43 +486,47 @@ The library ships (2) plus a projection helper
 seal on the explainer result. (1) would be cleaner but requires
 trait-level machinery that's not currently on the roadmap.
 
-### Why the seed-rooted sugar catalogue is inherent, not trait-based
+### How the seed-rooted sugar catalogue is unified with the treeish-rooted one
 
-Given the chain-bound mismatch (`Lift<D, SeedNode<N>, H, R>`
-versus `Lift<D, N, H, R>`), a single trait `LiftedSugars<N, H,
-R>` cannot cover both Stage-2 configurations uniformly. Options
-considered:
+Historically the chain-bound mismatch (`Lift<D, SeedNode<N>, H, R>`
+versus `Lift<D, N, H, R>`) blocked a single trait from covering
+both Stage-2 configurations, and the library shipped a parallel
+inherent-method catalogue on the seed-rooted form. The
+seed-pipeline-unification cycle replaced that with a `Wrap`
+dispatch trait:
 
-- **Generalise the trait** over the chain's "effective N type"
-  with some associated-type-level bridging (the chain's N-slot
-  may or may not equal the user-visible N). Possible in
-  principle; requires trait-level type-level functions that
-  Rust doesn't have. A ground-up redesign.
+- `Wrap` is a type-only trait with a GAT `Of<UN>`. Two impls:
+  `Identity::Of<UN> = UN` (treeish-rooted), `SeedWrap::Of<UN> =
+  SeedNode<UN>` (seed-rooted).
 
-- **Use two traits** with identical signatures. Possible, but
-  dispatch becomes ambiguous at the callsite when a type is in
-  both traits' impl domain.
+- `Stage2Base` is implemented by every Stage-1 base; it carries
+  `type Wrap: Wrap` so each base names its own projection.
 
-- **Duplicate as inherent** (shipped). The catalogue is written
-  once on `Stage2Pipeline<SeedPipeline<Shared, …>, L>` (plus its
-  Local twin). Imports become simpler — no extra trait in scope
-  — at the cost of ~200 LOC of inherent methods per domain that
-  mirror the trait. Ergonomic wins, maintenance cost accepted.
+- `Stage2SugarsShared` / `Stage2SugarsLocal` are the unified sugar
+  traits, blanket-implemented on every `Stage2Pipeline<Base, L>`
+  where `Base: Stage2Base` and `L: Lift<D, <Base::Wrap as Wrap>::Of<UN>, …>`.
+  Each sugar has one canonical body; the per-Base build closure
+  is provided by a `WrapShared` / `WrapLocal` impl that knows how
+  to peel `&SeedNode<UN>` to `&UN` on the seed-rooted side.
+
+The mechanical-duplication debt that the inherent-methods design
+paid is gone. The `Wrap`-side debt is real but smaller: each new
+Stage-2 sugar requires both an `Identity` and a `SeedWrap` build
+closure, and each `WrapShared` / `WrapLocal` build closure must
+be domain-specialised. See
+[Wrap dispatch — reaching both Bases](../pipeline/wrap_dispatch.md)
+for the implementation.
 
 ### Summary of accepted debts on the typing front
 
 1. CPS `apply` signature — avoidable in Haskell/Scala; mandated
    by Rust's lack of type-level first-class tuple inference.
-2. GAT normalisation helpers — six Shared, six Local; zero-cost
-   at runtime, real cognitive cost; awaiting better GAT
-   normalisation in rustc.
+2. GAT normalisation helpers in `stage2/run/gat_helpers.rs` —
+   one set per domain; zero-cost at runtime, real cognitive
+   cost; awaiting better GAT normalisation in rustc.
 3. Shared/Local duplication — every sugar trait has two mirror
    files; macros could collapse; refused.
-4. Seed-rooted Stage-2 inherent-method catalogue — parallel to
-   `Stage2SugarsShared/Local`; necessary because the chain-bound
-   differs; could be unified by a trait-level redesign that
-   Rust's type system doesn't currently admit cleanly.
-5. `SeedNode<N>` sealed but not eliminated from chain-tip types
+4. `SeedNode<N>` sealed but not eliminated from chain-tip types
    — elimination requires native forest execution, a deferred
    `Executor`-trait refactor.
 
@@ -520,3 +535,7 @@ either a Rust language feature (GATs normalising, HKT-ish trait
 parameters) or a significant library refactor (native forest
 execution, macro-based collapse). The current shape is the
 principled minimum the library can ship without those.
+
+The seed-rooted-Stage-2 inherent-method catalogue (formerly
+listed as debt #4) was retired by the seed-pipeline-unification
+cycle; the unified `Stage2Sugars*` + `Wrap` design replaced it.

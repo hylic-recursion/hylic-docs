@@ -53,13 +53,17 @@ graph/
   compose.rs        Graph
 ```
 
-A typical program imports a domain module for folds and the graph
-module for tree structure:
+A typical program imports the prelude — every domain marker, the
+Shared-default constructors, and the graph constructors come with
+it:
 
-```rust
-use hylic::domain::shared as dom;
-use hylic::graph;
+```rust,no_run
+use hylic::prelude::*;
 ```
+
+For Local or Owned construction, address the per-domain module
+directly (`hylic::domain::local`, `hylic::domain::owned`) — see
+[Import patterns](../guides/imports.md).
 
 ## The Domain trait
 

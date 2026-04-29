@@ -14,12 +14,11 @@ to the executor.
 
 ## The uniform interface
 
-```rust
-use hylic::domain::shared as dom;
-use hylic::cata::exec::funnel;
+```rust,no_run
+use hylic::prelude::*;
 
-dom::FUSED.run(&fold, &graph, &root);                              // sequential
-dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);     // parallel
+FUSED.run(&fold, &graph, &root);                              // sequential
+exec(funnel::Spec::default(8)).run(&fold, &graph, &root);     // parallel
 ```
 
 The same `.run()` method, the same call shape. The fold and graph

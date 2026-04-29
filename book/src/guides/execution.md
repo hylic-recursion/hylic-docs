@@ -13,15 +13,14 @@ Both sequential and parallel execution use the same `.run()`
 method on `Exec<D, S>`. The method is inherent; no trait import
 is required:
 
-```rust
-use hylic::domain::shared as dom;
-use hylic::cata::exec::funnel;
+```rust,no_run
+use hylic::prelude::*;
 
 // Sequential:
-dom::FUSED.run(&fold, &graph, &root);
+FUSED.run(&fold, &graph, &root);
 
 // Parallel:
-dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
+exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
 ```
 
 The domain `D` is fixed by the executor instance or the
@@ -65,15 +64,15 @@ convenience for control over resource lifetime:
 
 **One-shot** — the pool is created and destroyed per call:
 
-```rust
-use hylic::cata::exec::funnel;
-dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
+```rust,no_run
+use hylic::prelude::*;
+exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
 ```
 
 **Session scope** — the pool is shared across multiple folds:
 
-```rust
-dom::exec(funnel::Spec::default(8)).session(|s| {
+```rust,no_run
+exec(funnel::Spec::default(8)).session(|s| {
     s.run(&fold, &graph, &root);
     s.run(&fold, &graph, &root);
 });
@@ -81,9 +80,9 @@ dom::exec(funnel::Spec::default(8)).session(|s| {
 
 **Explicit attach** — the caller manages the pool directly:
 
-```rust
+```rust,no_run
 funnel::Pool::with(8, |pool| {
-    dom::exec(funnel::Spec::default(8)).attach(pool).run(&fold, &graph, &root);
+    exec(funnel::Spec::default(8)).attach(pool).run(&fold, &graph, &root);
 });
 ```
 
@@ -96,9 +95,8 @@ For projects that use a fixed Funnel configuration, a common
 pattern is to define the executor once and reference it
 throughout:
 
-```rust
-use hylic::domain::shared as dom;
-use hylic::cata::exec::funnel;
+```rust,ignore
+use hylic::prelude::*;
 
 type MyPolicy = funnel::policy::Policy<
     funnel::queue::PerWorker,
@@ -106,9 +104,9 @@ type MyPolicy = funnel::policy::Policy<
     funnel::wake::EveryK<4>,
 >;
 
-pub fn exec() -> hylic::cata::exec::Exec<hylic::domain::Shared, funnel::Spec<MyPolicy>> {
+pub fn project_exec() -> hylic::exec::Exec<Shared, funnel::Spec<MyPolicy>> {
     let nw = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(4);
-    dom::exec(
+    exec(
         funnel::Spec::default(nw)
             .with_accumulate::<funnel::accumulate::OnArrival>(
                 funnel::accumulate::on_arrival::OnArrivalSpec)
@@ -118,21 +116,22 @@ pub fn exec() -> hylic::cata::exec::Exec<hylic::domain::Shared, funnel::Spec<MyP
 }
 ```
 
-Call sites then use `crate::exec().run(&fold, &graph, &root)`
+Call sites then use `crate::project_exec().run(&fold, &graph, &root)`
 without naming the policy type.
 
 ## Lift integration
 
-Lifts operate on the Shared domain. The `run_lifted` function in
-`cata::lift` applies a lift transformation and executes the
-result through any Shared-domain executor:
+Lifts operate on the Shared domain. The Explainer is the canonical
+example — composed onto a fold, it captures every node's
+intermediate state into an `ExplainerResult<N, H, R>`:
 
 ```rust
 {{#include ../../../src/docs_examples.rs:explainer_usage}}
 ```
 
 See [Lifts](../concepts/lifts.md) for the Explainer and other
-lift patterns.
+lift patterns, and [Pipeline overview](../pipeline/overview.md)
+for the chainable `.explain()` sugar that wraps this.
 
 ## Further reading
 

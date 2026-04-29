@@ -84,7 +84,7 @@ digraph {
     }
 
     subgraph cluster_executors {
-        label="Executors (cata::exec::)";
+        label="Executors (exec::)";
         style=dashed; color="#999999";
         fontname="sans-serif";
 
@@ -145,28 +145,24 @@ entire API surface for most programs.
 |---|:---:|:---:|:---:|
 | **Fused** | yes | yes | yes |
 | **Funnel** | yes | — | — |
-| **Explainer** | yes | — | — |
-| **Pipeline** | yes | — | — |
+| **Explainer** | yes | yes | — |
+| **Pipeline (Stage 1 + 2)** | yes | yes | — |
+| **OwnedPipeline** | — | — | yes |
 
 Fused supports all domains (borrows, never clones). Funnel requires
 `N: Clone + Send, R: Send, G: Send + Sync` — the Shared domain
-provides these. Explainer and Pipeline operate on Shared-domain types
-(Arc-based Fold and Treeish).
+provides these. The Stage-1/Stage-2 pipeline surface is mirrored
+across Shared and Local (`SeedSugarsShared` / `SeedSugarsLocal`,
+`Stage2SugarsShared` / `Stage2SugarsLocal`, …); the Owned domain
+gets the dedicated one-shot `OwnedPipeline` instead, since its
+closures consume on first use and cannot back a `Clone`-able
+chain.
 
 ## Zero-boxing path
 
 For maximum performance, skip the domain system entirely.
-Implement `FoldOps` and `TreeOps` on your own structs:
-
-```rust
-struct MyFold;
-impl FoldOps<MyNode, MyHeap, MyResult> for MyFold {
-    fn init(&self, node: &MyNode) -> MyHeap { ... }
-    fn accumulate(&self, heap: &mut MyHeap, result: &MyResult) { ... }
-    fn finalize(&self, heap: &MyHeap) -> MyResult { ... }
-}
-```
-
-Pass `&MyFold` directly to a Fused executor's recursion engine.
-The compiler monomorphizes everything — zero vtable calls, zero
-boxing, zero `Arc`. This is the zero-overhead path.
+Implement `FoldOps` and `TreeOps` on concrete structs — the
+compiler monomorphises every call, eliminating the `dyn Fn`
+indirections. See
+[Zero-cost performance](../cookbook/zero_cost_performance.md)
+for the worked walkthrough.

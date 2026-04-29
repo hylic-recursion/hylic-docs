@@ -72,22 +72,21 @@ regressions on any benchmarked workload.
 
 ## The three usage tiers
 
-```rust
-use hylic::cata::exec::funnel;
-use hylic::domain::shared as dom;
+```rust,no_run
+use hylic::prelude::*;
 
 // One-shot: creates pool, runs, joins
-dom::exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
+exec(funnel::Spec::default(8)).run(&fold, &graph, &root);
 
 // Session scope: pool lives for the closure, multiple folds share it
-dom::exec(funnel::Spec::default(8)).session(|s| {
+exec(funnel::Spec::default(8)).session(|s| {
     s.run(&fold1, &graph1, &root1);
     s.run(&fold2, &graph2, &root2);
 });
 
 // Explicit attach: manual pool management
 funnel::Pool::with(8, |pool| {
-    dom::exec(funnel::Spec::default(8)).attach(pool).run(&fold, &graph, &root);
+    exec(funnel::Spec::default(8)).attach(pool).run(&fold, &graph, &root);
 });
 ```
 
