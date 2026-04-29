@@ -1,21 +1,25 @@
-name: CI
+name: pages
 
 on:
   push:
     branches: [master, main]
-  pull_request:
-    branches: [master, main]
+  workflow_dispatch:
 
-env:
-  CARGO_TERM_COLOR: always
+permissions:
+  contents: read
+  pages: write
+  id-token: write
 
-# hylic-docs's cargo workspace and the book's `{{#include}}` directives
-# pull from sibling repos. CI co-checks them out into ../<sibling>/ so
-# the same paths resolve as in the dev workspace.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+# Builds the mdBook and deploys to GitHub Pages. The workflow co-checks
+# out the sibling repos (hylic, hylic-pipeline, hylic-parallel-lifts)
+# so the book's `{{#include ../../../hylic*/...}}` snippets resolve.
 
 jobs:
-  check:
-    name: cargo check + mdbook build
+  build:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout hylic-docs
@@ -38,12 +42,6 @@ jobs:
           repository: simlei/hylic-parallel-lifts
           path: hylic-parallel-lifts
       - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          workspaces: hylic-docs
-      - name: cargo check
-        working-directory: hylic-docs
-        run: cargo check --all-targets
       - name: install graphviz
         run: sudo apt-get update && sudo apt-get install -y graphviz
       - name: install mdbook + mdbook-graphviz
@@ -53,3 +51,17 @@ jobs:
       - name: build book
         working-directory: hylic-docs/book
         run: mdbook build
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: hylic-docs/target/book
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4
