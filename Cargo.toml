@@ -1,11 +1,11 @@
 [package]
 name = "hylic-docs"
-version = "0.1.0"
+version = "0.8.0"
 edition = "2024"
 
 [dependencies]
-hylic = { path = "../hylic" }
-hylic-pipeline = { path = "../hylic-pipeline" }
-hylic-parallel-lifts = { path = "../hylic-parallel-lifts" }
+hylic = { path = "../hylic", version = "0.8" }
+hylic-pipeline = { path = "../hylic-pipeline", version = "0.8" }
+hylic-parallel-lifts = { path = "../hylic-parallel-lifts", version = "0.8" }
 either = "1.15.0"
 insta = { version = "1.42", features = ["glob"] }
