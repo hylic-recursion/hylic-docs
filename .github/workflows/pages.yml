@@ -29,12 +29,12 @@ jobs:
       - name: Checkout hylic
         uses: actions/checkout@v4
         with:
-          repository: simlei/hylic
+          repository: hylic-recursion/hylic
           path: hylic
       - name: Checkout hylic-pipeline
         uses: actions/checkout@v4
         with:
-          repository: simlei/hylic-pipeline
+          repository: hylic-recursion/hylic-pipeline
           path: hylic-pipeline
       - uses: dtolnay/rust-toolchain@stable
       - name: install graphviz
