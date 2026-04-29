@@ -2,17 +2,32 @@
 
 Source for the
 [hylic documentation site](https://hylic-recursion.github.io/hylic-docs/).
+The site rebuilds and publishes from this repo's master branch
+via `.github/workflows/pages.yml`.
 
-mdBook sources live under `book/`. The site rebuilds and
-publishes to GitHub Pages on every push to master via
-`.github/workflows/pages.yml`.
+The book covers:
 
-The site covers
-[`hylic`](https://github.com/hylic-recursion/hylic) (the fold /
-treeish / executor decomposition) and
-[`hylic-pipeline`](https://github.com/hylic-recursion/hylic-pipeline)
-(chainable typestate over hylic), the Funnel executor's design,
-an interactive benchmark viewer, and a worked-example cookbook.
+- The fold / treeish / executor decomposition from
+  [`hylic`](https://github.com/hylic-recursion/hylic) —
+  [concepts](https://hylic-recursion.github.io/hylic-docs/concepts/separation.html),
+  guides for each axis ([fold](https://hylic-recursion.github.io/hylic-docs/guides/fold.html),
+  [treeish](https://hylic-recursion.github.io/hylic-docs/guides/treeish.html),
+  [executor](https://hylic-recursion.github.io/hylic-docs/guides/execution.html)),
+  and a worked-example cookbook.
+- [`hylic-pipeline`](https://github.com/hylic-recursion/hylic-pipeline)'s
+  chainable typestate, including the
+  [sugar catalogue](https://hylic-recursion.github.io/hylic-docs/pipeline/sugars.html)
+  and a guide to
+  [writing custom lifts](https://hylic-recursion.github.io/hylic-docs/pipeline/custom_lift.html).
+- The
+  [Funnel executor](https://hylic-recursion.github.io/hylic-docs/funnel/overview.html)
+  — CPS walk, continuations, three monomorphised policy axes,
+  ticket system, pool dispatch.
+- Benchmark results from
+  [`hylic-benchmark`](https://github.com/hylic-recursion/hylic-benchmark),
+  with an
+  [interactive viewer](https://hylic-recursion.github.io/hylic-docs/cookbook/benchmarks.html)
+  over the policy matrix.
 
 ## Building locally
 
@@ -27,9 +42,9 @@ pull from sibling crates, so a local build expects the
 workspace layout (`hylic/` and `hylic-pipeline/` next to this
 crate).
 
-A `src/` directory holds doc-tested code samples; `cargo test
--p hylic-docs` compiles every snippet the book embeds.
-Internal: not published to crates.io.
+A `src/` directory holds doc-tested code samples;
+`cargo test -p hylic-docs` compiles every snippet the book
+embeds. Internal: not published to crates.io.
 
 ## License
 
