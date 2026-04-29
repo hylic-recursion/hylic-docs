@@ -1,26 +1,32 @@
 # hylic
 
-A Rust library for composable recursive tree computation.
+A Rust library for tree-shaped recursive computation.
 
-hylic separates a recursive computation into three independent
-concerns: a **fold** that defines what to compute at each node, a
-**graph** that describes the tree structure, and an **executor** that
-controls how the recursion is carried out. Each concern can be
-defined, transformed, and composed independently.
+hylic splits a recursive computation into three pieces you build
+independently: a **fold** that says what to compute at each node, a
+**graph** that says how a node yields its children, and an
+**executor** that drives the recursion. Each piece can be defined,
+transformed, and composed on its own.
 
-On the performance side, the parallel executor (`Funnel`) attains
-parity with — and on several workloads exceeds — handrolled Rayon
-and Sheque baselines across a 14-workload matrix. Three
-compile-time policy axes govern its behaviour (queue topology,
-accumulation strategy, wake policy); all three are monomorphised,
-leaving no runtime dispatch on strategy choice. Correctness is
-exercised by the main test suite together with an interleaving
-stress harness over the scheduler. The
-[interactive benchmark viewer](./cookbook/benchmarks.md#interactive-funnel-axes-viewer)
-presents the full matrix filterable by axis and workload; its
-scenarios are synthetic CPU-burn workloads, so the numbers are
-informative about shape and relative ordering rather than any
-specific production pipeline.
+The library ships with two executors. `Fused` is the sequential
+one — a callback-based recursion with no overhead beyond the
+fold closures themselves. `Funnel` is the parallel one: a
+work-stealing engine with three compile-time policy axes (queue
+topology, accumulation strategy, wake policy), all monomorphised,
+no runtime dispatch on strategy choice. On the 14-workload Matrix
+bench `Funnel` wins 10 rows outright against handrolled Rayon
+and a scoped pool, and lands within a few percent of the winner
+on the rest. Numbers, the
+[interactive viewer](./cookbook/benchmarks.md#interactive-funnel-axes-viewer),
+and the workload catalogue are on the
+[benchmarks page](./cookbook/benchmarks.md). Scenarios are
+synthetic CPU-burn workloads, so absolute milliseconds describe
+shape and relative ordering rather than any specific production
+pipeline.
+
+The same fold runs unchanged under either executor — the choice
+of `FUSED` versus `exec(funnel::Spec::default(n))` is one
+expression, not one rewrite.
 
 ## A first example
 
