@@ -8,7 +8,7 @@ readme = "README.md"
 publish = false
 
 [dependencies]
-hylic = { path = "../hylic", version = "0.8" }
-hylic-pipeline = { path = "../hylic-pipeline", version = "0.8" }
+hylic = "0.8"
+hylic-pipeline = "0.8"
 either = "1.15.0"
 insta = { version = "1.42", features = ["glob"] }
