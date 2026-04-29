@@ -59,9 +59,9 @@ fold at each call site. The trait is a bifunctor on the `(H, R)` pair.
 
 Concrete lifts implement `Lift` directly as structs (Explainer
 is a unit struct, SeedLift carries a grow function and is used
-internally by `SeedPipeline`, ParLazy carries a pool reference).
-Automatic composition is provided by a blanket `ComposedLift`
-implementation — no per-lift boilerplate needed.
+internally by `SeedPipeline`). Automatic composition is provided
+by a blanket `ComposedLift` implementation — no per-lift
+boilerplate needed.
 
 ## `ConstructFold`: domain-generic fold construction
 
@@ -81,9 +81,9 @@ The method-call pattern matters: Rust 2021 precise captures make
 the Send assertion. `wrapper.get()(n)` forces capture of the whole
 wrapper.
 
-Used by ParLazy and ParEager in the `hylic-parallel-lifts` crate.
-Not called within hylic core. This is a cross-crate API surface for
-one downstream consumer.
+Reserved for downstream lift implementations that need
+domain-generic fold construction without going through the
+typestate pipeline.
 
 ## Module visibility
 
@@ -115,10 +115,5 @@ Types in `prelude/` are built on core but not required to use hylic:
 The following subsystems moved to sibling crates during the crate
 split. Their design is documented in those crates' own source:
 
-- **hylic-parallel-lifts**: WorkPool (scoped fork-join pool),
-  SyncRef (domain-generic Send+Sync wrapper), ParLazy (two-pass
-  parallel evaluation), ParEager (pipelined continuation-passing),
-  FoldPtr (lifetime-erased fold operations), Completion/Collector
-  (continuation chain)
 - **hylic-benchmark**: Rayon executor, Sequential executor,
   HyloSheque (CPS zipper baseline), benchmark scenarios and runners

@@ -142,58 +142,6 @@ use hylic::graph;
     }
     // ANCHOR_END: explainer_usage
 
-    // ANCHOR: parlazy_usage
-    #[test]
-    fn parlazy_usage() {
-        use hylic_pipeline::prelude::{TreeishPipeline, PipelineExec};
-        use hylic_parallel_lifts::{ParLazy, WorkPool, WorkPoolSpec};
-
-        #[derive(Clone)]
-        struct N { val: u64, children: Vec<N> }
-
-        let init = |n: &N| n.val;
-        let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold_ = dom::fold(init, acc, |h| h.clone());
-        let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
-
-        WorkPool::with(WorkPoolSpec::threads(2), |pool| {
-            let parlazy = ParLazy::new(pool);
-            // Compose ParLazy via then_lift; run_from_node to
-            // get the lazy result, then evaluate it in parallel.
-            let lazy = TreeishPipeline::new(
-                    graph::treeish(|n: &N| n.children.clone()),
-                    &fold_,
-                )
-                .lift()
-                .then_lift(parlazy.clone())
-                .run_from_node(&dom::FUSED, &root);
-            let r = parlazy.eval(lazy);
-            assert_eq!(r, 3);
-        });
-    }
-    // ANCHOR_END: parlazy_usage
-
-    // ANCHOR: pareager_usage
-    #[test]
-    fn pareager_usage() {
-        use hylic_parallel_lifts::{ParEager, EagerSpec, WorkPool, WorkPoolSpec};
-
-        #[derive(Clone)]
-        struct N { val: u64, children: Vec<N> }
-
-        let graph = graph::treeish(|n: &N| n.children.clone());
-        let init = |n: &N| n.val;
-        let acc = |h: &mut u64, c: &u64| *h += c;
-        let fold = dom::fold(init, acc, |h| h.clone());
-        let root = N { val: 1, children: vec![N { val: 2, children: vec![] }] };
-
-        WorkPool::with(WorkPoolSpec::threads(2), |pool| {
-            let r = ParEager::lift(pool, EagerSpec::default_for(3)).run(&dom::FUSED, &fold, &graph, &root);
-            assert_eq!(r, 3);
-        });
-    }
-    // ANCHOR_END: pareager_usage
-
     // ── guides/execution.md examples ───────────────────
 
     // ANCHOR: domain_switching

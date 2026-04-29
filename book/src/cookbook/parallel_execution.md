@@ -78,10 +78,9 @@ the type-level design behind `.run()`, `.session()`, and `.attach()`.
 
 ## External parallel options
 
-Two additional strategies live in sibling crates:
+One additional strategy lives in a sibling crate:
 
 - **Rayon** (hylic-benchmark): `par_iter`-based fork-join
-- **Parallel lifts** (hylic-parallel-lifts): `ParLazy` and `ParEager`
 
 ## Working example
 

@@ -144,10 +144,6 @@ Bare application is preferable when:
   machinery adds no value.
 - **A library built on hylic** wishes to retain a narrow
   dependency surface — the `hylic` crate alone is sufficient.
-- **Parallel lifts are being benchmarked.** `ParLazy` and
-  `ParEager` from `hylic-parallel-lifts` are `Lift`
-  implementations; `run_on` measures them without the pipeline
-  in the middle.
 
 Composition without a pipeline is available via
 `ComposedLift::compose`:

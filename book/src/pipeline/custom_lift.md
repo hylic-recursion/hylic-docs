@@ -5,9 +5,8 @@ catalogue and the sugar traits. A custom `Lift` implementation
 earns its keep only in one of three circumstances: when the
 transformation carries cross-node state, when it requires
 per-variant dispatch, or when it is itself an execution strategy.
-The three custom lifts present in the library — `explainer_lift`,
-`SeedLift`, and `ParLazy`/`ParEager` — correspond to exactly
-these cases.
+The two custom lifts present in the library — `explainer_lift`
+and `SeedLift` — correspond to exactly these cases.
 
 This chapter walks through the decisions involved. The worked
 example, a counter-on-init lift, is deliberately minimal; the
@@ -138,13 +137,6 @@ Three representative cases from the ecosystem:
   `init` opens an `ExplainerHeap`; `accumulate` appends a
   transition; `finalize` emits an `ExplainerResult`. Worth
   reading before writing a fold-rewriting lift.
-
-- **`ParLazy` / `ParEager`** in the `hylic-parallel-lifts` crate
-  — *execution strategies* that happen to implement `Lift`.
-  `apply` produces a fold whose `accumulate` schedules work onto
-  a thread pool. The mental model differs from the library
-  shape-lifts; worth reading for anyone building parallel
-  execution primitives.
 
 ## Capability bounds
 

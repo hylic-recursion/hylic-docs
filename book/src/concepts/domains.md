@@ -47,8 +47,7 @@ digraph {
 
 - **`Shared`** stores closures behind `Arc` with
   `Send + Sync` bounds. The atomic clone grants access to the
-  parallel executors (`Funnel`, `ParLazy`, `ParEager`) and makes
-  every pipeline `Clone`.
+  parallel `Funnel` executor and makes every pipeline `Clone`.
 - **`Local`** stores closures behind `Rc` (no `Send` bound).
   Clones remain cheap and the pipeline interfaces are unchanged,
   but execution is confined to a single thread. In return,
@@ -119,7 +118,7 @@ per computation.
 
 ## Parallelism
 
-The parallel executors (`Funnel`, `ParLazy`, `ParEager`) require
+The parallel `Funnel` executor requires
 [`ShareableLift`](./lifts.md), a capability that reduces to
 `D = Shared` together with `Send + Sync` on every payload
 (`N`, `H`, `R`). `Local` and `Owned` cannot run in parallel by

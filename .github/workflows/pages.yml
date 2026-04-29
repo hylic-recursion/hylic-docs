@@ -15,8 +15,8 @@ concurrency:
   cancel-in-progress: false
 
 # Builds the mdBook and deploys to GitHub Pages. The workflow co-checks
-# out the sibling repos (hylic, hylic-pipeline, hylic-parallel-lifts)
-# so the book's `{{#include ../../../hylic*/...}}` snippets resolve.
+# out the sibling repos (hylic, hylic-pipeline) so the book's
+# `{{#include ../../../hylic*/...}}` snippets resolve.
 
 jobs:
   build:
@@ -36,11 +36,6 @@ jobs:
         with:
           repository: simlei/hylic-pipeline
           path: hylic-pipeline
-      - name: Checkout hylic-parallel-lifts
-        uses: actions/checkout@v4
-        with:
-          repository: simlei/hylic-parallel-lifts
-          path: hylic-parallel-lifts
       - uses: dtolnay/rust-toolchain@stable
       - name: install graphviz
         run: sudo apt-get update && sudo apt-get install -y graphviz

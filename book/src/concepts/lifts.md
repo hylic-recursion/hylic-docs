@@ -179,7 +179,7 @@ Two blanket markers gate which executors a lift can feed:
 - `PureLift<D, N, H, R>` — any `Lift + Clone + 'static` with
   `Clone` outputs. Sufficient for the sequential executor `Fused`.
 - `ShareableLift<D, N, H, R>` — adds `Send + Sync` on everything.
-  Required for the parallel executors (`Funnel`, `ParLazy`, `ParEager`).
+  Required for the parallel `Funnel` executor.
 
 You don't implement these; the compiler picks them up via blanket
 impls in [`ops::lift::capability`](../../../../hylic/src/ops/lift/capability.rs).
