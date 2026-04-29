@@ -1,2 +1,21 @@
+# Build output
 target/
-target/
+
+# Library crate: do not track Cargo.lock
+Cargo.lock
+
+# Knowledge base, planning, scratch — never tracked in OSS publication
+KB/
+.plans/
+.scratch-notes/
+__Scratch__/
+_bench-experiment/
+Makefile-scripting/
+notes.txt
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Stray binaries (no provenance, never re-track)
+hylic bench report.pdf
