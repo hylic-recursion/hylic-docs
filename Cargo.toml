@@ -3,6 +3,7 @@ name = "hylic-docs"
 version = "0.8.0"
 edition = "2024"
 description = "mdBook source + doc-tested code samples for the hylic documentation site."
+license = "MIT"
 readme = "README.md"
 publish = false
 
