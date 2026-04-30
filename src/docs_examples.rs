@@ -447,6 +447,72 @@ mod tests {
     }
     // ANCHOR_END: intro_flat_example
 
+    // ANCHOR: pivot_dir_fold_to_flat
+    #[test]
+    fn pivot_dir_fold_to_flat() {
+        use hylic::prelude::*;
+
+        #[derive(Clone)]
+        struct Dir { size: u64, children: Vec<Dir> }
+
+        // The Dir-fold reads d.size and nothing else.
+        let dir_fold: Fold<Dir, u64, u64> = fold(
+            |d: &Dir| d.size,
+            |h: &mut u64, c: &u64| *h += c,
+            |h: &u64| *h,
+        );
+
+        // Flat data for the same logical tree.
+        let sizes: Vec<u64>      = vec![10, 200, 50];
+        let adj: Vec<Vec<usize>> = vec![vec![1, 2], vec![], vec![]];
+
+        // Pivot: contramap_n synthesises a minimal Dir from each index — only
+        // the fields the fold reads need to exist. The fold's closures are
+        // unchanged; the graph is the index-based one.
+        let flat_fold:  Fold<usize, u64, u64> =
+            dir_fold.contramap_n(move |i: &usize| Dir { size: sizes[*i], children: vec![] });
+        let flat_graph: Treeish<usize> =
+            treeish_visit(move |i: &usize, cb: &mut dyn FnMut(&usize)| {
+                for &c in &adj[*i] { cb(&c); }
+            });
+
+        let total: u64 = FUSED.run(&flat_fold, &flat_graph, &0);
+        assert_eq!(total, 260);
+    }
+    // ANCHOR_END: pivot_dir_fold_to_flat
+
+    // ANCHOR: pivot_flat_fold_to_dir
+    #[test]
+    fn pivot_flat_fold_to_dir() {
+        use hylic::prelude::*;
+
+        #[derive(Clone)]
+        struct Dir { id: usize, children: Vec<Dir> }
+
+        // The flat-fold reads sizes[*i] from a captured array.
+        let sizes: Vec<u64> = vec![10, 200, 50];
+        let flat_fold: Fold<usize, u64, u64> = fold(
+            move |i: &usize| sizes[*i],
+            |h: &mut u64, c: &u64| *h += c,
+            |h: &u64| *h,
+        );
+
+        // The same logical tree as a struct.
+        let root = Dir { id: 0, children: vec![
+            Dir { id: 1, children: vec![] },
+            Dir { id: 2, children: vec![] },
+        ]};
+
+        // Pivot: contramap_n projects each Dir to the index the fold expects.
+        // The fold's closures are unchanged; the graph walks struct children.
+        let dir_fold:  Fold<Dir, u64, u64> = flat_fold.contramap_n(|d: &Dir| d.id);
+        let dir_graph: Treeish<Dir>        = treeish(|d: &Dir| d.children.clone());
+
+        let total: u64 = FUSED.run(&dir_fold, &dir_graph, &root);
+        assert_eq!(total, 260);
+    }
+    // ANCHOR_END: pivot_flat_fold_to_dir
+
     // ── quickstart.md ─────────────────────────────────
 
     // ANCHOR: quickstart_funnel

@@ -44,6 +44,32 @@ Only the node type and the Treeish change — the fold logic is
 identical. This separation is the foundation of hylic's
 composability.
 
+## Pivoting between the two
+
+The two formulations describe the same shape of computation in
+different node types. `Fold::contramap_n` lets you take a fold
+written for one and run it over the other, without rewriting any
+of the fold's closures.
+
+Going Dir-fold → flat: synthesise a minimal `Dir` per index — only
+the fields the fold actually reads need to exist. The graph is
+swapped on the executor's side.
+
+```rust
+{{#include ../src/docs_examples.rs:pivot_dir_fold_to_flat}}
+```
+
+The mirror direction projects each `Dir` to the index the
+flat-fold expects:
+
+```rust
+{{#include ../src/docs_examples.rs:pivot_flat_fold_to_dir}}
+```
+
+In both directions the original fold's closures pass through
+unchanged; the only transformation is `contramap_n` on the input
+axis. The graph is chosen at the call site to match.
+
 ## Further reading
 
 - [The recursive pattern](./concepts/separation.md) — the
