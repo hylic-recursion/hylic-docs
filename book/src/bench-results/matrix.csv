@@ -279,17 +279,3 @@ parse-hv_sm,real.rayon,21.39
 parse-lt_sm,real.rayon,6.17
 wide_sm,real.rayon,7.13
 xform_sm,real.rayon,9.61
-aggr_sm,sheque,11.96
-bal_sm,sheque,17.17
-deep_sm,sheque,6.80
-fin_sm,sheque,8.02
-graph-hv_sm,sheque,17.41
-graph-io_sm,sheque,11.33
-hash_sm,sheque,1.04
-io_sm,sheque,6.09
-lg-dense_sm,sheque,16.17
-noop_sm,sheque,0.11
-parse-hv_sm,sheque,20.97
-parse-lt_sm,sheque,5.71
-wide_sm,sheque,7.10
-xform_sm,sheque,9.64

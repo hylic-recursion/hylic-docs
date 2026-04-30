@@ -162,10 +162,6 @@ sits in the return-type slot, the where-clause, and the build-method
 call. Rust's solver verifies syntactic equality in each position; no
 reduction across distinct projection chains is ever required.
 
-The mechanics — six probes isolating the typing positions — are
-recorded in
-[`KB/.plans/seed-pipeline-unification/pocs/`](../../../KB/.plans/seed-pipeline-unification/pocs/).
-
 ## Variance is structural, not friction
 
 Every axis-change sugar with `_bi` in its name (`map_n_bi`,
@@ -201,12 +197,11 @@ rejects.
 
 `Send + Sync` cannot be expressed as a uniform parameterisation of one
 trait without macros (the bound is on a concrete closure type, not a
-projection-able shape). The library's response is to split sugars and
-the build dispatcher per domain: `WrapShared`/`WrapLocal`,
+projection-able shape). Sugars and the build dispatcher are therefore
+split per domain: `WrapShared`/`WrapLocal`,
 `Stage2SugarsShared`/`Stage2SugarsLocal`,
 `SeedSugarsShared`/`SeedSugarsLocal`. The trait bodies read identically
-line for line; only the bound differs. This is one of three
-[accepted-debt items](../../../KB/hylic/legacy-plans/finishing-up/post-split-review/ACCEPTED-DEBT.md).
+line for line; only the bound differs.
 
 ## Bounds at consumption, not construction
 
@@ -219,9 +214,9 @@ pure construction:
 
 A pipeline whose chain wouldn't actually `.run` is structurally
 typeable. The compile-time check happens at consumption: `.run_*` and
-the `TreeishSource` impl carry the chain-validity bounds. This is
-deliberate. Construction is a builder; validity is a runner concern.
-Imposing chain bounds at every `.then_lift` would force every
+the `TreeishSource` impl carry the chain-validity bounds. Construction
+is a builder; validity is a runner concern. Imposing chain bounds at
+every `.then_lift` would force every
 intermediate composition to be runnable, which loses the "construct
 freely, validate at the consumption boundary" pattern that lets
 chained sugars compose without each one having to fully type-prove
@@ -301,12 +296,6 @@ one per phase, each taking the prior phase and producing the next.
 
 - [Crichton, "GATs are HOFs"](https://willcrichton.net/notes/gats-are-hofs/)
   for the GAT framing.
-- [`KB/hylic/legacy-plans/seed-pipeline-transforms/PRINCIPLES.md`](../../../KB/hylic/legacy-plans/seed-pipeline-transforms/PRINCIPLES.md)
-  for the "every specific transform should derive from a general one"
-  principle.
 - [Lifts](../concepts/lifts.md) for the trait shape and the four atoms.
 - [Wrap dispatch](../pipeline/wrap_dispatch.md) for the surface where
   the type-level machinery lands at the user's call site.
-- [`pocs/FINDINGS.md`](../../../KB/.plans/seed-pipeline-unification/pocs/FINDINGS.md)
-  for the empirical record of which projection-chain positions Rust's
-  current solver does and doesn't handle.

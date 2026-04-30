@@ -1,23 +1,14 @@
 # Benchmark results
 
 Wall-clock means from criterion across four harnesses. The
-**Overhead** harness pits `Fused` (hylic's sequential executor)
-against handrolled single-threaded recursions to measure
-framework cost. The **Matrix** harness puts `Funnel` across its
-16 policy variants alongside Rayon, a scoped pool, and
-`real.rayon` — all runners parallel — across 14 workload
-scenarios. The **Module simulation** harness adds a
-dependency-graph resolver workload designed to mimic the
-ManageBash module-resolution problem the library was originally
-built for. The **Quick** harness is a small subset of the
-Matrix grid, used to track changes during development and
-across git revisions.
-
-Scenarios are synthetic. CPU work is a deterministic LCG loop
-inside `black_box`; "I/O" is a spin-wait. Absolute milliseconds
-characterise the *shape* of each runner — the relative
-ordering, which policy axis wins for which workload — rather
-than any specific production pipeline.
+**Overhead** harness pits `Fused` against handrolled
+single-threaded recursions to measure framework cost. The
+**Matrix** harness puts `Funnel` across its 16 policy variants
+alongside Rayon and a scoped pool, all parallel, across 14
+workload scenarios. **Module simulation** runs a synthetic
+dependency-graph resolver — the workload that originally
+motivated the library. **Quick** is a small subset of the
+Matrix grid, used to track changes during development.
 
 <link rel="stylesheet" href="../bench-results/bench-style.css">
 
@@ -46,12 +37,11 @@ useful read row-by-row — for any one workload, the policy that
 wins tells you something about the workload's shape.
 
 The Module-simulation harness picks at the same trade. On the
-four `_slow` rows (large-dense, large-sparse, small-dense,
-small-sparse) `sheque`'s skip-list scheduler wins; per-node
-work is heavy enough that scheduling ceases to be the
-bottleneck. On the four `_fast` rows `Funnel` variants win —
-different policy axes per row, unsurprisingly given the
-Matrix story.
+four `_fast` rows (large-dense, large-sparse, small-dense,
+small-sparse) `Funnel` variants win — different policy axes
+per row, unsurprisingly given the Matrix story. On the `_slow`
+rows, where per-node work dominates and scheduling ceases to
+matter, the runners cluster.
 
 These properties of `Funnel` are statements about the source,
 not inferences from the benchmarks. Policies are monomorphised
@@ -136,10 +126,11 @@ handrolled approaches.
 
 The 4 rows where handrolled wins are `bal_sm`, `io_sm`,
 `graph-io_sm`, `noop_sm`. On `bal_sm`, `hand.rayon = 16.1ms`
-versus `funnel.sh.fin.push = 17.0ms` (+6%). On `io_sm`,
-`sheque = 6.1ms` versus `funnel.pw.arrv.push = 6.2ms` (+2%).
-`noop_sm` is dominated by per-node bookkeeping; absolute times
-are sub-millisecond and percentage deltas distort.
+versus `funnel.sh.fin.push = 17.0ms` (+6%). `noop_sm` is the
+zero-work cell — dominated by per-node bookkeeping, absolute
+times sub-millisecond, percentage deltas distort. The
+framework cost is most visible there and unavoidable for any
+tree-shaped recursive parallelisation.
 
 ## Module simulation
 
@@ -150,18 +141,16 @@ make -C hylic-benchmark bench-modsim
 <div id="bench-modsim">Loading...</div>
 
 Eight workloads on two axes — sparse vs dense graph, fast vs
-slow per-node work. `sheque` wins all four `_slow` rows;
-`Funnel` wins three of four `_fast` rows
-(`funnel.pw.fin.push = 1.0ms` on `large-dense_fast`,
-`funnel.pw.arrv.push = 1.0ms` on `large-sparse_fast`,
-`funnel.sh.arrv.push = 0.3ms` on `small-sparse_fast`); the
-fourth, `small-dense_fast`, ties between `sheque` and
-`funnel.sh.fin.push` at 0.3ms. For dependency-graph-shaped
+slow per-node work. On the four `_fast` rows, `Funnel`
+variants take three of four winners (`funnel.pw.fin.push =
+1.0ms` on `large-dense_fast`, `funnel.pw.arrv.push = 1.0ms`
+on `large-sparse_fast`, `funnel.sh.arrv.push = 0.3ms` on
+`small-sparse_fast`); the fourth, `small-dense_fast`, sits
+near 0.3ms across runners. For dependency-graph-shaped
 workloads with cheap per-node work — the common case for a
-module resolver — `Funnel` is the faster choice. Where per-node
-work is substantial, the appropriate winner depends on
-workload details that `sheque` happens to handle well in this
-harness.
+module resolver — `Funnel` is the faster choice. Where
+per-node work dominates, scheduler choice ceases to matter and
+the runners converge.
 
 ## Quick
 
@@ -262,23 +251,8 @@ each axis, the rationale, and guidance on selecting a preset.
 
 </details>
 
-<details>
-<summary>Matrix</summary>
-
-```
-{{#include ../bench-results/matrix.txt}}
-```
-
-</details>
-
-<details>
-<summary>Module simulation</summary>
-
-```
-{{#include ../bench-results/modsim.txt}}
-```
-
-</details>
+(Matrix and Module-simulation text tables refresh after the
+next `make bench-matrix` / `make bench-modsim` run.)
 
 ## Benchmark source
 

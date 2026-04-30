@@ -308,12 +308,8 @@ The relevant struct and its `Lift` impl:
 
 `Node(n)` delegates to the inner treeish. `EntryRoot` has no
 children of its own in the treeish — its children come from the
-entry seeds provided at run time.
-
-(Historical note: earlier designs had a third `Seed(s)` variant
-that deferred grow, and the row was originally named `LiftedNode`.
-The current design grows inline at EntryRoot-visit time, and the
-row is named `SeedNode<N>` after the seed-pipeline-unification.)
+entry seeds provided at run time, grown inline at the EntryRoot
+visit.
 
 ```dot process
 digraph seed_bridge {

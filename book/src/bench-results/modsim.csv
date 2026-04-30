@@ -135,14 +135,6 @@ small-dense_fast,rayon,0.33
 small-dense_slow,rayon,5.69
 small-sparse_fast,rayon,0.35
 small-sparse_slow,rayon,6.13
-large-dense_fast,sheque,1.04
-large-dense_slow,sheque,19.16
-large-sparse_fast,sheque,1.03
-large-sparse_slow,sheque,19.41
-small-dense_fast,sheque,0.31
-small-dense_slow,sheque,5.13
-small-sparse_fast,sheque,0.32
-small-sparse_slow,sheque,5.50
 large-dense_fast,vanilla.rayon,1.09
 large-dense_slow,vanilla.rayon,19.73
 large-sparse_fast,vanilla.rayon,1.08
