@@ -56,14 +56,14 @@ the fields the fold actually reads need to exist. The graph is
 swapped on the executor's side.
 
 ```rust
-{{#include ../src/docs_examples.rs:pivot_dir_fold_to_flat}}
+{{#include ../../src/docs_examples.rs:pivot_dir_fold_to_flat}}
 ```
 
 The mirror direction projects each `Dir` to the index the
 flat-fold expects:
 
 ```rust
-{{#include ../src/docs_examples.rs:pivot_flat_fold_to_dir}}
+{{#include ../../src/docs_examples.rs:pivot_flat_fold_to_dir}}
 ```
 
 In both directions the original fold's closures pass through
