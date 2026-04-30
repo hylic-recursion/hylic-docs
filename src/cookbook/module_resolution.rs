@@ -7,10 +7,7 @@ mod tests {
     use std::collections::HashMap;
     use either::Either;
 
-    use hylic_pipeline::prelude::{SeedPipeline};
-    use hylic::prelude::seeds_for_fallible;
-    use hylic::domain::shared as dom;
-    use hylic::graph;
+    use hylic_pipeline::prelude::*;
     use insta::assert_snapshot;
 
 
@@ -56,47 +53,39 @@ mod tests {
             // "ghost" is not in the registry — will produce an error
         ]);
 
-        // Node = Either<ResolveError, Module>.
-        // seeds_from_node: valid modules produce dependency names (seeds),
-        // errors produce none (via seeds_for_fallible).
-        let seeds_from_node = seeds_for_fallible(
-            graph::edgy(move |module: &Module| module.deps.clone()),
-        );
+        // Node = Either<ResolveError, Module>. `seeds_for_fallible` adapts a
+        // valid-side edge function so errors produce no seeds.
+        let seeds_from_node: Edgy<Either<ResolveError, Module>, String> =
+            seeds_for_fallible(edgy(move |module: &Module| module.deps.clone()));
 
-        // grow: dependency name → Either<Error, Module>
+        // grow: dependency name → Either<Error, Module>.
         let grow = {
             let reg = registry;
             move |dep_name: &String| -> Either<ResolveError, Module> {
                 match reg.0.get(dep_name) {
                     Some(m) => Either::Right(m.clone()),
-                    None => Either::Left(ResolveError(format!("not found: {}", dep_name))),
+                    None    => Either::Left(ResolveError(format!("not found: {}", dep_name))),
                 }
             }
         };
 
-        // The fold operates on Either<Error, Module>.
-        let init = |node: &Either<ResolveError, Module>| match node {
-            Either::Right(m) => Resolved {
-                modules: vec![m.name.clone()],
-                errors: vec![],
+        let collect: Fold<Either<ResolveError, Module>, Resolved, Resolved> = fold(
+            |node: &Either<ResolveError, Module>| match node {
+                Either::Right(m) => Resolved { modules: vec![m.name.clone()], errors: vec![] },
+                Either::Left(e)  => Resolved { modules: vec![], errors: vec![e.0.clone()] },
             },
-            Either::Left(e) => Resolved {
-                modules: vec![],
-                errors: vec![e.0.clone()],
+            |heap: &mut Resolved, child: &Resolved| {
+                heap.modules.extend(child.modules.iter().cloned());
+                heap.errors.extend(child.errors.iter().cloned());
             },
-        };
-        let acc = |heap: &mut Resolved, child: &Resolved| {
-            heap.modules.extend(child.modules.iter().cloned());
-            heap.errors.extend(child.errors.iter().cloned());
-        };
-        let collect = dom::fold(init, acc, |h| h.clone());
+            |h: &Resolved| h.clone(),
+        );
 
-        // SeedPipeline: grow + seeds_from_node + fold.
-        // Entry handled at the call site.
-        let pipeline = SeedPipeline::new(grow, seeds_from_node, &collect);
+        let pipeline: SeedPipeline<Shared, Either<ResolveError, Module>, String, Resolved, Resolved> =
+            SeedPipeline::new(grow, seeds_from_node, &collect);
 
-        let result = pipeline.run_from_slice(
-            &dom::FUSED,
+        let result: Resolved = pipeline.run_from_slice(
+            &FUSED,
             &["app".to_string()],
             Resolved { modules: vec![], errors: vec![] },
         );

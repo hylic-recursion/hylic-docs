@@ -1,6 +1,6 @@
 # Parallel execution
 
-hylic provides two built-in executors. `dom::FUSED` runs the fold
+hylic provides two built-in executors. `FUSED` runs the fold
 sequentially through callback-based recursion. The Funnel executor
 parallelizes the same fold across a scoped thread pool. Both are
 invoked through the same `.run()` method.

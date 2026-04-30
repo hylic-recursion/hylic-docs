@@ -2,8 +2,7 @@
 
 #[cfg(test)]
 mod tests {
-    use hylic::domain::shared as dom;
-use hylic::graph;
+    use hylic::prelude::*;
     use insta::assert_snapshot;
 
 
@@ -46,30 +45,30 @@ use hylic::graph;
             FsEntry::file("Cargo.toml", 400),
         ]);
 
-        // treeish_visit: callback avoids allocating empty Vecs for files.
-        // Only directories produce children; files are implicit leaves.
-        let graph = graph::treeish_visit(|entry: &FsEntry, cb: &mut dyn FnMut(&FsEntry)| {
+        // Files are implicit leaves; only directories produce children.
+        let graph: Treeish<FsEntry> = treeish_visit(|entry: &FsEntry, cb: &mut dyn FnMut(&FsEntry)| {
             if let FsEntry::Dir { children, .. } = entry {
                 for child in children { cb(child); }
             }
         });
 
-        // The heap is a structured Summary — multiple metrics in one fold.
-        // init seeds the node's own contribution, accumulate merges children.
-        let init = |entry: &FsEntry| match entry {
-            FsEntry::File { size, .. } =>
-                Summary { total_size: *size, file_count: 1, dir_count: 0 },
-            FsEntry::Dir { .. } =>
-                Summary { total_size: 0, file_count: 0, dir_count: 1 },
-        };
-        let acc = |heap: &mut Summary, child: &Summary| {
-            heap.total_size += child.total_size;
-            heap.file_count += child.file_count;
-            heap.dir_count += child.dir_count;
-        };
-        let summarize = dom::fold(init, acc, |h| h.clone());
+        // Structured heap — multiple metrics tracked in one pass. H = R = Summary.
+        let summarize: Fold<FsEntry, Summary, Summary> = fold(
+            |entry: &FsEntry| match entry {
+                FsEntry::File { size, .. } =>
+                    Summary { total_size: *size, file_count: 1, dir_count: 0 },
+                FsEntry::Dir { .. } =>
+                    Summary { total_size: 0, file_count: 0, dir_count: 1 },
+            },
+            |heap: &mut Summary, child: &Summary| {
+                heap.total_size += child.total_size;
+                heap.file_count += child.file_count;
+                heap.dir_count += child.dir_count;
+            },
+            |h: &Summary| h.clone(),
+        );
 
-        let result = dom::FUSED.run(&summarize, &graph, &tree);
+        let result: Summary = FUSED.run(&summarize, &graph, &tree);
         assert_eq!(result, Summary {
             total_size: 10400, file_count: 5, dir_count: 3,
         });

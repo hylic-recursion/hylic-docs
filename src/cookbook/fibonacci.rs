@@ -4,8 +4,7 @@
 
 #[cfg(test)]
 mod tests {
-    use hylic::domain::shared as dom;
-use hylic::graph;
+    use hylic::prelude::*;
     use insta::assert_snapshot;
 
 
@@ -16,22 +15,22 @@ use hylic::graph;
 
     #[test]
     fn fibonacci() {
-        // treeish: given a node, return its children.
-        // Leaves (n <= 1) have no children — empty vec stops recursion.
-        let graph = graph::treeish(|n: &FibNode| {
+        // Children of fib(n) are fib(n-1) and fib(n-2); fib(0) and fib(1) are leaves.
+        let graph: Treeish<FibNode> = treeish(|n: &FibNode| {
             if n.0 <= 1 { vec![] }
             else { vec![FibNode(n.0 - 1), FibNode(n.0 - 2)] }
         });
 
-        // H = R: the heap is the result; finalize is just the identity
-        // extraction from it. init: each node seeds its heap — leaves get
-        // their value, inner nodes get 0.
-        // accumulate: called once per child result, folds it into the heap.
-        let init = |n: &FibNode| if n.0 <= 1 { n.0 } else { 0 };
-        let acc = |heap: &mut u64, child: &u64| *heap += child;
-        let fib = dom::fold(init, acc, |h| h.clone());
+        // init: leaves seed the heap with n; inner nodes seed with 0.
+        // accumulate: each child's result is summed into the heap.
+        // finalize: identity (H = R = u64).
+        let fib: Fold<FibNode, u64, u64> = fold(
+            |n: &FibNode| if n.0 <= 1 { n.0 } else { 0 },
+            |heap: &mut u64, child: &u64| *heap += child,
+            |h: &u64| *h,
+        );
 
-        let result = dom::FUSED.run(&fib, &graph, &FibNode(10));
+        let result: u64 = FUSED.run(&fib, &graph, &FibNode(10));
         assert_eq!(result, 55);
 
         assert_snapshot!("fib10", format!("fib(10) = {result}"));

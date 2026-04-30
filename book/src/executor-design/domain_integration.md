@@ -50,7 +50,7 @@ digraph {
   node [shape=box, fontname="monospace", fontsize=10, style="rounded,filled"];
   edge [fontname="sans-serif", fontsize=9];
 
-  exec [label="Exec<Shared, fused::Spec>\n= dom::FUSED", fillcolor="#d4edda"];
+  exec [label="Exec<Shared, fused::Spec>\n= shared::FUSED", fillcolor="#d4edda"];
   domain [label="D = Shared\n(fixed by const type)", fillcolor="#fff3cd"];
   fold [label="D::Fold<H, R>\n= shared::Fold<N, H, R>", fillcolor="#cce5ff"];
   gtype [label="G: TreeOps<N>\n(inferred from argument)", fillcolor="#cce5ff"];

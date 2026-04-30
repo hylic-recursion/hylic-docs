@@ -226,8 +226,8 @@ digraph {
    `attach`, `with_session`
 3. Implement `Executor` on `MySession` — the direct dispatch
 4. Implement `Executor` on `MySpec` — route through `with_session`
-5. Users: `dom::exec(MySpec { ... }).run(...)` — same shape as every
-   other executor
+5. Users: `shared::exec(MySpec { ... }).run(...)` (or the `local`/
+   `owned` equivalent) — same shape as every other executor
 
 The framework provides `.run()`, `.session()`, `.attach()` for free
 via the `Exec<D, S>` wrapper.

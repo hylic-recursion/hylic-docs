@@ -126,18 +126,20 @@ digraph {
     node [shape=box, style="rounded,filled", fillcolor="#f5f5f5", fontname="sans-serif", fontsize=11];
     edge [fontname="sans-serif", fontsize=10];
 
-    pick [label="1. Pick domain\nuse hylic::domain::shared as dom;", fillcolor="#d4edda"];
-    build [label="2. Build fold + graph\ndom::fold(...)\ngraph::treeish(...)", fillcolor="#fff3cd"];
-    run [label="3. Run\ndom::FUSED.run(&fold, &graph, &root)", fillcolor="#cce5ff"];
-    par [label="3b. Or parallel\ndom::exec(funnel::Spec::default(8))\n  .run(...)", fillcolor="#cce5ff"];
+    pick [label="1. Bring the prelude in\nuse hylic::prelude::*;", fillcolor="#d4edda"];
+    build [label="2. Build fold + graph\nfold(...)\ntreeish(...)", fillcolor="#fff3cd"];
+    run [label="3. Run\nFUSED.run(&fold, &graph, &root)", fillcolor="#cce5ff"];
+    par [label="3b. Or parallel\nexec(funnel::Spec::default(8))\n  .run(...)", fillcolor="#cce5ff"];
 
     pick -> build -> run;
     build -> par [style=dashed, label="if parallel"];
 }
 ```
 
-Step 1 is usually `shared` and never changes. Steps 2-3 are the
-entire API surface for most programs.
+The prelude defaults to the Shared domain — `fold(…)` /
+`treeish(…)` / `FUSED` resolve to the Shared constructors. For
+Local or Owned, take the per-domain path; see
+[Import patterns](./imports.md#switching-domains).
 
 ## Domain compatibility matrix
 

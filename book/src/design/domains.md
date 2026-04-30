@@ -127,9 +127,10 @@ parameter on the executor: `Exec<D, S>`. This resolves a type
 inference problem: GATs are not injective (`D::Fold<H, R>` does not
 uniquely identify `D`), so placing the domain on the fold would
 prevent the compiler from inferring the domain from the argument
-types. With `D` on the executor, each constant (`dom::FUSED`) or
-`dom::exec(...)` call fixes `D`, and the compiler resolves everything
-statically. See [Domain integration](../executor-design/domain_integration.md).
+types. With `D` on the executor, each constant (`shared::FUSED`,
+`local::FUSED`, `owned::FUSED`) or `<domain>::exec(...)` call fixes
+`D`, and the compiler resolves everything statically. See
+[Domain integration](../executor-design/domain_integration.md).
 
 ## Choosing a domain
 

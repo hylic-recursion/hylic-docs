@@ -114,7 +114,7 @@ Two executors are provided:
 
 | Executor | Traversal | Domains |
 |---|---|---|
-| `dom::FUSED` | Direct sequential recursion | all |
+| `FUSED` (Shared) / `local::FUSED` / `owned::FUSED` | Direct sequential recursion | all |
 | [Funnel](../funnel/overview.md) | Parallel work-stealing | Shared |
 
 Both implement the `Executor<N, R, D, G>` trait, parameterised by
@@ -134,7 +134,7 @@ digraph {
 
     Treeish [label="Treeish<N>\nstructure"];
     Fold [label="Fold<N, H, R>\ncomputation"];
-    Exec [label="dom::FUSED\nstrategy"];
+    Exec [label="FUSED\nstrategy"];
     Domain [label="Domain\n(Shared / Local / Owned)", fillcolor="#fff3cd"];
     R [label="R", shape=ellipse, style=filled, fillcolor="#d4edda"];
 

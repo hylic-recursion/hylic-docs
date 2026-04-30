@@ -99,10 +99,11 @@ for
   ldom::FUSED.run(&lf, &graph, &root);
   ```
 
-- **Crate-internal lift atoms not in the prelude**: `Traced`,
-  `memoize_treeish`, `VecFold`, etc. live one level under
-  `hylic::prelude::*` (they are public modules but excluded from
-  the wildcard re-export). Import explicitly.
+- **Helpers under `hylic::prelude::*` that come in via the wildcard
+  but are sometimes worth naming explicitly** — `Traced`,
+  `memoize_treeish`, `VecFold`, `vec_fold`, the explainer trace
+  formatters, `TreeFormatCfg`. Reach for the qualified path when
+  the call site benefits from the extra signal at a glance.
 
 ## Module map
 

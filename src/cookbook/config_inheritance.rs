@@ -5,8 +5,7 @@
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
-    use hylic::domain::shared as dom;
-use hylic::graph;
+    use hylic::prelude::*;
     use insta::assert_snapshot;
 
 
@@ -62,26 +61,26 @@ use hylic::graph;
             ]),
         ]);
 
-        // treeish_from: for structs with a children field — zero-clone slice access.
-        let graph = graph::treeish_from(|scope: &ConfigScope| scope.children.as_slice());
+        let graph: Treeish<ConfigScope> =
+            treeish_from(|scope: &ConfigScope| scope.children.as_slice());
 
-        // init seeds the heap with the parent's own overrides.
-        // accumulate merges each child's resolved config upward.
-        // or_insert means: child values only fill in keys the parent hasn't set.
-        // This gives parent-wins semantics — init runs before accumulate.
-        let init = |scope: &ConfigScope| ResolvedConfig {
-            scope: scope.name.clone(),
-            merged: scope.overrides.clone(),
-        };
-        let acc = |heap: &mut ResolvedConfig, child: &ResolvedConfig| {
-            // Child values only fill in keys the parent hasn't set.
-            for (k, v) in &child.merged {
-                heap.merged.entry(k.clone()).or_insert_with(|| v.clone());
-            }
-        };
-        let resolve = dom::fold(init, acc, |h| h.clone());
+        // init seeds the heap with the scope's own overrides; init runs
+        // before accumulate, so parent values win — child entries only
+        // fill in keys the parent hasn't set.
+        let resolve: Fold<ConfigScope, ResolvedConfig, ResolvedConfig> = fold(
+            |scope: &ConfigScope| ResolvedConfig {
+                scope:  scope.name.clone(),
+                merged: scope.overrides.clone(),
+            },
+            |heap: &mut ResolvedConfig, child: &ResolvedConfig| {
+                for (k, v) in &child.merged {
+                    heap.merged.entry(k.clone()).or_insert_with(|| v.clone());
+                }
+            },
+            |h: &ResolvedConfig| h.clone(),
+        );
 
-        let result = dom::FUSED.run(&resolve, &graph, &root);
+        let result: ResolvedConfig = FUSED.run(&resolve, &graph, &root);
 
         // Global scope sees all keys from all descendants,
         // but its own values win for "color", "font_size", "theme".

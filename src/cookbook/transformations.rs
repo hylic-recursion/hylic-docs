@@ -8,9 +8,8 @@
 mod tests {
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
+    use hylic::prelude::*;
     use hylic::prelude::memoize_treeish_by;
-    use hylic::domain::shared as dom;
-use hylic::graph;
     use insta::assert_snapshot;
 
     // ── Domain ──────────────────────────────────────────────
@@ -39,7 +38,7 @@ use hylic::graph;
 
     // ── Shared setup ────────────────────────────────────────
 
-    fn setup() -> (graph::Treeish<Task>, Task) {
+    fn setup() -> (Treeish<Task>, Task) {
         let reg = Registry::new(&[
             ("app",       50,  &["compile", "link"]),
             ("compile",   200, &["parse", "typecheck"]),
@@ -48,17 +47,19 @@ use hylic::graph;
             ("link",      150, &[]),
         ]);
         let map = reg.0.clone();
-        let graph = graph::treeish(move |task: &Task| {
+        let g: Treeish<Task> = treeish(move |task: &Task| {
             task.deps.iter().filter_map(|d| map.get(d).cloned()).collect()
         });
         let root = reg.get("app").unwrap().clone();
-        (graph, root)
+        (g, root)
     }
 
-    fn base_fold() -> dom::Fold<Task, u64, u64> {
-        let init = |t: &Task| t.cost_ms;
-        let acc = |heap: &mut u64, child: &u64| *heap += child;
-        dom::fold(init, acc, |h| h.clone())
+    fn base_fold() -> Fold<Task, u64, u64> {
+        fold(
+            |t: &Task| t.cost_ms,
+            |heap: &mut u64, child: &u64| *heap += child,
+            |h: &u64| *h,
+        )
     }
 
     // ── Fold phase wrappers ─────────────────────────────────
@@ -109,9 +110,9 @@ use hylic::graph;
 
     // ── Graph transformations ───────────────────────────────
 
-    fn only_costly_deps(graph: &graph::Treeish<Task>, min_cost: u64) -> graph::Treeish<Task> {
-        let inner = graph.clone();
-        graph::treeish(move |task: &Task| {
+    fn only_costly_deps(g: &Treeish<Task>, min_cost: u64) -> Treeish<Task> {
+        let inner = g.clone();
+        treeish(move |task: &Task| {
             inner.at(task)
                 .filter(|child: &Task| child.cost_ms >= min_cost)
                 .collect_vec()
@@ -126,7 +127,7 @@ use hylic::graph;
         let visited = Arc::new(Mutex::new(Vec::new()));
         let fold = base_fold().wrap_init(visit_logger(visited.clone()));
 
-        let total = dom::FUSED.run(&fold, &graph, &root);
+        let total = FUSED.run(&fold, &graph, &root);
         let names: Vec<String> = visited.lock().unwrap().clone();
         assert_eq!(total, 800);
         assert_snapshot!("visit_logger", format!(
@@ -138,7 +139,7 @@ use hylic::graph;
     fn test_skip_small_children() {
         let (graph, root) = setup();
         let fold = base_fold().wrap_accumulate(skip_small_children(200));
-        let total = dom::FUSED.run(&fold, &graph, &root);
+        let total = FUSED.run(&fold, &graph, &root);
         // app(50) + compile(200+typecheck 300) = 550; parse(100) and link(150) skipped
         assert_eq!(total, 550);
         assert_snapshot!("skip_small", format!("total={total} (small children skipped)"));
@@ -148,7 +149,7 @@ use hylic::graph;
     fn test_clamp_at() {
         let (graph, root) = setup();
         let fold = base_fold().wrap_finalize(clamp_at(500));
-        let total = dom::FUSED.run(&fold, &graph, &root);
+        let total = FUSED.run(&fold, &graph, &root);
         // compile=min(600,500)=500, link=150, app=min(50+500+150,500)=500
         assert_eq!(total, 500);
         assert_snapshot!("clamp_at", format!("total={total} (clamped at 500)"));
@@ -157,7 +158,7 @@ use hylic::graph;
     #[test]
     fn test_classify() {
         let (graph, root) = setup();
-        let (total, category) = dom::FUSED.run(&base_fold().zipmap(classify), &graph, &root);
+        let (total, category) = FUSED.run(&base_fold().zipmap(classify), &graph, &root);
         assert_eq!(total, 800);
         assert_eq!(category, "critical");
         assert_snapshot!("classify", format!("total={total}, category={category}"));
@@ -167,7 +168,7 @@ use hylic::graph;
     fn test_only_costly_deps() {
         let (graph, root) = setup();
         let filtered = only_costly_deps(&graph, 150);
-        let total = dom::FUSED.run(&base_fold(), &filtered, &root);
+        let total = FUSED.run(&base_fold(), &filtered, &root);
         // parse(100) pruned: app(50)+compile(200)+typecheck(300)+link(150) = 700
         assert_eq!(total, 700);
         assert_snapshot!("only_costly", format!("total={total} (deps with cost < 150 pruned)"));
@@ -184,18 +185,18 @@ use hylic::graph;
         let visit_count = Arc::new(Mutex::new(0u32));
         let vc = visit_count.clone();
         let map = reg.0.clone();
-        let graph = graph::treeish(move |task: &Task| {
+        let graph = treeish(move |task: &Task| {
             *vc.lock().unwrap() += 1;
             task.deps.iter().filter_map(|d| map.get(d).cloned()).collect()
         });
         let root = reg.get("app").unwrap().clone();
 
-        let total = dom::FUSED.run(&base_fold(), &graph, &root);
+        let total = FUSED.run(&base_fold(), &graph, &root);
         let raw_visits = *visit_count.lock().unwrap();
 
         *visit_count.lock().unwrap() = 0;
         let cached = memoize_treeish_by(&graph, |t: &Task| t.name.clone());
-        let total_memo = dom::FUSED.run(&base_fold(), &cached, &root);
+        let total_memo = FUSED.run(&base_fold(), &cached, &root);
         let memo_visits = *visit_count.lock().unwrap();
 
         assert_eq!((total, raw_visits), (490, 5));
@@ -214,7 +215,7 @@ use hylic::graph;
             .wrap_finalize(clamp_at(500))
             .zipmap(classify);
 
-        let (total, category) = dom::FUSED.run(&pipeline, &graph, &root);
+        let (total, category) = FUSED.run(&pipeline, &graph, &root);
         let names: Vec<String> = visited.lock().unwrap().clone();
         assert_eq!(total, 500);
         assert_eq!(category, "critical");

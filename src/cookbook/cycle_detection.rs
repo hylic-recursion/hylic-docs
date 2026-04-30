@@ -5,8 +5,7 @@
 #[cfg(test)]
 mod tests {
     use std::collections::{HashMap, HashSet};
-    use hylic::domain::shared as dom;
-use hylic::graph;
+    use hylic::prelude::*;
     use insta::assert_snapshot;
 
 
@@ -65,29 +64,29 @@ use hylic::graph;
             ("D", &[]),
         ]);
 
-        // The cycle state lives in the NODE TYPE (DepNode carries its ancestor set),
-        // not in the fold. The treeish decides what to traverse: cycles become
-        // leaves (empty children), stopping recursion. The fold just collects.
-        // This is the hylic pattern: structure decisions in Treeish, computation in Fold.
-        let graph = graph::treeish(move |node: &DepNode| {
+        // Cycle state lives in the node type — DepNode carries its ancestor
+        // set. When a node sees itself in that set, the treeish stops by
+        // returning no children.
+        let graph: Treeish<DepNode> = treeish(move |node: &DepNode| {
             if node.is_cycle() { return vec![]; }
             graph_data.edges.get(&node.id)
                 .map(|deps| deps.iter().map(|d| node.child(d)).collect())
                 .unwrap_or_default()
         });
 
-        // Fold: collect cycles from leaves, count visited nodes.
-        let init = |node: &DepNode| CycleResult {
-            cycles: if node.is_cycle() { vec![node.id.clone()] } else { vec![] },
-            visited: 1,
-        };
-        let acc = |heap: &mut CycleResult, child: &CycleResult| {
-            heap.cycles.extend(child.cycles.iter().cloned());
-            heap.visited += child.visited;
-        };
-        let detect = dom::fold(init, acc, |h| h.clone());
+        let detect: Fold<DepNode, CycleResult, CycleResult> = fold(
+            |node: &DepNode| CycleResult {
+                cycles:  if node.is_cycle() { vec![node.id.clone()] } else { vec![] },
+                visited: 1,
+            },
+            |heap: &mut CycleResult, child: &CycleResult| {
+                heap.cycles.extend(child.cycles.iter().cloned());
+                heap.visited += child.visited;
+            },
+            |h: &CycleResult| h.clone(),
+        );
 
-        let result = dom::FUSED.run(&detect, &graph, &DepNode::root("A"));
+        let result: CycleResult = FUSED.run(&detect, &graph, &DepNode::root("A"));
 
         assert_eq!(result.cycles, vec!["A"]);  // C → A cycle detected
         assert_eq!(result.visited, 6);          // A, B, C, D, D, A(cycle)

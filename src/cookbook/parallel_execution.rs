@@ -4,8 +4,7 @@
 
 #[cfg(test)]
 mod tests {
-    use hylic::domain::shared as dom;
-    use hylic::graph;
+    use hylic::prelude::*;
     use hylic::exec::funnel;
     use insta::assert_snapshot;
 
@@ -43,40 +42,40 @@ mod tests {
     fn parallel_strategies() {
         let (adj, vals) = build_tree();
 
-        // The treeish looks up children by index — no nested structs
+        // The treeish looks up children by index; no nested structs.
         let adj_for_graph = adj.clone();
-        let graph = graph::treeish_visit(move |n: &usize, cb: &mut dyn FnMut(&usize)| {
+        let graph: Treeish<usize> = treeish_visit(move |n: &usize, cb: &mut dyn FnMut(&usize)| {
             for &c in &adj_for_graph[*n] { cb(&c); }
         });
 
         let vals_for_fold = vals.clone();
-        let sum = dom::fold(
+        let sum: Fold<usize, u64, u64> = fold(
             move |n: &usize| vals_for_fold[*n],
             |heap: &mut u64, child: &u64| *heap += child,
             |heap: &u64| *heap,
         );
 
         // Sequential baseline
-        let expected = dom::FUSED.run(&sum, &graph, &0usize);
+        let expected = FUSED.run(&sum, &graph, &0usize);
 
         // One-shot: .run() creates + destroys pool internally
-        let r_default = dom::exec(funnel::Spec::default(4)).run(&sum, &graph, &0usize);
+        let r_default = exec(funnel::Spec::default(4)).run(&sum, &graph, &0usize);
         assert_eq!(r_default, expected);
 
         // Different policy: wide-light
-        let r_wide = dom::exec(funnel::Spec::for_wide_light(4)).run(&sum, &graph, &0usize);
+        let r_wide = exec(funnel::Spec::for_wide_light(4)).run(&sum, &graph, &0usize);
         assert_eq!(r_wide, expected);
 
         // Session scope: pool shared across folds
-        dom::exec(funnel::Spec::default(4)).session(|s| {
+        exec(funnel::Spec::default(4)).session(|s| {
             assert_eq!(s.run(&sum, &graph, &0usize), expected);
             assert_eq!(s.run(&sum, &graph, &0usize), expected);
         });
 
         // Explicit attach: manual pool, multiple policies
         funnel::Pool::with(4, |pool| {
-            let pw = dom::exec(funnel::Spec::default(4)).attach(pool);
-            let sh = dom::exec(funnel::Spec::for_wide_light(4)).attach(pool);
+            let pw = exec(funnel::Spec::default(4)).attach(pool);
+            let sh = exec(funnel::Spec::for_wide_light(4)).attach(pool);
             assert_eq!(pw.run(&sum, &graph, &0usize), expected);
             assert_eq!(sh.run(&sum, &graph, &0usize), expected);
         });
