@@ -1,0 +1,268 @@
+<div id="funnel-analysis" class="fa">
+<style>
+.fa { font-family: system-ui, -apple-system, sans-serif; font-size: 13px; max-width: 100%; overflow-x: auto; }
+.fa h3 { margin: 1em 0 0.3em; }
+.fa .subtitle { font-size: 12px; color: #666; margin: 0 0 1em; }
+
+/* Axis toggle controls */
+.fa .ax-controls { margin: 0.5em 0 1em; padding: 10px 14px; background: #f4f4f4; border-radius: 8px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.fa .ax-group { display: flex; align-items: center; gap: 6px; }
+.fa .ax-label { font-size: 11px; font-weight: 600; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+.fa .ax-toggle { cursor: pointer; padding: 3px 10px; border-radius: 4px; font-size: 12px; font-weight: 600; border: 2px solid transparent; user-select: none; transition: all 0.15s; }
+.fa .ax-toggle:hover { filter: brightness(0.92); }
+.fa .ax-toggle.on { border-color: currentColor; opacity: 1; }
+.fa .ax-toggle.off { opacity: 0.35; text-decoration: line-through; border-color: transparent; }
+.fa .ax-toggle.q { background: #cce5ff; color: #004085; }
+.fa .ax-toggle.a { background: #d4edda; color: #155724; }
+.fa .ax-toggle.w { background: #fff3cd; color: #856404; }
+.fa .ax-status { font-size: 11px; color: #888; margin-left: auto; }
+
+/* Table */
+.fa table { border-collapse: collapse; margin: 0.5em 0; font-size: 12px; }
+.fa th, .fa td { padding: 5px 8px; border: 1px solid #ddd; text-align: right; white-space: nowrap; }
+.fa th { background: #f5f5f5; font-weight: 600; font-size: 11px; }
+.fa th.wl { text-align: left; min-width: 100px; }
+.fa td.wl { text-align: left; font-weight: 500; }
+.fa .bl-col { background: #eef; font-weight: 600; }
+.fa .nf-col th { background: #f0f0f0; }
+
+/* Axis pills in column headers */
+.fa .hdr-pill { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 10px; font-weight: 700; margin: 0 1px; }
+.fa .hdr-pill.q { background: #cce5ff; color: #004085; }
+.fa .hdr-pill.a { background: #d4edda; color: #155724; }
+.fa .hdr-pill.w { background: #fff3cd; color: #856404; }
+.fa .hdr-pill.star { background: #e0e0e0; color: #666; }
+
+/* Cell coloring by % deviation */
+.fa .c-best { background: #c8e6c9; }
+.fa .c-good { background: #e8f5e9; }
+.fa .c-ok { background: #fffde7; }
+.fa .c-bad { background: #ffebee; }
+
+/* Merged cell layout */
+.fa .m-cell { line-height: 1.5; padding: 4px 8px; }
+.fa .m-mean { font-weight: 700; }
+.fa .m-range { font-size: 10px; color: #555; }
+.fa .m-sd { font-size: 10px; color: #888; }
+
+/* Summary */
+.fa .summary { margin: 1em 0; padding: 12px 16px; background: #fafafa; border: 1px solid #e0e0e0; border-radius: 8px; }
+.fa .summary h4 { margin: 0 0 8px; font-size: 13px; }
+.fa .sg { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.fa .si { padding: 8px 10px; background: #fff; border: 1px solid #eee; border-radius: 4px; }
+.fa .si .sl { font-size: 10px; color: #666; text-transform: uppercase; letter-spacing: 0.3px; }
+.fa .si .sv { font-size: 15px; font-weight: 700; margin-top: 2px; }
+.fa .si .sd { font-size: 10px; color: #888; }
+.fa details { margin: 0.5em 0; }
+.fa summary { cursor: pointer; font-weight: 600; font-size: 13px; }
+</style>
+
+<h3>Funnel Axes Analysis</h3>
+<p class="subtitle">
+All values: % deviation from <strong>real.rayon</strong> baseline.
+Toggle axes to marginalize (average across that dimension).
+</p>
+
+<div class="ax-controls" id="fa-controls"></div>
+<div id="fa-summary"></div>
+<div id="fa-table" style="overflow-x:auto;"></div>
+<div id="fa-details"></div>
+
+<script>
+(function() {
+    const el = document.getElementById('funnel-analysis');
+    if (!el) return;
+
+    let DATA = null;
+    let marg = { queue: false, accumulate: false, wake: false };
+    const AX_CLS = { queue: 'q', accumulate: 'a', wake: 'w' };
+
+    function pct(ms, wl) {
+        const b = DATA.baseline_values[wl];
+        return (b && ms) ? ((ms - b) / b) * 100 : null;
+    }
+    function fpct(p) { return p === null ? '—' : (p >= 0 ? '+' : '') + p.toFixed(1) + '%'; }
+    function fms(ms) { return !ms ? '—' : ms < 1 ? (ms*1000).toFixed(0)+'µs' : ms.toFixed(1)+'ms'; }
+    function cellCls(p) {
+        if (p === null) return '';
+        if (p <= 0) return 'c-best';
+        if (p < 5) return 'c-good';
+        if (p < 15) return 'c-ok';
+        return 'c-bad';
+    }
+
+    function stats(arr) {
+        if (!arr.length) return { mean: null, min: null, max: null, sd: null };
+        const n = arr.length;
+        const mean = arr.reduce((a,b) => a+b, 0) / n;
+        const min = Math.min(...arr);
+        const max = Math.max(...arr);
+        const sd = n > 1 ? Math.sqrt(arr.reduce((s,x) => s + (x-mean)**2, 0) / (n-1)) : 0;
+        return { mean, min, max, sd };
+    }
+
+    function grouped() {
+        const g = {};
+        for (const [k, e] of Object.entries(DATA.funnel)) {
+            const gk = DATA.axis_names.filter(a => !marg[a]).map(a => e.axes[a]).join('.');
+            if (!g[gk]) g[gk] = { axes: {}, variants: [] };
+            for (const a of DATA.axis_names) if (!marg[a]) g[gk].axes[a] = e.axes[a];
+            g[gk].variants.push(e);
+        }
+        return g;
+    }
+
+    function renderControls() {
+        const c = document.getElementById('fa-controls');
+        let h = '';
+        const nMarg = Object.values(marg).filter(Boolean).length;
+        for (const ax of DATA.axis_names) {
+            h += `<div class="ax-group"><span class="ax-label">${ax}:</span>`;
+            for (const val of DATA.axis_values[ax]) {
+                const cls = marg[ax] ? 'off' : 'on';
+                h += `<span class="ax-toggle ${AX_CLS[ax]} ${cls}" data-axis="${ax}">${val}</span>`;
+            }
+            h += '</div>';
+        }
+        const nCols = Object.keys(grouped()).length;
+        h += `<span class="ax-status">${16 - (nMarg > 0 ? 0 : 0)} variants → ${nCols} columns</span>`;
+        c.innerHTML = h;
+        c.querySelectorAll('.ax-toggle').forEach(btn => {
+            btn.onclick = () => { marg[btn.dataset.axis] = !marg[btn.dataset.axis]; renderAll(); };
+        });
+    }
+
+    function renderTable() {
+        const g = grouped();
+        const gks = Object.keys(g).sort();
+        const wls = DATA.workloads;
+
+        let h = '<table><tr><th class="wl">workload</th>';
+        h += `<th class="bl-col">${DATA.baseline}<br><span style="font-size:10px;font-weight:400;">(absolute)</span></th>`;
+
+        // Non-funnel
+        for (const m of Object.keys(DATA.non_funnel)) {
+            if (m === DATA.baseline) continue;
+            h += `<th>${m}</th>`;
+        }
+        // Funnel groups
+        for (const gk of gks) {
+            const ga = g[gk];
+            let lbl = '';
+            for (const a of DATA.axis_names) {
+                if (marg[a]) lbl += `<span class="hdr-pill star">*</span>`;
+                else lbl += `<span class="hdr-pill ${AX_CLS[a]}">${ga.axes[a]}</span>`;
+            }
+            const n = ga.variants.length;
+            if (n > 1) lbl += `<br><span style="font-size:9px;color:#888;">n=${n}</span>`;
+            h += `<th>${lbl}</th>`;
+        }
+        h += '</tr>';
+
+        for (const wl of wls) {
+            h += `<tr><td class="wl">${wl}</td>`;
+            h += `<td class="bl-col">${fms(DATA.baseline_values[wl])}</td>`;
+
+            for (const m of Object.keys(DATA.non_funnel)) {
+                if (m === DATA.baseline) continue;
+                const p = pct(DATA.non_funnel[m][wl], wl);
+                h += `<td class="${cellCls(p)}">${fpct(p)}</td>`;
+            }
+
+            for (const gk of gks) {
+                const vs = g[gk].variants;
+                const ps = vs.map(v => pct(v.values[wl], wl)).filter(p => p !== null);
+                if (!ps.length) { h += '<td>—</td>'; continue; }
+
+                if (ps.length === 1) {
+                    h += `<td class="${cellCls(ps[0])}">${fpct(ps[0])}</td>`;
+                } else {
+                    const s = stats(ps);
+                    h += `<td class="m-cell ${cellCls(s.mean)}">`;
+                    h += `<div class="m-mean">${fpct(s.mean)}</div>`;
+                    h += `<div class="m-range">${fpct(s.min)} … ${fpct(s.max)}</div>`;
+                    if (s.sd !== null) h += `<div class="m-sd">σ ${s.sd.toFixed(1)}pp</div>`;
+                    h += '</td>';
+                }
+            }
+            h += '</tr>';
+        }
+        h += '</table>';
+        document.getElementById('fa-table').innerHTML = h;
+    }
+
+    function renderSummary() {
+        const wls = DATA.workloads;
+        let h = '<div class="summary"><h4>Per-axis mean deviation from real.rayon</h4><div class="sg">';
+
+        for (const ax of DATA.axis_names) {
+            for (const val of DATA.axis_values[ax]) {
+                const ps = [];
+                for (const [k, e] of Object.entries(DATA.funnel)) {
+                    if (e.axes[ax] !== val) continue;
+                    for (const wl of wls) { const p = pct(e.values[wl], wl); if (p !== null) ps.push(p); }
+                }
+                const s = stats(ps);
+                if (s.mean === null) continue;
+                h += `<div class="si"><div class="sl">${ax} = <span class="hdr-pill ${AX_CLS[ax]}">${val}</span></div>`;
+                h += `<div class="sv" style="color:${s.mean <= 5 ? '#1b5e20' : s.mean <= 15 ? '#f57f17' : '#b71c1c'}">${fpct(s.mean)}</div>`;
+                h += `<div class="sd">range: ${fpct(s.min)} … ${fpct(s.max)}, σ ${s.sd.toFixed(1)}pp</div></div>`;
+            }
+        }
+        h += '</div></div>';
+
+        // Interaction effects
+        h += '<details><summary>Axis interaction effects</summary><div class="summary"><div class="sg">';
+        for (let i = 0; i < DATA.axis_names.length; i++) {
+            for (let j = i+1; j < DATA.axis_names.length; j++) {
+                const a1 = DATA.axis_names[i], a2 = DATA.axis_names[j];
+                for (const v1 of DATA.axis_values[a1]) {
+                    for (const v2 of DATA.axis_values[a2]) {
+                        const ps = [];
+                        for (const [k, e] of Object.entries(DATA.funnel)) {
+                            if (e.axes[a1] !== v1 || e.axes[a2] !== v2) continue;
+                            for (const wl of wls) { const p = pct(e.values[wl], wl); if (p !== null) ps.push(p); }
+                        }
+                        const s = stats(ps);
+                        if (s.mean === null) continue;
+                        h += `<div class="si"><div class="sl"><span class="hdr-pill ${AX_CLS[a1]}">${v1}</span> × <span class="hdr-pill ${AX_CLS[a2]}">${v2}</span></div>`;
+                        h += `<div class="sv" style="color:${s.mean <= 5 ? '#1b5e20' : s.mean <= 15 ? '#f57f17' : '#b71c1c'}">${fpct(s.mean)}</div>`;
+                        h += `<div class="sd">σ ${s.sd.toFixed(1)}pp</div></div>`;
+                    }
+                }
+            }
+        }
+        h += '</div></div></details>';
+
+        // Per-workload best/worst
+        h += '<details><summary>Per-workload best &amp; worst funnel variant</summary><table>';
+        h += '<tr><th class="wl">workload</th><th>best</th><th>%</th><th>worst</th><th>%</th><th>spread</th></tr>';
+        for (const wl of wls) {
+            let best = null, worst = null;
+            for (const [k, e] of Object.entries(DATA.funnel)) {
+                const p = pct(e.values[wl], wl);
+                if (p === null) continue;
+                if (!best || p < best.p) best = { k, p };
+                if (!worst || p > worst.p) worst = { k, p };
+            }
+            const spread = (best && worst) ? (worst.p - best.p).toFixed(1) + 'pp' : '—';
+            h += `<tr><td class="wl">${wl}</td>`;
+            h += `<td>${best?.k || '—'}</td><td class="${cellCls(best?.p)}">${best ? fpct(best.p) : '—'}</td>`;
+            h += `<td>${worst?.k || '—'}</td><td class="${cellCls(worst?.p)}">${worst ? fpct(worst.p) : '—'}</td>`;
+            h += `<td>${spread}</td></tr>`;
+        }
+        h += '</table></details>';
+
+        document.getElementById('fa-summary').innerHTML = h;
+    }
+
+    function renderAll() { renderControls(); renderTable(); renderSummary(); }
+
+    // Load data and render
+    fetch('../bench-results/matrix-analysis.json')
+        .then(r => r.ok ? r.json() : Promise.reject('not found'))
+        .then(d => { DATA = d; renderAll(); })
+        .catch(e => { document.getElementById('fa-table').textContent = '(analysis data not available)'; });
+})();
+</script>
+</div>
